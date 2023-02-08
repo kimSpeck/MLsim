@@ -4,10 +4,14 @@
 set.seed(42)
 
 # Zahl der VP
-N <- 50000
+N <- 500
 
 # Zahl der Prädiktoren
 P <- 4
+
+# mittlere Korrelation der Prädiktoren und deren SD
+mean_r <- 0
+sd_r = 0.2
 
 # Fehlervarianz
 sigma_e <- 1
@@ -32,37 +36,50 @@ colnames(X) <- c("age", "mental_health", "physical_health", "social_support")
 
 
 pop_model <- paste0("~ (0 +", paste(colnames(X), sep = "", collapse = "+"), ")^2 +",
-                    paste("poly(", colnames(X), ",2)", sep = "", collapse = "+")
+                    paste("poly(", colnames(X), ", degree = 2, raw = 2)", sep = "", collapse = "+")
 )
 
 X_int <- model.matrix(as.formula(pop_model),data.frame(X))
 
-colnames(X_int)
+b <- rep(0, ncol(X_int))
+names(b) <- colnames(X_int)
 
 
-# Regressionskoeffizienten ziehen
-b <- rtruncnorm(n = ncol(X_int), a = -0.5, b = 0.5, mean = mean_b, sd = sd_b)
-# 0 features auf 0 setzen
-b[1:round((1-p_features)*length(b))] <- 0
+# Regressionskoeffizienten festlegen
+b[c("age", 
+    "mental_health", 
+    "physical_health",  
+    "poly(age, degree = 2, raw = 2)2",
+    "age:physical_health", 
+    "age:social_support", 
+    "mental_health:social_support")] <-
+  c(-0.2,
+    0.3,
+    0.5,
+    -0.2,
+    0.25,
+    0.1,
+    0.5)
+
+# R^2 berechnen und ausgeben
+R2 <- var(X_int %*% b) / (var(X_int %*% b) + sigma_e^2)
+R2
 
 # AV berechnen
 y <- X_int %*% b + rnorm(n = N, mean = 0, sd = sigma_e)
 
 # Data.frame erzeugen
-dat <- data.frame(y,X)
+dat <- data.frame(y,X_int)
 
 # fitte eine regularisierte Regression
-fit_cv <- cv.glmnet(X, y)
-fit <- glmnet(X, y, lambda = fit_cv$lambda.1se)
+fit_cv <- cv.glmnet(X_int, y)
+fit <- glmnet(X_int, y, lambda = fit_cv$lambda.1se)
 
 
 b_est <- fit$beta
-# wie viele falsch positive?
-length(which(b == 0 & b_est != 0))/sum(b == 0)
 
 b
 b_est
-
 
 ###################### glm via caret
 library(caret)
@@ -70,7 +87,7 @@ library(gbm)
 preds <- names(dat)
 res_train <- NULL
 res_test <- NULL
-res_vi <- data.frame(matrix(ncol = 1, nrow = ncol(dat)))
+res_vi <- data.frame(matrix(ncol = 1, nrow = 100))
 
 tictoc::tic()
 for (i in 1:100) {
@@ -81,14 +98,14 @@ for (i in 1:100) {
   
   train <- dat[ intrain,] 
   test  <- dat[-intrain,]
-
+  
   #model <-  train(y ~ .,
   #                train[,c(preds)],
   #                method = "glmnet", #elastic net regularized regression
   #                metric = "RMSE",
   #                preProc = "scale",
   #                trControl = trainControl(method="cv", number=10), tuneLength = 21) #model training using ten-fold cross-validation 
-
+  
   #model <-  train(y ~ .,
   #                train[,c(preds)],
   #                method = "gbm", #gradient boosting machines
@@ -116,7 +133,7 @@ for (i in 1:100) {
   predictions <- predict(model, test) 
   #returns explained variance (R?), Root Mean Squared Error (RMSE), and Mean Absolute Error (MAE) for model testing:
   eval_test <- caret::postResample(pred = predictions, obs = test$y)
-
+  
   vi <- t(varImp(model)$importance)  
   
   res_train <-  rbind(res_train, eval_train)
