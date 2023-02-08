@@ -12,9 +12,9 @@
 - 3 Bedingungen: alle Macht den Interaktionen, alle Macht den einfachen Effekten, alles gleichmäßig verteilen
 - erstmal alle Korrelationen auf 0.3 setzen
 (**aktueller Stand**)
-~~KS: GitHub-Projekt anlegen~~
-~~KJ: lädt den Code hoch~~
-**FS: simpleres Modell simulieren**
-KJ: Modelle testen
-US: Recherche zu den wahren Effekten
-KS: wie programmiert man die Prädiktorkorrelationsmatrix sinnvoll
+--~~KS: GitHub-Projekt anlegen~~
+--~~KJ: lädt den Code hoch~~
+--**FS: simpleres Modell simulieren**
+--KJ: Modelle testen
+--US: Recherche zu den wahren Effekten
+--KS: wie programmiert man die Prädiktorkorrelationsmatrix sinnvoll
