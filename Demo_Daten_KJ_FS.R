@@ -4,21 +4,10 @@
 set.seed(42)
 
 # Zahl der VP
-N <- 500
+N <- 50000
 
 # Zahl der Prädiktoren
-P <- 20
-
-# Anteil der Regressionsgewichte != 0
-p_features <- 0.2
-
-# mittleres Regressionsgewicht und SD der Gewichte
-mean_b <- 0.3
-sd_b <- 0.2
-
-# mittlere Korrelation der Prädiktoren und deren SD
-mean_r <- 0
-sd_r = 0.2
+P <- 4
 
 # Fehlervarianz
 sigma_e <- 1
@@ -39,13 +28,16 @@ diag(R_x) <- 1
 
 # ziehe die Prädiktoren aus einer Normalverteilung
 X <- rmvnorm(n = N, mean = mean_x, sigma = R_x)
+colnames(X) <- c("age", "mental_health", "physical_health", "social_support")
 
-pop_model <- paste0("~ (0 +", paste("X", 1:P, sep = "", collapse = "+"), ")^4",
-                    paste("+ poly(X", 1:P, ",2)", sep = "", collapse = "+")
-                    )
+
+pop_model <- paste0("~ (0 +", paste(colnames(X), sep = "", collapse = "+"), ")^2 +",
+                    paste("poly(", colnames(X), ",2)", sep = "", collapse = "+")
+)
+
 X_int <- model.matrix(as.formula(pop_model),data.frame(X))
 
-
+colnames(X_int)
 
 
 # Regressionskoeffizienten ziehen

@@ -14,7 +14,8 @@
 (**aktueller Stand**)
   - ~~KS: GitHub-Projekt anlegen~~
   - ~~KJ: lädt den Code hoch~~
-  - **FS: simpleres Modell simulieren**
-  - KJ: Modelle testen
+  - ~~FS: simpleres Modell simulieren~~
+  - **KJ: Modelle testen**
+  - **KS: Simulationscode checken**
   - US: Recherche zu den wahren Effekten
   - KS: wie programmiert man die Prädiktorkorrelationsmatrix sinnvoll
