@@ -22,10 +22,25 @@ https://psyarxiv.com/gupxj/download
   - KS: wie programmiert man die Prädiktorkorrelationsmatrix sinnvoll
 
 17.02.23:
-Was ist mit kategorialen Variablen?
+- Was ist mit kategorialen Variablen?
+- Welche Rolle spielt es, was man dem enet anbietet? (z.B. mit vs. ohne Interaktionen)
+- Wann haben die Bäume echte, genuine Vorteile?
+- Was ist mit anderen ML-Modellen?
 
-Welche Rolle spielt es, was man dem enet anbietet? (z.B. mit vs. ohne Interaktionen)
+# Homework
+## 1. Forschungsfragen verschriftlichen (US/KJ)
+ - Unter welchen Randbedingungen sind nicht-lineare bzw. higher-order effects überhaupt detektierbar?
+ - Wann zeigt sich ein Vorteil von GBM gegenüber regularisierten, linearen Modellen bzw. einem mit higher-order interaction.
+ [Historie wo kommt man hier, was will man zeigen?]
+ 
+## 2. Welche Faktoren sollen manipuliert werden? Welche Stufen?
+ - sample size
+ - Form der Interaktion
+ - 
+ 
+## 3. Datensatz erstellen mit zwei unterschiedlichen grundlegenden Modellen (KJ)
+  - Age > 0 vs. Age <= 0
+  
+## 4. Algorithmus anpassen, so dass binäre Daten produziert werden (KS)
 
-Wann haben die Bäume echte, genuine Vorteile?
-
-Was ist mit anderen ML-Modellen?
+## 5. R^2 Regressionskoeffizienten zwischen den Extremen (FS)
