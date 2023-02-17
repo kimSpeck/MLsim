@@ -8,6 +8,7 @@
 - generell weniger Prädiktoren -> weg von Big Data?
 
 ```Life Satisfaction = age + age^2 + mental_health + physical_health + age*physical_health + age*social_support + mental_health*social_support```
+https://psyarxiv.com/gupxj/download
 
 - 3 Bedingungen: alle Macht den Interaktionen, alle Macht den einfachen Effekten, alles gleichmäßig verteilen
 - erstmal alle Korrelationen auf 0.3 setzen
