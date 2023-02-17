@@ -33,10 +33,10 @@ https://psyarxiv.com/gupxj/download
  - Wann zeigt sich ein Vorteil von GBM gegenüber regularisierten, linearen Modellen bzw. einem mit higher-order interaction.
  [Historie wo kommt man hier, was will man zeigen?]
  
-## 2. Welche Faktoren sollen manipuliert werden? Welche Stufen?
+## 2. Welche Faktoren sollen manipuliert werden? Welche Stufen? (alle)
  - sample size
  - Form der Interaktion
- - 
+ - ...
  
 ## 3. Datensatz erstellen mit zwei unterschiedlichen grundlegenden Modellen (KJ)
   - Age > 0 vs. Age <= 0
