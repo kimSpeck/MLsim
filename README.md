@@ -23,6 +23,9 @@ https://psyarxiv.com/gupxj/download
 
 17.02.23:
 Was ist mit kategorialen Variablen?
+
 Welche Rolle spielt es, was man dem enet anbietet? (z.B. mit vs. ohne Interaktionen)
+
 Wann haben die Bäume echte, genuine Vorteile?
+
 Was ist mit anderen ML-Modellen?
