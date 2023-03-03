@@ -2,9 +2,9 @@
  - Machine Learning Modelle erfreuen sich großer Beliebtheit, nun auch in der psychologischen Forschung, in der Persönlichkeitspsychologie und insbesondere in der klin. Psychologie
  - Die teilweise in der Forschung berichteten Ergebnisse klingen vielversprechend, Beispiele geben, z.B. Walsh et al. zu suicide prediction, hier auch Literatur zu großen Interaktionseffekten im ML
  - Diese Ergebnisse klingen fast zu gut, um wahr zu sein, und so ist dann auch, Jacobucci et al., 2021
- - Nach der anfänglicher Euphorie/Hype gibt es zunehmend methodenkritische Betrachtungen, die auf Fehler bei der Umsetzung hinweisen. 1) Kapoor & Narayanan, 2022, information leakage durch falsche Validierung, 2) kein nested resampling oder nur single split, 3) unreliable Indikatoren, Jacobucci & Grimm, 2020, 4) schlechte Praxis wie Validierungssetup oder Hyperparameter-Tuning berichtet werden, Christodoulou et al., 2019
  - Ein Problem scheint dabei die Qualität und Quantität der Daten zu sein, die in der psychologischen Forschung häufig analysiert werden: Geringe sample size (p:n ratio), fuzzy Indikatoren, missingness. All dies behindert die Implementierung von ML-Methoden, die in den Computerwissenschaften entwickelt wurden und die über ein großes N, häufig messfehlerfreie Indikatoren und komplette Datensätze verfügen
- 
+- Nach der anfänglicher Euphorie/Hype gibt es zunehmend methodenkritische Betrachtungen, die auf Fehler bei der Umsetzung hinweisen. 1) Kapoor & Narayanan, 2022, information leakage durch falsche Validierung, 2) kein nested resampling oder nur single split, 3) unreliable Indikatoren, Jacobucci & Grimm, 2020, 4) schlechte Praxis wie Validierungssetup oder Hyperparameter-Tuning berichtet werden, Christodoulou et al., 2019
+  
 ## Roter Faden Present Study
  - Mit der Verwendung von ML Algorithmen ist die Hoffnung verbunden, dass man datengetrieben/explorativ Zusammenhänge in den Daten detektiert, ohne diese bereits im Vorfeld spezifiziert zu haben
  - Insbesondere komplexere Modelle wie RF oder GBM sind prinzipiell geeignet nicht-linare und higher-order Effekte zu detektieren
