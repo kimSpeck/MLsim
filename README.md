@@ -34,8 +34,11 @@ https://psyarxiv.com/gupxj/download
  [Historie wo kommt man hier, was will man zeigen?]
  
 ## 2. Welche Faktoren sollen manipuliert werden? Welche Stufen? (alle)
- - sample size
- - Form der Interaktion
+ - sample size (100, 300, 1.000, 10.000)
+ - Form der Interaktion (doppelte Zweifachinteraktion, quadratischer Zusammenhang)
+ - Höhe der Effekte
+ - Aufteilung der Effekte (linear vs. Interaktion)
+ - R²
  - ...
  
 ## 3. Datensatz erstellen mit zwei unterschiedlichen grundlegenden Modellen (KJ)
