@@ -35,11 +35,13 @@ https://psyarxiv.com/gupxj/download
  
 ## 2. Welche Faktoren sollen manipuliert werden? Welche Stufen? (alle)
  - sample size (100, 300, 1.000, 10.000)
- - Form der Interaktion (doppelte Zweifachinteraktion, quadratischer Zusammenhang)
- - Höhe der Effekte
- - Aufteilung der Effekte (linear vs. Interaktion)
- - R²
- - ...
+ - Form der Interaktion (zunächst: doppelte Zweifachinteraktion, später: quadratischer Zusammenhang)
+ - Aufteilung der Effekte (linear vs. Interaktion); hier folgende Bedingungen: 50:50; 75:25 zu Gunsten der Interaktionen (in Übersetzung für den Anwender evtl. eher von Höhe der Effekte sprechen)
+ - Anzahl der Variablen im Datensatz (10, 50, 100)
+ - R² (.10, .30, .50, .80)
+Design: Somit ergibt sich ein Simulationsdesign mit 4 x 1 x 2 x 3 x 4 = 96 Bedigungen, 1.000 Stichproben ziehen
+Ziel: Vollständig spezifiziertes(= mit allen Zweifachinteraktionen) Enet Modell testen, um zu schauen, wie häufig die Interaktion gefunden wird (= Vorstufe für die eigentlichen Analysen)
+Outcome: Auszählen wie häufig die Interaktionen tatsächlich gefunden werden (wie operationalisieren?)
  
 ## 3. Datensatz erstellen mit zwei unterschiedlichen grundlegenden Modellen (KJ)
   - Age > 0 vs. Age <= 0
