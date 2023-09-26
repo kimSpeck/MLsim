@@ -24,6 +24,11 @@ if (!all(setParam$dgp$percentLinear+
 # r squared
 setParam$dgp$Rsquared <- c(.10, .30, .50, .80)
 
+setParam$dgp$trueEffects <- cbind(p0.5 = c(0.116, 0.227, 0.346, 0.693),
+                                  p0.8 = c(0.144, 0.28, 0.43, 0.85),
+                                  p0.2 = c(0.079, 0.15, 0.235, 0.45))  
+rownames(setParam$dgp$trueEffects) <- setParam$dgp$Rsquared
+
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
                          paste(setParam$dgp$percentLinear, setParam$dgp$percentInter, sep = "_"))
 setParam$dgp$condLabels <- sapply(seq_len(length(setParam$dgp$Rsquared) * length(setParam$dgp$percentLinear)), 
