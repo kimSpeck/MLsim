@@ -1,4 +1,22 @@
 # simulate data
+
+# ! interactions are specified between variables that do not show main effects
+#     unrealistic assumption but due to correlations easier to find coefficients 
+#     for simulating effects given fixed R2 target
+# ! correlation matrices to sample predictor variables from multivariate normal are
+#     randomly drawn in each sample 
+#     ->  in real simulation: one randomly drawn but fixed correlation matrix. 
+#         calculate regression coefficients for this random but specific correlation matrix
+#         and check that R^2 is met exactly
+
+# details ... 
+# ToDo: depending in seed we receive non PSM matrices sigma as covariance matrices in multivariate normal
+#     Warnmeldungen: 
+#       1: In rmvnorm(n = N, mean = mP, sigma = rX) :
+#       sigma is numerically not positive semidefinite
+# however, rmvnorm somehow deals with this issue (see: https://stats.stackexchange.com/questions/267908/clarification-regarding-rmvnorm-in-r)
+# ToDo: write big matrices directly to their final place of storage (memory intensive and time consuming)
+
 # for reproducibility purposes
 # set.seed(42) # not positive semidefinite covariance matrix ):
 # set.seed(7382) 
@@ -39,13 +57,6 @@ set.seed(8967369)
 seedNum <- sample(1:999999, dim(gridFull)[1], replace = FALSE) 
 gridFull$sampleSeed <- seedNum[1:dim(gridFull)[1]]
 
-# ToDo: write big matrices directly to their final place of storage (memory intensive and time consuming)
-# ToDo: depending in seed we receive non PSM matrices sigma as covariance matrices in multivariate normal
-#     Warnmeldungen: 
-#       1: In rmvnorm(n = N, mean = mP, sigma = rX) :
-#       sigma is numerically not positive semidefinite
-# however, rmvnorm somehow deals with this issue (see: https://stats.stackexchange.com/questions/267908/clarification-regarding-rmvnorm-in-r)
-
 # sample data in parallel
 createData <- function(N, pTrash, sampleSeed){
   
@@ -65,7 +76,6 @@ createData <- function(N, pTrash, sampleSeed){
   
   # close cluster to return resources (memory) back to OS
   stopCluster(cl)
-  
 }
 
 # actual function to simulate data
@@ -93,7 +103,6 @@ sampleData <- function() {
     rmColsIdx <- which(stringr::str_detect(colnames(X_int), pattern = "^(poly\\().+(\\)1)$"))
     X_int <- X_int[,-rmColsIdx] 
     
-    # ToDo: generate regression coefficients, check that R^2 matches fixed R^2
     # generate vector regression weights
     b <- rep(0, ncol(X_int)) # initiate all b-values with value of zero 
     names(b) <- colnames(X_int) # assign names
