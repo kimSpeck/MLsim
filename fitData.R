@@ -13,25 +13,25 @@ resFolder <- "results"
 if (!file.exists(resFolder)){
   dir.create(resFolder)
 }
-
-iSim = 3
+# test it!
+# iSim = 3
 
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash)
 
-res_estB <- lapply(seq_len(nrow(condGrid)), function(iSim) {
+results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   fileName <- paste0("simDataN", condGrid[iSim, "N"], "_pTrash", condGrid[iSim, "pTrash"], ".rda")
   load(paste0(dataFolder, "/", fileName))
   
   # fitte eine regularisierte Regression
-  tmp_estB <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) {
+  tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) {
     
-    estB <- lapply(seq_len(setParam$dgp$nTrain), function(iSample) {
+    estRes <- lapply(seq_len(setParam$dgp$nTrain), function(iSample) {
       
-      # test it
-      iCond <- 1
-      iSample <- 1
+      # # test it
+      # iCond <- 1
+      # iSample <- 1
       
       X <- as.matrix(data[[iSample]][["X_int"]])
       y <- data[[iSample]][["yMat"]][,iCond]
@@ -108,7 +108,6 @@ res_estB <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       # "lambda.1se" = the largest λ at which the MSE is within one SE of the smallest MSE (default).
       # here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
       #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
-    
       fit <- glmnet(x = as.matrix(data[[iSample]][["X_int"]]),
                     y = data[[iSample]][["yMat"]][,iCond], 
                     alpha = tunedAlpha, 
@@ -139,20 +138,29 @@ res_estB <- lapply(seq_len(nrow(condGrid)), function(iSim) {
            performTest = performTest)
     })
     
-    estB <- do.call(cbind, estB)
-    estB_M <- rowMeans(estB, na.rm = T)
-    estB_SD <- apply(estB, MARGIN = 1, sd, na.rm = T)
-    estB_SE <- estB_SD / sqrt(setParam$dgp$nSamples) # standard error of the mean 
-    list(estB_M = estB_M, estB_SD = estB_SD, estB_SE = estB_SE)
+    # coefficients
+    estBeta <- do.call(cbind, lapply(estRes, function(X) X[["estB"]]))
+    estBetaStats <- getStats(estBeta, 1, setParam$dgp$nSamples)
+    
+    # training performance (RMSE, Rsquared, MAE)
+    performTrainMat <- do.call(rbind, lapply(estRes, function(X) X[["performTrain"]])) # each sample
+    performTrainStats <- getStats(performTrainMat, 2, setParam$dgp$nSamples) # M, SD, SE
+    
+    # test performance (RMSE, Rsquared, MAE)
+    performTestMat <- do.call(rbind, lapply(estRes, function(X) X[["performTest"]])) # each sample
+    performTestStats <- getStats(performTestMat, 2, setParam$dgp$nSamples) # M, SD, SE
+    
+    # here!
+    # list(estB_M = estB_M, estB_SD = estB_SD, estB_SE = estB_SE)
   })
   
-  names(tmp_estB) <- setParam$dgp$condLabels
-  tmp_estB <- do.call(Map, c(f = cbind, tmp_estB))
+  names(tmp_estRes) <- setParam$dgp$condLabels
+  tmp_estRes <- do.call(Map, c(f = cbind, tmp_estRes)) # das?
   rm(data)
   gc()
   tmp_estB
 })
-^# takes ~ 3.5 hours (without N = 10.000)
+# takes ~ 3.5 hours (without N = 10.000)
 
 fileName = "estB_initialResults.rda"
 save(res_estB, file = paste0(resFolder, "/", fileName))
