@@ -84,3 +84,22 @@ calcDV <- function(X, b, sigmaE, N) {
   y <- X %*% b + rnorm(n = N, mean = 0, sd = sigmaE)  
   return(y)
 }
+
+evalPerformance <- function(pred, obs) {
+  ###
+  # evaluate performance (R2, RMSE, MAE) for train or test data
+  # see plorResample function of the caret package
+  # https://github.com/topepo/caret/blob/master/pkg/caret/R/postResample.R
+  ## input:
+  # pred    - [vector] outcome as predicted based on model 
+  # obs     - [vector] observed outcome 
+  ## output:
+  #         - [vector] c(RMSE, Rsquared, MAE)
+  ###
+  
+  resamplCor <- try(cor(pred, obs, use = "pairwise.complete.obs"), silent = TRUE)
+  mse <- mean((pred - obs)^2)
+  mae <- mean(abs(pred - obs))
+  
+  return(c(RMSE = sqrt(mse), Rsquared = resamplCor^2, MAE = mae))
+}
