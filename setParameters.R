@@ -1,10 +1,13 @@
 setParam <- list()
 
 # data generating process
-setParam$dgp$nSamples <- 100
+setParam$dgp$nTrain <- 100
+setParam$dgp$nTest <- 1
+setParam$dgp$nSamples <- setParam$dgp$nTrain + setParam$dgp$nTest
 
 # setParam$dgp$N <- c(100, 300, 1000, 10000) # number of observations
 setParam$dgp$N <- c(100, 300, 1000) # number of observations
+setParam$dgp$testNpc <- 0.5 
 setParam$dgp$p <- 4
 setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors
 
@@ -44,3 +47,6 @@ setParam$dgp$sdR <- 0.1
 setParam$dgp$sigmaE <- 1
 
 # parameter for gbm or model fitting more general
+setParam$fit$lambda <- 10^seq(-1, 1, length = 100)
+setParam$fit$alpha <- seq(0, 1, .1) 
+setParam$fit$nfolds <- 10
