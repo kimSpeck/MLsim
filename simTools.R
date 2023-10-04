@@ -103,3 +103,21 @@ evalPerformance <- function(pred, obs) {
   
   return(c(RMSE = sqrt(mse), Rsquared = resamplCor^2, MAE = mae))
 }
+
+getStats <- function(data, aggrDim, nSamples, na.rm = T) {
+  ###
+  # get mean, sd and standard error of the mean
+  ## input:
+  # data      - [matrix] data from different samples 
+  # aggrDim   - [scalar] dimension to aggregate over (1 = rows, 2 = columns)
+  # nSamples  - [scalar] number of samples that contribute to the mean
+  # na.rm     - [boolean] remove NAs to avoid NAs as outcome
+  ## output:
+  #         - [vector] c(M, SD, SE)
+  ###
+  
+  M <- apply(data, MARGIN = aggrDim, mean, na.rm = na.rm)
+  SD <- apply(data, MARGIN = aggrDim, sd, na.rm = na.rm)
+  SE <- SD / sqrt(nSamples) # standard error of the mean
+  return(cbind(M = M, SD = SD, SE = SE))
+}
