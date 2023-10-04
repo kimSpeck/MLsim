@@ -1,5 +1,6 @@
 # simulate data
 
+# ToDo: simulate test data sample for each dgp (50% size in terms of observations)
 # ! interactions are specified between variables that do not show main effects
 #     unrealistic assumption but due to correlations easier to find coefficients 
 #     for simulating effects given fixed R2 target
@@ -86,6 +87,9 @@ sampleData <- function() {
     
     P <- setParam$dgp$p + pTrash # total number of variables
     # generate matrix of (almost) uncorrelated predictors
+    if (iSample > setParam$dgp$nTrain) {
+      N <- setParam$dgp$testNpc * N
+    }
     X <- createPredictors(N = N, P = P, 
                           mR = setParam$dgp$meanR, sdR = setParam$dgp$sdR)
     
@@ -185,6 +189,9 @@ sampleData <- function() {
          trueB = bMatrix, 
          R2 = R2)
   })
+  
+  names(data) <- c(seq_len(setParam$dgp$nTrain), 
+                   paste0("test", seq_len(setParam$dgp$nTest)))
   
   #save to rda file
   fileName <- paste0("simDataN", N, "_pTrash", pTrash, ".rda")
