@@ -110,18 +110,19 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
       fit <- glmnet(x = as.matrix(data[[iSample]][["X_int"]]),
                     y = data[[iSample]][["yMat"]][,iCond], 
-                    alpha = tunedAlpha, 
+                    alpha = tunedAlpha,
                     lambda = tunedLambda,
                     family = "gaussian", 
                     standardize = TRUE)
       
+      # variable selection strongly depends on alpha ... 
       estBeta <- as.matrix(fit$beta)
-      
-      # evaluate performance (R2, RMSE, MAE) for new sample from same dgp (size is 50% of training sample)
+      selectedVars <- estBeta != 0
       
       # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model training
-      predTrain <- predict(fit, X)  
+      predTrain <- predict(fit, X)
       performTrain <- evalPerformance(predTrain, y)
+      performTrain <- matrix(performTrain, ncol = length(performTrain), nrow = 1)
         
       # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model testing
       performTest <- lapply(paste0("test", seq_len(setParam$dgp$nTest)), function(iTest) {
@@ -134,23 +135,54 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       performTest <- do.call(rbind, performTest)
       
       list(estB = estBeta, 
+           selectedVars = selectedVars,
            performTrain = performTrain,
-           performTest = performTest)
+           performTest = performTest, 
+           tunedAlpha = tunedAlpha, 
+           tunedLambda = tunedLambda)
     })
     
     # coefficients
     estBeta <- do.call(cbind, lapply(estRes, function(X) X[["estB"]]))
     estBetaStats <- getStats(estBeta, 1, setParam$dgp$nSamples)
     
+    # selected variables (how often are predictors selected in model)
+    selectedVars <- do.call(cbind, lapply(estRes, function(X) X[["selectedVars"]]))
+    
+    # AV: Wie oft bleiben Terme (lineare Praediktoren/Interaktionen) im Modell?
+    nSelection <- apply(selectedVars, MARGIN = 1, sum) # frequency of variable selection 
+    percSelection <- nSelection / ncol(selectedVars) * 100 # relative frequency 
+    
+    # only true predictors in model (8 predictors with simulated effects and every other variable == 0)
+    # how many of the linear effects are recovered?
+    nSelectedLin <- sapply(seq_len(ncol(selectedVars)), function(iCol) { 
+      sum(setParam$dgp$linEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
+    # how many of the interaction effects are recovered?
+    nSelectedInter <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
+      sum(setParam$dgp$interEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
+    
+    # all simulated effects selected in model?
+    selectedAll <- nSelectedLin + nSelectedInter == length(c(setParam$dgp$linEffects, setParam$dgp$linEffects))
+    
+    # only simulated effects selected (i.e., every other predictor is not selected!)
+    nSelectedOthers <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
+      sum(!(rownames(selectedVars)[selectedVars[,iCol]] %in% c(setParam$dgp$interEffects, setParam$dgp$linEffects)))})
+    
     # training performance (RMSE, Rsquared, MAE)
     performTrainMat <- do.call(rbind, lapply(estRes, function(X) X[["performTrain"]])) # each sample
     performTrainStats <- getStats(performTrainMat, 2, setParam$dgp$nSamples) # M, SD, SE
+    rownames(performTrainStats) <- c("RMSE", "Rsquared", "MAE")
     
     # test performance (RMSE, Rsquared, MAE)
     performTestMat <- do.call(rbind, lapply(estRes, function(X) X[["performTest"]])) # each sample
     performTestStats <- getStats(performTestMat, 2, setParam$dgp$nSamples) # M, SD, SE
     
+    # final Enet-Parameters for each sample
+    tunedAlpha <- do.call(c, lapply(estRes, function(X) X[["tunedAlpha"]])) 
+    tunedLambda <- do.call(c, lapply(estRes, function(X) X[["tunedLambda"]])) 
+    
     # here!
+    # join results 
     # list(estB_M = estB_M, estB_SD = estB_SD, estB_SE = estB_SE)
   })
   
