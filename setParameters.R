@@ -7,12 +7,22 @@ setParam$dgp$nSamples <- setParam$dgp$nTrain + setParam$dgp$nTest
 
 # setParam$dgp$N <- c(100, 300, 1000, 10000) # number of observations
 setParam$dgp$N <- c(100, 300, 1000) # number of observations
+
+# !if 50% of training sample size is used as test sample, test sample sizes vary across N observation conditions
+#   as a result, the empirical SE of Rsquared changes according to N 
+#   -> fix test sample size 
 setParam$dgp$testNpc <- 0.5 
 setParam$dgp$p <- 4
 setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors
 
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
 setParam$dgp$poly <- c(2) # degree of polynomials (so far: only quadratic effects)
+
+# 
+setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
+# choose variables for interaction that have no linear effects (R2 budget)
+# interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
+setParam$dgp$interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
 
 # proportion of effect explained by linear effects vs. interaction
 setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2) 
