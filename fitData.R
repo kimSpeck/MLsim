@@ -6,13 +6,12 @@ library(glmnet)
 source("setParameters.R") # parameter values
 source("simTools.R")
  
-# N <- setParam$dgp$N[1]
-# pTrash <- setParam$dgp$pTrash[1]
 dataFolder <- "data"
 resFolder <- "results"
 if (!file.exists(resFolder)){
   dir.create(resFolder)
 }
+
 # test it!
 # iSim = 3
 
@@ -25,7 +24,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   load(paste0(dataFolder, "/", fileName))
   
   # fitte eine regularisierte Regression
-  tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) {
+  tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { # R2 x lin_inter combinations
     
     estRes <- lapply(seq_len(setParam$dgp$nTrain), function(iSample) {
       
@@ -145,6 +144,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     # coefficients
     estBeta <- do.call(cbind, lapply(estRes, function(X) X[["estB"]]))
     estBetaStats <- getStats(estBeta, 1, setParam$dgp$nSamples)
+    estBetaStats <- cbind(estBetaStats, idxCondLabel = iCond)
     
     # selected variables (how often are predictors selected in model)
     selectedVars <- do.call(cbind, lapply(estRes, function(X) X[["selectedVars"]]))
@@ -152,7 +152,10 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     # AV: Wie oft bleiben Terme (lineare Praediktoren/Interaktionen) im Modell?
     nSelection <- apply(selectedVars, MARGIN = 1, sum) # frequency of variable selection 
     percSelection <- nSelection / ncol(selectedVars) * 100 # relative frequency 
-    
+    varSelection <- cbind(nSelection = nSelection, 
+                          percSelection = percSelection,
+                          idxCondLabel = iCond) # stats per predictor
+
     # only true predictors in model (8 predictors with simulated effects and every other variable == 0)
     # how many of the linear effects are recovered?
     nSelectedLin <- sapply(seq_len(ncol(selectedVars)), function(iCol) { 
@@ -168,26 +171,44 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     nSelectedOthers <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
       sum(!(rownames(selectedVars)[selectedVars[,iCol]] %in% c(setParam$dgp$interEffects, setParam$dgp$linEffects)))})
     
+    # final Enet-Parameters for each sample
+    tunedAlphaVec <- unname(do.call(c, lapply(estRes, function(X) X[["tunedAlpha"]])))
+    tunedLambdaVec <- unname(do.call(c, lapply(estRes, function(X) X[["tunedLambda"]])))
+    
+    # variable selection stats per sample
+    # for all: 1 = TRUE, 0 = FALSE
+    selectionPerSample <- cbind(nLin = nSelectedLin, nInter = nSelectedInter, 
+                                all.T1F0 = selectedAll, nOthers = nSelectedOthers,
+                                alpha = tunedAlphaVec, lambda = tunedLambdaVec,
+                                idxCondLabel = iCond)
+    
     # training performance (RMSE, Rsquared, MAE)
     performTrainMat <- do.call(rbind, lapply(estRes, function(X) X[["performTrain"]])) # each sample
+    colnames(performTrainMat) <- c("RMSE_train", "Rsq_train", "MAE_train")
     performTrainStats <- getStats(performTrainMat, 2, setParam$dgp$nSamples) # M, SD, SE
     rownames(performTrainStats) <- c("RMSE", "Rsquared", "MAE")
+    performTrainStats <- cbind(performTrainStats, idxCondLabel = iCond)
     
     # test performance (RMSE, Rsquared, MAE)
     performTestMat <- do.call(rbind, lapply(estRes, function(X) X[["performTest"]])) # each sample
+    colnames(performTestMat) <- c("RMSE_test", "Rsq_test", "MAE_test")
     performTestStats <- getStats(performTestMat, 2, setParam$dgp$nSamples) # M, SD, SE
+    performTestnStats <- cbind(performTestnStats, idxCondLabel = iCond)
     
-    # final Enet-Parameters for each sample
-    tunedAlpha <- do.call(c, lapply(estRes, function(X) X[["tunedAlpha"]])) 
-    tunedLambda <- do.call(c, lapply(estRes, function(X) X[["tunedLambda"]])) 
+    perfromPerSample <- cbind(performTrainMat, performTestMat, idxCondLabel = iCond)
     
-    # here!
     # join results 
-    # list(estB_M = estB_M, estB_SD = estB_SD, estB_SE = estB_SE)
+    list(estBeta = estBetaStats, 
+         varSelection = varSelection, selectSample = selectionPerSample, 
+         perfromPerSample = perfromPerSample, 
+         performTrainStats = performTrainStats, performTestStats = performTestStats)
   })
   
+  # nested lapplys take ~ 15 mins
+  
+  # here!
   names(tmp_estRes) <- setParam$dgp$condLabels
-  tmp_estRes <- do.call(Map, c(f = cbind, tmp_estRes)) # das?
+  tmp_estRes <- do.call(Map, c(f = rbind, tmp_estRes)) # das?
   rm(data)
   gc()
   tmp_estB
