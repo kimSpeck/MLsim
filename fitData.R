@@ -1,22 +1,50 @@
 # Model fitting
-
+# to do: Parallelisierung!
 library(glmnet)
+library(parallel)
 
 # load parameters & custom functions 
 source("setParameters.R") # parameter values
 source("simTools.R")
  
 dataFolder <- "data"
+
 resFolder <- "results"
-if (!file.exists(resFolder)){
-  dir.create(resFolder)
-}
+createFolder(resFolder)
+
+logFolder <- "log"
+createFolder(logFolder)
+
+timeStamp <- format(Sys.time(), "%d%m%y_%H%M%S")
+# nCoresSampling <- detectCores() - 1 
+nCoresSampling <- 5
 
 # test it!
 # iSim = 3
 
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash)
+
+# remove lines in condGrid for which there already are results
+# check which files are already in the results folder
+resFileList <- list.files(resFolder)
+resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", resFileList)
+
+allDataFiles <- paste0("simDataN", condGrid[, "N"], "_pTrash", condGrid[, "pTrash"], ".rda")
+allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", "", allDataFiles)
+
+fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
+condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
+
+# Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
+cl <- makeCluster(nCoresSampling, type = "FORK",
+                  outfile = paste0(logFolder, "/", "fitDataStatus",
+                                   timeStamp, ".txt"))
+
+# set seed that works for parallel processing
+set.seed(342890)
+s <- .Random.seed
+clusterSetRNGStream(cl = cl, iseed = s)
 
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
@@ -26,14 +54,21 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   # fitte eine regularisierte Regression
   tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { # R2 x lin_inter combinations
     
-    estRes <- lapply(seq_len(setParam$dgp$nTrain), function(iSample) {
+    # estRes <- lapply(seq_len(setParam$dgp$nTrain), function(iSample) {
+    estRes <- parLapply(cl, seq_len(setParam$dgp$nTrain), function(iSample) {
+      
+      if (iSample == 1) {
+        print(paste0(fileName,
+                     "; iCond: ", setParam$dgp$condLabels[iCond], 
+                     "; first Sample at ", format(Sys.time(), "%d%m%y_%H%M%S")))  
+      }
       
       # # test it
       # iCond <- 1
       # iSample <- 1
       
-      X <- as.matrix(data[[iSample]][["X_int"]])
-      y <- data[[iSample]][["yMat"]][,iCond]
+      Xtrain <- as.matrix(data[[iSample]][["X_int"]])
+      ytrain <- data[[iSample]][["yMat"]][,iCond]
       
       # fit data on full sample ("training")
       #     ... alpha (elastic net) & lambda-grid (overall penalty strength) for fitting Enet
@@ -72,8 +107,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       foldid <- sample(1:setParam$fit$nfolds, size = length(y), replace = TRUE)
       
       fit_cv <- lapply(setParam$fit$alpha, function(iAlpha) {
-        cv.glmnet(x = X, 
-                  y = y, 
+        cv.glmnet(x = Xtrain, 
+                  y = ytrain, 
                   foldid = foldid, # as suggested for alpha tuning via cv
                   alpha = iAlpha, 
                   lambda = setParam$fit$lambda, # tune lambda within cv.glmnet
@@ -97,7 +132,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       })
       
       tuneParam <- do.call(rbind, tuneParam)
-      idxOptim <- which(tuneParam[,"MSE"] == min(tuneParam[,"MSE"]))
+      # ! to do: if there are multiple optima: which optimum should we choose?
+      idxOptim <- which(tuneParam[,"MSE"] == min(tuneParam[,"MSE"]))[1]
       
       # Best parameters
       tunedAlpha <- tuneParam[idxOptim, "alpha"]
@@ -107,8 +143,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       # "lambda.1se" = the largest λ at which the MSE is within one SE of the smallest MSE (default).
       # here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
       #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
-      fit <- glmnet(x = as.matrix(data[[iSample]][["X_int"]]),
-                    y = data[[iSample]][["yMat"]][,iCond], 
+      fit <- glmnet(x = Xtrain,
+                    y = ytrain, 
                     alpha = tunedAlpha,
                     lambda = tunedLambda,
                     family = "gaussian", 
@@ -118,18 +154,19 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       estBeta <- as.matrix(fit$beta)
       selectedVars <- estBeta != 0
       
+      # to do: write this into a function to reuse it for gbm code as well (?)
       # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model training
-      predTrain <- predict(fit, X)
-      performTrain <- evalPerformance(predTrain, y)
+      predTrain <- predict(fit, Xtrain)
+      performTrain <- evalPerformance(predTrain, ytrain)
       performTrain <- matrix(performTrain, ncol = length(performTrain), nrow = 1)
         
       # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model testing
       performTest <- lapply(paste0("test", seq_len(setParam$dgp$nTest)), function(iTest) {
         Xtest <- as.matrix(data[[iTest]][["X_int"]])
-        obs <- data[[iTest]][["yMat"]][,iCond]
+        ytest <- data[[iTest]][["yMat"]][,iCond]
         pred <- predict(fit, Xtest)  
         
-        evalPerformance(pred, obs)
+        evalPerformance(pred, ytest)
       })
       performTest <- do.call(rbind, performTest)
       
@@ -193,7 +230,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     performTestMat <- do.call(rbind, lapply(estRes, function(X) X[["performTest"]])) # each sample
     colnames(performTestMat) <- c("RMSE_test", "Rsq_test", "MAE_test")
     performTestStats <- getStats(performTestMat, 2, setParam$dgp$nSamples) # M, SD, SE
-    performTestnStats <- cbind(performTestnStats, idxCondLabel = iCond)
+    performTestStats <- cbind(performTestStats, idxCondLabel = iCond)
     
     perfromPerSample <- cbind(performTrainMat, performTestMat, idxCondLabel = iCond)
     
@@ -202,20 +239,38 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
          varSelection = varSelection, selectSample = selectionPerSample, 
          perfromPerSample = perfromPerSample, 
          performTrainStats = performTrainStats, performTestStats = performTestStats)
-  })
+  }) # nested lapplys take ~ 15 mins
   
-  # nested lapplys take ~ 15 mins
-  
-  # here!
+  # manage data 
   names(tmp_estRes) <- setParam$dgp$condLabels
-  tmp_estRes <- do.call(Map, c(f = rbind, tmp_estRes)) # das?
+  iCondRes <- do.call(Map, c(f = rbind, tmp_estRes)) # das?
+  
+  # clean up working memory
   rm(data)
   gc()
-  tmp_estB
+  
+  # save in nested loop across all N x pTrash conditions 
+  #   -> does this fill up wm leading the algorithm to slow down or does it only 
+  #       become slower due to larger number of predictors in later conditions?
+  #       sieht eigentlich nicht danach aus, wenn man Zeiten in log file und wm load betrachtet
+  # iCondRes 
+  
+  # save separate each N x pTrash condition in rds files  
+  #   -> pro: skip fitted condGrid conditions if algorithm does not run till the end... 
+  #   -> con: writing data to rds file is slow and data needs to be united later on
+  resFileName <- paste0(resFolder, "/", "resultsN", condGrid[iSim, "N"], "_pTrash", condGrid[iSim, "pTrash"], ".rds")
+  saveRDS(iCondRes, file = resFileName)
 })
-# takes ~ 3.5 hours (without N = 10.000)
 
-fileName = "estB_initialResults.rda"
-save(res_estB, file = paste0(resFolder, "/", fileName))
+# close cluster to return resources (memory) back to OS
+stopCluster(cl)
+
+# used to take ~ 3.5 hours (without N = 10.000) (old version) - without parallelisation
+# now takes ~ (start 18:46 ) - without parallelisation
+# memory leakage due to outer loop (condGrid-loop?) 
+#   -> write data to file instead of saving in growing list?
+
+fileName = "initialFullResults.rda"
+save(results, file = paste0(resFolder, "/", fileName))
 
 
