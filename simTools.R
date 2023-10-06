@@ -1,4 +1,9 @@
 # ToDo: implement function to vary correlations and include correlation function to process
+createFolder <- function(folderPath) {
+  if (!file.exists(folderPath)){
+    dir.create(folderPath)
+  }
+}
 
 createPredictors <- function(N, P, mP = rep(0, P), mR = 0, sdR) {
   ###
