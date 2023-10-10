@@ -60,3 +60,7 @@ setParam$dgp$sigmaE <- 1
 setParam$fit$lambda <- 10^seq(-1, 1, length = 100)
 setParam$fit$alpha <- seq(0, 1, .1) 
 setParam$fit$nfolds <- 10
+setParam$fit$lambdaCrit <- "1se" # min or 1se
+if (!(setParam$fit$lambdaCrit %in% c("min", "1se"))) {
+  stop("value for 'setParam$fit$lambdaCrit' not available! Choose 'min' or '1se'.")
+}
