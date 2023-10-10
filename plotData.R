@@ -1,3 +1,5 @@
+# to do: add measures in percent (now: duplicates due to nTrain = 100)
+
 library(ggplot2)
 
 source("setParameters.R")
@@ -113,25 +115,25 @@ for (iVar in c(setParam$dgp$linEffects, setParam$dgp$interEffects)) {
   assign(plotName, tmp_p)
 }
 
-# save all plots as files
-plotNames <- ls(pattern = "^pRelBias")
-for (iPlot in plotNames) {
-  pName <- paste0(iPlot, "_testResults")
-    
-  ggplot2::ggsave(filename = paste0(plotFolder, "/", pName, ".eps"),
-                    plot = eval(parse(text = iPlot)),
-                    device = cairo_ps,
-                    dpi = 300,
-                    width = 11.3,
-                    height = 8.22,
-                    units = "in")
-    
-  ggplot2::ggsave(filename = paste0(plotFolder, "/", pName, ".png"),
-                    plot = eval(parse(text = iPlot)),
-                    width = 11.3,
-                    height = 8.22,
-                    units = "in") 
-}
+# # save all plots as files
+# plotNames <- ls(pattern = "^pRelBias")
+# for (iPlot in plotNames) {
+#   pName <- paste0(iPlot, "_testResults")
+#     
+#   ggplot2::ggsave(filename = paste0(plotFolder, "/", pName, ".eps"),
+#                     plot = eval(parse(text = iPlot)),
+#                     device = cairo_ps,
+#                     dpi = 300,
+#                     width = 11.3,
+#                     height = 8.22,
+#                     units = "in")
+#     
+#   ggplot2::ggsave(filename = paste0(plotFolder, "/", pName, ".png"),
+#                     plot = eval(parse(text = iPlot)),
+#                     width = 11.3,
+#                     height = 8.22,
+#                     units = "in") 
+# }
 
 ################################################################################
 # plot train and test performance
@@ -182,19 +184,241 @@ pPerformTrainVStest <- ggplot(performanceStats[which(performanceStats$measure !=
   theme(axis.text.y = element_text(size = 20),
         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
         axis.title.x = element_text(size = 20),
-        axis.title.y = element_text(size = 20))
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.eps"),
+#                 plot = pPerformTrainVStest,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.png"),
+#                 plot = pPerformTrainVStest,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in") 
+
+################################################################################
+# plot selected variables
+################################################################################
+# pull data from nested list of all results (fullData)
+selectedVars <- rbindResults(fullData, "selectSample")
+selectedVars$sample <- rep(seq_len(setParam$dgp$nTrain), 
+                           times = length(setParam$dgp$condLabels) * nrow(condGrid))
+
+# get informative variables for simulated conditions (N, pTrash, R2, lin_inter) 
+selectedVars <- idx2info(selectedVars)
+
+# get number of unique predictors depending on pTrash
+names(setParam$dgp$nModelPredictors) <- setParam$dgp$pTrash
+selectedVars$nModelPredictors <- setParam$dgp$nModelPredictors[match(selectedVars$pTrash, 
+                                                    names(setParam$dgp$nModelPredictors))]
+
+# samples that exactly recovered the simulated model (all simulated effects & no other predictors)
+selectedVars$exactModel <- ifelse((selectedVars$all.T1F0 == 1) & 
+                                    (selectedVars$nOthers == 0), 1, 0)
+
+idxExactModel <- which(selectedVars$exactModel == 1)
+selectedVars[idxExactModel,]
+
+# split, apply, combine
+# split data in different simulated conditions N x pTrash x R2 x lin_inter
+selectedVars <- tidyr::unite(selectedVars, "N_pTrash_R2_lin_inter", 
+                             c(N, pTrash, R2, lin_inter),
+                             sep = "_", remove = FALSE) 
+subLists <- split(selectedVars, 
+                  f = selectedVars$N_pTrash_R2_lin_inter)
+
+# identical computations for every subList (i.e., simulated condition)
+# compute dependent measures to visualize in results plot
+resSampleStats <- lapply(seq_along(subLists), function(iCond) {
+  nLin_M = mean(subLists[[iCond]]$nLin, na.rm = T)
+  nInter_M = mean(subLists[[iCond]]$nInter, na.rm = T)
+  nAllLin = sum(subLists[[iCond]]$nLin == length(setParam$dgp$linEffects))
+  nAllInter = sum(subLists[[iCond]]$nInter == length(setParam$dgp$interEffects))
+  nAllEffects = sum(subLists[[iCond]]$all.T1F0)
+  nOthers_M = mean(subLists[[iCond]]$nOthers, na.rm = T)
+  nModelPredictors <- unique(subLists[[iCond]]$nModelPredictors)
+  # to do: this ignores that the true predictors are not "others"; but true predictors are constant across conditions
+  percentOthers = nOthers_M / nModelPredictors * 100 
+  nExactModel_M = sum(subLists[[iCond]]$exactModel)
+  cbind(N_pTrash_R2_lin_inter = names(subLists)[iCond], 
+        nLin_M = nLin_M, nInter_M = nInter_M,
+        nAllLin = nAllLin, nAllInter = nAllInter, nAllEffects = nAllEffects,
+        nOthers_M = nOthers_M, percentOthers = percentOthers, nExactModel_M = nExactModel_M)
+})
+resSampleStats <- data.frame(do.call(rbind, resSampleStats))
+resSampleStats <- tidyr::separate(resSampleStats, N_pTrash_R2_lin_inter, 
+                                  into = c("N", "pTrash", "R2", "lin", "inter"), sep = "_")
+resSampleStats <- tidyr::unite(resSampleStats, "lin_inter", c(lin, inter), sep = "_")
+resSampleStats <- tidyr::pivot_longer(resSampleStats, !c(N, pTrash, R2, lin_inter), 
+                                      names_to = "measure", values_to = "values")
+
+# change type of columns or specific entry details to prepare plotting  
+str(resSampleStats)
+resSampleStats$values <- as.numeric(resSampleStats$values)
+resSampleStats$N <- factor(resSampleStats$N, levels = setParam$dgp$N)
+resSampleStats$pTrash <- factor(resSampleStats$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+resSampleStats$measure <- factor(resSampleStats$measure, 
+                                 levels = c("nAllLin", "nAllInter", "nAllEffects", 
+                                            "nLin_M", "nInter_M",
+                                            "nOthers_M", "percentOthers", "nExactModel_M"))
+
+# plot number of samples per simulated condition that recovers ...
+#     ... all linear effects
+#     ... all interaction effects
+#     ... all linear and interaction effects
+
+colValues <- c("green3", "darkcyan", "darkblue", "darkmagenta")
+
+pNsamplesEffect <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllLin", "nAllInter", "nAllEffects")), ],
+       aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+           group = R2, colour = R2)) +
+  geom_point() +
+  geom_line() +
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_grid(measure ~ lin_inter, scales = "free_y", labeller = label_both, switch = "y") +
+  ylab(paste0("n samples out of ", setParam$dgp$nTrain, " samples")) +
+  xlab("pTrash (decreasing) x N (increasing)") +
+  ggtitle("effect recovery across samples") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nSamplesWithEffects.eps"),
+#                 plot = pNsamplesEffect,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nSamplesWithEffects.png"),
+#                 plot = pNsamplesEffect,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in") 
+
+# nAllEffects vs. nExactModel_M 
+pAllvsExactEffects <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllEffects")), ],
+       aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+           group = R2, fill = R2)) +
+  geom_col(position = "dodge", alpha = 0.4) +
+  geom_bar(data = resSampleStats[which(resSampleStats$measure %in% c("nExactModel_M")), ],
+           aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+               group = R2, fill = R2), stat = "identity", position = "dodge") +
+  scale_fill_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_wrap(~ lin_inter) +
+  # facet_grid(measure ~ lin_inter, scales = "free_y", labeller = label_both, switch = "y") +
+  ylab(paste0("n samples out of ", setParam$dgp$nTrain, " samples")) +
+  xlab("pTrash (decreasing) x N (increasing)") +
+  ggtitle("all effects recovered(transparent) vs. only simulated effects") +
+  theme(panel.background = element_rect(fill = "white",
+                                        colour = "white",
+                                        size = 0.5, linetype = "solid"),
+        panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                        colour = "lightgrey"), 
+        panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                        colour = "lightgrey"),
+        axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nAllvsExactEffectsBarplot.eps"),
+#                 plot = pAllvsExactEffects,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 24.24,
+#                 height = 13.28,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nAllvsExactEffectsBarplot.png"),
+#                 plot = pAllvsExactEffects,
+#                 width = 24.24,
+#                 height = 13.28,
+#                 units = "in") 
+
+pAllvsExactEffectsLine <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllEffects", "nExactModel_M")), ],
+                          aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+                              group = R2, colour = R2)) +
+  geom_point() +
+  geom_line() +
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_grid(measure ~ lin_inter, scales = "free_y", labeller = label_both, switch = "y") +
+  ylab(paste0("n samples out of ", setParam$dgp$nTrain, " samples")) +
+  xlab("pTrash (decreasing) x N (increasing)") +
+  ggtitle("effect recovery across samples") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nAllvsExactEffectsLineplot.eps"),
+#                 plot = pAllvsExactEffectsLine,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nAllvsExactEffectsLineplot.png"),
+#                 plot = pAllvsExactEffectsLine,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in") 
+
+resSampleStats$measure <- factor(resSampleStats$measure, 
+                                 levels = c("nExactModel_M", "percentOthers", "nAllEffects", 
+                                            "nAllLin", "nAllInter", "nLin_M", "nInter_M",
+                                            "nOthers_M"))
+
+pExactModel <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllEffects", "nExactModel_M", "percentOthers")), ],
+                                 aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+                                     group = R2, colour = R2)) +
+  geom_point() +
+  geom_line() +
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_grid(measure ~ lin_inter) +
+  ylab(paste0("n samples out of ", setParam$dgp$nTrain, " samples")) +
+  xlab("pTrash (decreasing) x N (increasing)") +
+  ggtitle("exact model recovery (other variables vs. all effect variables)") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
 
 # save plots as files
-ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.eps"),
-                plot = pPerformTrainVStest,
+ggplot2::ggsave(filename = paste0(plotFolder, "/nExactModelAllvsOthers.eps"),
+                plot = pExactModel,
                 device = cairo_ps,
                 dpi = 300,
                 width = 13.95,
                 height = 11.51,
                 units = "in")
 
-ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.png"),
-                plot = pPerformTrainVStest,
+ggplot2::ggsave(filename = paste0(plotFolder, "/nExactModelAllvsOthers.png"),
+                plot = pExactModel,
                 width = 13.95,
                 height = 11.51,
-                units = "in") 
+                units = "in")
