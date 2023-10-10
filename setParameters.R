@@ -18,6 +18,12 @@ setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
 setParam$dgp$poly <- c(2) # degree of polynomials (so far: only quadratic effects)
 
+# predictors and their polynomials + all interactions of depth
+P <- (setParam$dgp$p + setParam$dgp$pTrash) # all predictors
+setParam$dgp$nModelPredictors <- P * setParam$dgp$poly + choose(P, setParam$dgp$interDepth)
+# P * setParam$dgp$poly + (P * (P-1) / 2) # this only works for interactionDepth = 2
+rm(P)
+
 # 
 setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
 # choose variables for interaction that have no linear effects (R2 budget)
