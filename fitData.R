@@ -1,5 +1,6 @@
 # Model fitting
-# to do: Parallelisierung!
+# to do: 
+#     -> Rsquared often NA; this happens if 0 variables are chosen in Enet!  
 library(glmnet)
 library(parallel)
 
@@ -17,10 +18,10 @@ createFolder(logFolder)
 
 timeStamp <- format(Sys.time(), "%d%m%y_%H%M%S")
 # nCoresSampling <- detectCores() - 1 
-nCoresSampling <- 5
+nCoresSampling <- 2
 
 # test it!
-# iSim = 3
+# iSim = 9
 
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash)
@@ -104,27 +105,37 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       set.seed(89101)
       
       # tune alpha by iterating trough alphas
-      foldid <- sample(1:setParam$fit$nfolds, size = length(y), replace = TRUE)
+      foldid <- sample(1:setParam$fit$nfolds, size = length(ytrain), replace = TRUE)
       
       fit_cv <- lapply(setParam$fit$alpha, function(iAlpha) {
-        cv.glmnet(x = Xtrain, 
-                  y = ytrain, 
-                  foldid = foldid, # as suggested for alpha tuning via cv
-                  alpha = iAlpha, 
-                  lambda = setParam$fit$lambda, # tune lambda within cv.glmnet
-                  family = "gaussian", 
-                  standardize = TRUE, 
-                  nfolds = setParam$fit$nfolds, # 10 fold cross validation  
-                  type.measure = "mse") 
+        tmp_fit <- cv.glmnet(x = Xtrain, 
+                             y = ytrain, 
+                             foldid = foldid, # as suggested for alpha tuning via cv
+                             alpha = iAlpha, 
+                             lambda = setParam$fit$lambda, # tune lambda within cv.glmnet
+                             family = "gaussian", 
+                             standardize = TRUE, 
+                             nfolds = setParam$fit$nfolds, # 10 fold cross validation  
+                             type.measure = "mse") 
+        
+        # cv results that we need for parameter tuning
+        idxLambdaCrit <- match(setParam$fit$lambdaCrit, rownames(tmp_fit$index))
+        idxLambda <- tmp_fit$index[idxLambdaCrit] # optimal lambda index for lambda criterion (min or se)
+        tmp_mse <- tmp_fit$cvm[idxLambda] # choose MSE value for lambda criterion (min or se)
+        tmp_lambda <- tmp_fit[[paste0("lambda.", setParam$fit$lambdaCrit)]] 
+        
+        list(cvm = tmp_mse,
+             lambda.1se = tmp_lambda)
       })
     
+      # Groesse der Objekte mitschreiben lassen?
+      
       # choose alpha & lambda based on cross validation tuning of lambda given 
       #     specific alpha values results
       #   -> mse from fit_cvs to choose alpha since lambda in cv is chosen based on mse as well
       
       tuneParam <- lapply(seq_along(fit_cv), function(iAlpha) {
-        idxLambda1se <- fit_cv[[iAlpha]]$index[2] # optimal lambda index for lambda.1se
-        tmp_mse <- fit_cv[[iAlpha]]$cvm[idxLambda1se] # MSE vector
+        tmp_mse <- fit_cv[[iAlpha]]$cvm # MSE vector
         tmp_l1se <- fit_cv[[iAlpha]]$lambda.1se # rather conservative
         c(alpha = setParam$fit$alpha[iAlpha],
              MSE = tmp_mse, 
@@ -132,7 +143,9 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       })
       
       tuneParam <- do.call(rbind, tuneParam)
+      
       # ! to do: if there are multiple optima: which optimum should we choose?
+      # in the case of a tie the tied variable with lowest index is selected.
       idxOptim <- which(tuneParam[,"MSE"] == min(tuneParam[,"MSE"]))[1]
       
       # Best parameters
@@ -176,6 +189,9 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
            performTest = performTest, 
            tunedAlpha = tunedAlpha, 
            tunedLambda = tunedLambda)
+      
+      # # remove fitted sample to reduce working memory load
+      # data[[iSample]] <- NULL
     })
     
     # coefficients
@@ -265,12 +281,20 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
 # close cluster to return resources (memory) back to OS
 stopCluster(cl)
 
+## on my machine
 # used to take ~ 3.5 hours (without N = 10.000) (old version) - without parallelisation
-# now takes ~ (start 18:46 ) - without parallelisation
+
+## on dalek server
+# 10 cores parallel, on server: 2.5 hours (only N = {100, 300, 1000} and pTrash = {10, 50, 100})
+#     + no GBM estimation
+# really seems twice as fast on 10 compared to 5 cores 
+# in N1000xpTrash100 max. 14 cores?! or less ~ 10?
+# more cores in early conditions possible (memory is not exhausted)
+
 # memory leakage due to outer loop (condGrid-loop?) 
 #   -> write data to file instead of saving in growing list?
 
-fileName = "initialFullResults.rda"
-save(results, file = paste0(resFolder, "/", fileName))
+# fileName = "initialFullResults.rda"
+# save(results, file = paste0(resFolder, "/", fileName))
 
 
