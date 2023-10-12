@@ -20,6 +20,7 @@ FS:
 Wie sinnvoll ist der Bias als Kriterium hier?
 Ist das einfach der mittlere Bias über alle Modelle hinweg, auch über die, wo der Parameter null ist?
 p-Trash als Manipulation diskutieren
+Wie gehen wir damit um, dass die Algorithmen nicht konsistent oder unterschiedlich konsistent sind?
 
 # results
 ## Training and Test Performance 
