@@ -16,6 +16,11 @@ Parameters can be found in [setParameters.R](https://github.com/kimSpeck/MLsim/b
 
 Kim: Vielleicht können wir erste Beobachtungen, Überlegungen oder Fragen, die sich bei uns ergeben hier schon sammeln?
 
+FS:
+Wie sinnvoll ist der Bias als Kriterium hier?
+Ist das einfach der mittlere Bias über alle Modelle hinweg, auch über die, wo der Parameter null ist?
+p-Trash als Manipulation diskutieren
+
 # results
 ## Training and Test Performance 
 
