@@ -22,6 +22,11 @@ Ist das einfach der mittlere Bias über alle Modelle hinweg, auch über die, wo 
 p-Trash als Manipulation diskutieren
 Wie gehen wir damit um, dass die Algorithmen nicht konsistent oder unterschiedlich konsistent sind?
 
+KJ: 
+generell Bedingungen grid nochmal überlegen (trash > N aufnehmen als Extrem?), Messfehler? 
+ebenso Hyperparametertuning (alpha vielleicht eher 20 oder mehr, lambda wie genau?)
+man denkt ja erst bei der generellen Performance, dass die unterschiedlichen effect distributions wenig bewirken, aber ich finde bei den beispielhaften lin. vs. Interaktionseffekten im letzten Plot ist da ja doch mehr Musik
+
 # results
 ## Training and Test Performance 
 
