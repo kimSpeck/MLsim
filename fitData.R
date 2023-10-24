@@ -23,6 +23,10 @@ nCoresSampling <- 2
 # test it!
 # iSim = 9
 
+# variables included in Enet
+includePoly <- FALSE
+includeInter <- FALSE
+
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash)
 
@@ -69,6 +73,16 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       # iSample <- 1
       
       Xtrain <- as.matrix(data[[iSample]][["X_int"]])
+      
+      if (!includePoly) {
+        idx_rmPoly <- stringr::str_detect(colnames(Xtrain), "^poly")
+        Xtrain <- Xtrain[,colnames(Xtrain)[!idx_rmPoly]]
+      }
+      if (!includeInter) {
+        idx_rmInter <- stringr::str_detect(colnames(Xtrain), ":")
+        Xtrain <- Xtrain[,colnames(Xtrain)[!idx_rmInter]]
+      }
+      
       ytrain <- data[[iSample]][["yMat"]][,iCond]
       
       # fit data on full sample ("training")
