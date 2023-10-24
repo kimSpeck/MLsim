@@ -12,9 +12,32 @@ Initial results for elastic net (via glmnet) in the following (preliminary) cond
 - $R^2$: R2 = {0.1, 0.3, 0.5, 0.8}
 - effect dsitribution to linear vs. interaction effects: lin_inter = {0.2_0.8, 0.5_0.5, 0.8_0.2}
 
+- simulierte Effekte: 
+
+  + linear: {Va1, Var2, Var3, Var4}
+  + interaction: {Var5:Var6, Var5:Var8, Var6:Var7, Var7:Var8}
+
+KLS: Für welche Variablen Interaktionen einführen?
+KLS: Testsample size wählen (50% vs. fixed size über alle Werte von N)
+
 Parameters can be found in [setParameters.R](https://github.com/kimSpeck/MLsim/blob/main/setParameters.R)
 
-Kim: Vielleicht können wir erste Beobachtungen, Überlegungen oder Fragen, die sich bei uns ergeben hier schon sammeln?
+KLS: Vielleicht können wir erste Beobachtungen, Überlegungen oder Fragen, die sich bei uns ergeben hier schon sammeln?
+
+FS:
+Wie sinnvoll ist der Bias als Kriterium hier?
+Ist das einfach der mittlere Bias über alle Modelle hinweg, auch über die, wo der Parameter null ist?
+p-Trash als Manipulation diskutieren
+Wie gehen wir damit um, dass die Algorithmen nicht konsistent oder unterschiedlich konsistent sind?
+
+KJ: 
+generell Bedingungen grid nochmal überlegen (trash > N aufnehmen als Extrem?), Messfehler? 
+KLS: +1, N = 10000 war sowieso angedacht, hatte ich vorübergehend rausgeschmissen, weil die Matrizen seehr groß waren
+
+KJ: ebenso Hyperparametertuning (alpha vielleicht eher 20 oder mehr, lambda wie genau?)
+man denkt ja erst bei der generellen Performance, dass die unterschiedlichen effect distributions wenig bewirken, aber ich finde bei den beispielhaften lin. vs. Interaktionseffekten im letzten Plot ist da ja doch mehr Musik
+
+KLS: warm start für lambda wie in caret? (aktuell kein warm start!); lambda.1se vs. lambda.min
 
 FS:
 Wie sinnvoll ist der Bias als Kriterium hier?
@@ -36,6 +59,8 @@ Test performance for one sample with 50% of number of observations (N) in curren
 
 ![](plots/performanceTrainTest.png)
 
+KLS: wenn im Enet keine Variablen ausgewählt werden, R^2 == NA; mittleres R^2 verzerrt, weil na.rm = T?
+
 ## recovery variables with simulated effects
 
 In wie vielen der 100 Training Samples werden alle Effekte, lineare Effekte und Interaktionseffekte recovert?
@@ -45,6 +70,8 @@ In wie vielen der 100 Training Samples werden alle Effekte, lineare Effekte und 
 Wie häufig werden alle simulierten Effekte (lineare & Interaktionseffekte, transparent) vs. das wahre Modell (keine anderen Prädiktoren!) recovert?
 
 ![](plots/nAllvsExactEffectsBarplot.png)
+
+KLS: hier starke Abhängigkeit der Ergebnisse von alpha-Tuning: für alpha = 0 (ridge) immer alle Prädiktoren gewählt, wodurch die Quote von alle Effekte (Müll egal) vs. nur simulierte Effekte "verzerrt" wird?
 
 Erklärung der seltenen Recovery des wahren Modells durch ...
 
@@ -67,4 +94,3 @@ ein exemplarischer Prädiktor mit einem simulierten linearen Effekt
 ein exemplarischer Prädiktor mit einem simulierten Interaktionseffekt
 
 ![](plots/pRelBias_Var5.Var6_testResults.png)
-
