@@ -18,6 +18,8 @@
 # however, rmvnorm somehow deals with this issue (see: https://stats.stackexchange.com/questions/267908/clarification-regarding-rmvnorm-in-r)
 # ToDo: write big matrices directly to their final place of storage (memory intensive and time consuming)
 
+# ToDo: use simulated effects from setParam!
+
 # for reproducibility purposes
 # set.seed(42) # not positive semidefinite covariance matrix ):
 # set.seed(7382) 
@@ -85,13 +87,18 @@ sampleData <- function() {
   # sample data in parallel
   data <- parLapply(cl, seq_len(setParam$dgp$nSamples), function(iSample) {
     
+    # # test it
+    # pTrash <- 10
+    # N <- 10000
+    
     P <- setParam$dgp$p + pTrash # total number of variables
     # generate matrix of (almost) uncorrelated predictors
     if (iSample > setParam$dgp$nTrain) {
       N <- setParam$dgp$testNpc * N
     }
+    # to do: remove function and use rmvnorm directly now?!
     X <- createPredictors(N = N, P = P, 
-                          mR = setParam$dgp$meanR, sdR = setParam$dgp$sdR)
+                          corMat = setParam$dgp$predictorCorMat[seq_len(P), seq_len(P)])
     
     # add names to variables
     colnames(X) <- paste0("Var", seq_len(P))
@@ -103,9 +110,7 @@ sampleData <- function() {
     X_int <- model.matrix(as.formula(popModel),data.frame(X))
     
     # remove first degree polynomials from data (they are duplicates!)
-    # colnames(X_int)[stringr::str_detect(colnames(X_int), pattern = "^(poly\\().+(\\)1)$")]
-    rmColsIdx <- which(stringr::str_detect(colnames(X_int), pattern = "^(poly\\().+(\\)1)$"))
-    X_int <- X_int[,-rmColsIdx] 
+    X_int <- rmDuplicatePoly(X_int)
     
     # generate vector regression weights
     b <- rep(0, ncol(X_int)) # initiate all b-values with value of zero 
@@ -173,11 +178,41 @@ sampleData <- function() {
     R2 <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_int, bMatrix[,x], setParam$dgp$sigmaE))
     
     # calculate dependent variable for every combination of R2 and lin/inter effect balance
+    # dependent variable is simulated from predictors without measurement error!
     yMatrix <- sapply(seq_len(ncol(bMatrix)), function(x) {
       calcDV(X = X_int, b = bMatrix[,x],
              sigmaE = setParam$dgp$sigmaE, N = N)
     })
     colnames(yMatrix) <- setParam$dgp$condLabels
+    
+    # add measurement error/reliability manipulatio to data
+    #   add measurement error only to X (poly & interactions are calculated based on X)
+    #   measurement error ...
+    #     ... independent for each predictor 
+    #     ... normally distributed with mean = 0 & sd according to reliability 
+    covMatError <- diag(P)  
+    reliability <- 0.7
+    diag(covMatError) <- 1 - reliability
+    measureError <- rmvnorm(n = N, mean = rep(0, P), sigma = covMatError)
+    
+    XwME <- X + measureError
+    
+    # predictor matrix that allows for polynomials and interactions
+    X_final <- model.matrix(as.formula(popModel),data.frame(XwME))
+    
+    # remove first degree polynomials from data (they are duplicates!)
+    X_final <- rmDuplicatePoly(X_final)
+    
+    R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_final, bMatrix[,x], setParam$dgp$sigmaE))
+    
+    # here!    
+    # to do: 
+    #     - tuning grid
+    #     - beta-values for correlated predictors
+    #     - check reliability of simulated data with single indicator approach in SEM
+    # model <- ''
+    # Data <- ....
+    # fit <- sem(model, data=Data, estimator="MLM")
     
     # save ...
     #     ... yMat with dependent variable for all R2 - lin/inter effect conditions in columns
@@ -185,7 +220,8 @@ sampleData <- function() {
     #     ... trueB simulated regression coefficients
     #     ... R2 based on simulated regression coefficients
     list(yMat = yMatrix, 
-         X_int = X_int, 
+         # X_int = X_int, # without measurement error
+         X_int = X_final,
          trueB = bMatrix, 
          R2 = R2)
   })
