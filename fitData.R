@@ -190,6 +190,14 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model testing
       performTest <- lapply(paste0("test", seq_len(setParam$dgp$nTest)), function(iTest) {
         Xtest <- as.matrix(data[[iTest]][["X_int"]])
+        if (!includePoly) {
+          idx_rmPoly <- stringr::str_detect(colnames(Xtest), "^poly")
+          Xtest <- Xtest[,colnames(Xtest)[!idx_rmPoly]]
+        }
+        if (!includeInter) {
+          idx_rmInter <- stringr::str_detect(colnames(Xtest), ":")
+          Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter]]
+        }
         ytest <- data[[iTest]][["yMat"]][,iCond]
         pred <- predict(fit, Xtest)  
         
