@@ -5,31 +5,24 @@ createFolder <- function(folderPath) {
   }
 }
 
-createPredictors <- function(N, P, mP = rep(0, P), mR = 0, sdR) {
+createPredictors <- function(N, P, mP = rep(0, P), corMat) {
   ###
   # create matrix with predictor values
   ## input:
   # N       - [scalar] number of observations
   # P       - [scalar] number of predictors
   # M       - [vector] mean values for predictors (default: centered predictors)
-  # mR      - [scalar] mean of predictor correlations
-  # sdR     - [scalar] sd predictor correlations
+  # corMat  - [matrix] correlation between predictors
   ## output:
   # X       - [matrix] matrix of predictor values [N x P] 
   ###
   
   # check if mean vector has enough values
   if (P != length(mP)) stop("mismatch in number of predictors and provided mean values")
-  
-  # randomly sample correlations between predictors 
-  # correlations are sampled from truncated normal and are limited to [-0.5, 0.5]
-  corN <- P*(P-1)/2
-  corVec <- rtruncnorm(corN, mean = mR, sd = sdR, a = -0.5, b = 0.5)
-  rX <- lavaan::lav_matrix_upper2full(corVec, diagonal = F) # fill up upper triangle
-  diag(rX) <- 1
+  if (P != dim(corMat)[1] && P != dim(corMat)[2]) stop("mismatch in number of predictors and provided correlation matrix")
   
   # sample predictors from multivariate normal distribution
-  X <- rmvnorm(n = N, mean = mP, sigma = rX)
+  X <- rmvnorm(n = N, mean = mP, sigma = corMat)
   return(X)
 }
 
@@ -126,3 +119,30 @@ getStats <- function(data, aggrDim, nSamples, na.rm = T) {
   SE <- SD / sqrt(nSamples) # standard error of the mean
   return(cbind(M = M, SD = SD, SE = SE))
 }
+
+rmDuplicatePoly <- function(X) {
+  ###
+  # remove first degree polynomials from data (they are duplicates!)
+  # for testing purposes:
+  # colnames(X_int)[stringr::str_detect(colnames(X_int), pattern = "^(poly\\().+(\\)1)$")]
+  ## input:
+  # X       - [matrix] predictor variables from model.matrix
+  ## output:
+  # X       - [matrix] predictor variables without "duplicate" due to first polynomial
+  ###
+  
+  rmColsIdx <- which(stringr::str_detect(colnames(X), pattern = "^(poly\\().+(\\)1)$"))
+  X <- X[,-rmColsIdx] 
+  return(X)
+}
+
+# genSingleIndicatorModel <- function(nSamplingPoints, nFactors) {
+#   efaModelVars <- paste0(sapply(1:(nSamplingPoints-1), function(iP) {
+#     paste0("V", iP, " +")}, simplify = "array"), collapse = " ")
+#   efaModelVars <- paste(efaModelVars, paste0("V", nSamplingPoints))
+#   efaModel <- c()
+#   for (iFactor in 1:nFactors) {
+#     (efaModel <- paste0(efaModel, "\n", "efa('efa1')*f", iFactor, " =~ ", efaModelVars))
+#   }
+#   return(efaModel)
+# }
