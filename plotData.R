@@ -326,10 +326,10 @@ pAllvsExactEffects <- ggplot(resSampleStats[which(resSampleStats$measure %in% c(
   ggtitle("all effects recovered(transparent) vs. only simulated effects") +
   theme(panel.background = element_rect(fill = "white",
                                         colour = "white",
-                                        size = 0.5, linetype = "solid"),
-        panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                        linewidth = 0.5, linetype = "solid"),
+        panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid',
                                         colour = "lightgrey"), 
-        panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+        panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid',
                                         colour = "lightgrey"),
         axis.text.y = element_text(size = 20),
         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
@@ -351,7 +351,6 @@ pAllvsExactEffects <- ggplot(resSampleStats[which(resSampleStats$measure %in% c(
 #                 width = 24.24,
 #                 height = 13.28,
 #                 units = "in") 
-
 pAllvsExactEffectsLine <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllEffects", "nExactModel_M")), ],
                           aes(x = interaction(pTrash, N, sep = " x "), y = values, 
                               group = R2, colour = R2)) +
@@ -408,17 +407,70 @@ pExactModel <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllEf
         strip.text.x = element_text(size = 15),
         strip.text.y = element_text(size = 15))
 
-# save plots as files
-ggplot2::ggsave(filename = paste0(plotFolder, "/nExactModelAllvsOthers.eps"),
-                plot = pExactModel,
-                device = cairo_ps,
-                dpi = 300,
-                width = 13.95,
-                height = 11.51,
-                units = "in")
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nExactModelAllvsOthers.eps"),
+#                 plot = pExactModel,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/nExactModelAllvsOthers.png"),
+#                 plot = pExactModel,
+#                 width = 13.95,
+#                 height = 11.51,
+#                 units = "in")
 
-ggplot2::ggsave(filename = paste0(plotFolder, "/nExactModelAllvsOthers.png"),
-                plot = pExactModel,
-                width = 13.95,
-                height = 11.51,
-                units = "in")
+################################################################################
+# plot hyperparameters (alpha & lambda)
+################################################################################
+hyperParamData <- tidyr::pivot_longer(selectedVars, cols = c(alpha, lambda), 
+                                      names_to = "measures", values_to = "values")
+hyperParamData$values <- factor(hyperParamData$values)
+
+hyperParamData <- tidyr::unite(hyperParamData, "pTrashxN", c(pTrash, N), 
+                               sep = " x ", remove = F)
+pTrashxN_levels <- expand.grid(sort(setParam$dgp$pTrash, decreasing = T), setParam$dgp$N)
+pTrashxN_levels <- as.vector(unlist(tidyr::unite(pTrashxN_levels, "", c(Var1, Var2), sep = " x ")))
+hyperParamData$pTrashxN <- factor(hyperParamData$pTrashxN, levels = pTrashxN_levels)
+
+pAlpha <- ggplot(hyperParamData[which(hyperParamData$measures == "alpha"), 
+                      c("sample", "pTrashxN", "R2", "lin_inter", "values")],
+       aes(x = values, group = R2, fill = R2)) +
+  geom_histogram(stat = "count", position = position_dodge2(width = 0.9, preserve = "single")) +
+  scale_fill_manual(values = colValues) +
+  scale_y_continuous(limits = c(0, setParam$dgp$nTrain), 
+                     breaks = seq(0, setParam$dgp$nTrain, by = 50)) +
+  facet_grid(pTrashxN ~ lin_inter) +
+  ylab(paste0("n samples out of ", setParam$dgp$nTrain, " samples")) +
+  xlab(paste0("alpha (tuning result)")) +
+  ggtitle("alpha parameter value in (absolute) frequencies") +
+  theme(panel.background = element_rect(fill = "white",
+                                        colour = "white",
+                                        linewidth = 0.5, linetype = "solid"),
+        panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid',
+                                        colour = "lightgrey"), 
+        panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid',
+                                        colour = "lightgrey"),
+        axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/plotTunedAlpha.eps"),
+#                 plot = pAlpha,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 16.27,
+#                 height = 11.38,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/plotTunedAlpha.png"),
+#                 plot = pAlpha,
+#                 width = 16.27,
+#                 height = 11.38,
+#                 units = "in")
+
