@@ -125,7 +125,16 @@ setParam$dgp$reliability <- c(0.5, 0.7, 1)
 setParam$fit$lambda <- 10^seq(-1, 1, length = 100)
 setParam$fit$alpha <- seq(0, 1, length.out = 20) # alpha with at least 20 steps
 setParam$fit$nfolds <- 10
-setParam$fit$lambdaCrit <- "1se" # min or 1se
-if (!(setParam$fit$lambdaCrit %in% c("min", "1se"))) {
-  stop("value for 'setParam$fit$lambdaCrit' not available! Choose 'min' or '1se'.")
+
+# the code can handle setParam$fit$lambdaCrit = {"1se", "min"} or every subset
+# "lambda.min" = the lambda at which the smallest MSE is achieved.
+# "lambda.1se" = the largest lambda at which the MSE is within one SE of the smallest MSE (default).
+# here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
+#   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
+setParam$fit$lambdaCrit <- c("1se", "min") # min or 1se
+for (iCrit in setParam$fit$lambdaCrit) {
+  if (!(iCrit %in% c("min", "1se"))) {
+    stop("value for 'setParam$fit$lambdaCrit' not available! Choose 'min' or '1se'.")
+  }
 }
+
