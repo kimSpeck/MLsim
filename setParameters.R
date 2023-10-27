@@ -48,10 +48,22 @@ if (!all(setParam$dgp$percentLinear+
 ################################################################################
 setParam$dgp$Rsquared <- c(.10, .30, .50, .80)
 
-setParam$dgp$trueEffects <- cbind(p0.5 = c(0.116, 0.227, 0.346, 0.693),
-                                  p0.8 = c(0.144, 0.28, 0.43, 0.85),
-                                  p0.2 = c(0.079, 0.15, 0.235, 0.45))  
-rownames(setParam$dgp$trueEffects) <- setParam$dgp$Rsquared
+# # true Effects for uncorrelated predictors 
+# # for uncorrelated predictors, coefficients for linear and interaction effects are the same for identical R2 and effect splitting
+# setParam$dgp$trueEffects <- cbind(p0.5 = c(0.116, 0.227, 0.346, 0.693),
+#                                   p0.8 = c(0.144, 0.28, 0.43, 0.85),
+#                                   p0.2 = c(0.079, 0.15, 0.235, 0.45))  
+# rownames(setParam$dgp$trueEffects) <- setParam$dgp$Rsquared
+
+setParam$dgp$trueEffects$lin <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
+                                      p0.8 = c(0.101, 0.192, 0.32, 0.655),
+                                      p0.2 = c(0.049, 0.095, 0.128, 0.17))  
+setParam$dgp$trueEffects$inter <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
+                                        p0.8 = c(0.151, 0.305, 0.48, 1.0),
+                                        p0.2 = c(0.074, 0.128, 0.2, 0.27)) 
+rownames(setParam$dgp$trueEffects$lin) <- setParam$dgp$Rsquared
+rownames(setParam$dgp$trueEffects$inter) <- setParam$dgp$Rsquared
+
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
                          paste(setParam$dgp$percentLinear, setParam$dgp$percentInter, sep = "_"))
