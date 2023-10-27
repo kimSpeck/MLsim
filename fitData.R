@@ -21,15 +21,15 @@ timeStamp <- format(Sys.time(), "%d%m%y_%H%M%S")
 nCoresSampling <- 2
 
 # test it!
-# iSim = 9
+# iSim = 3
 
 # different modes for Enet
-## variables included in Enet
-includePoly <- FALSE
-includeInter <- FALSE
+## variables included in Enet (TRUE = include poly/inter; FALSE = without poly/inter)
+includePoly <- TRUE 
+includeInter <- TRUE
 
 ## warm start to arrive at lambda parameters for cross validation
-warmStart = TRUE
+warmStart <- FALSE
 
 # iterate through these combinations of data conditions
 condGrid <- expand.grid(N = setParam$dgp$N, 
@@ -125,7 +125,9 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         lambdaWS <- lambdaWS[1:min(length(lambdaWS), length(setParam$fit$lambda))]
       }
       
-      lambdaValues <- ifelse(warmStart, lambdaWS, setParam$fit$lambda)
+      # lambda values come from warm start procedure if warmStart == TRUE; 
+      #   otherwise lambda vector from parameter set are used
+      lambdaValues <- if (warmStart) lambdaWS else setParam$fit$lambda
       
       set.seed(89101)
       
@@ -144,15 +146,30 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
                              type.measure = "mse") 
         
         # cv results that we need for parameter tuning
-        idxLambdaCrit <- match(setParam$fit$lambdaCrit, rownames(tmp_fit$index))
-        idxLambda <- tmp_fit$index[idxLambdaCrit] # optimal lambda index for lambda criterion (min or se)
-        tmp_mse <- tmp_fit$cvm[idxLambda] # choose MSE value for lambda criterion (min or se)
-        tmp_lambda <- tmp_fit[[paste0("lambda.", setParam$fit$lambdaCrit)]] 
+        #     extract mse and lambda for lambda criterions according to parameter list
+        #     setParam$fit$lambdaCrit = {1se, min} or any subset
+        tmpLambdaCV <- sapply(seq_along(setParam$fit$lambdaCrit), function(iCrit) {
+          idxLambdaCrit <- match(setParam$fit$lambdaCrit[iCrit], rownames(tmp_fit$index)) # idx according to parameter (min or se)
+          idxLambda <- tmp_fit$index[idxLambdaCrit] # optimal lambda index for lambda criterion (min or se)
+          tmp_mse <- tmp_fit$cvm[idxLambda] # choose MSE value for lambda criterion (min or se)
+          tmp_lambda <- tmp_fit[[paste0("lambda.", setParam$fit$lambdaCrit[iCrit])]]   
+          c(cvm = tmp_mse, 
+            lambda = tmp_lambda)
+        })
         
-        list(cvm = tmp_mse,
-             lambda.1se = tmp_lambda)
+        colnames(tmpLambdaCV) <- setParam$fit$lambdaCrit
+        tmpLambdaCV
+        
+        # # as long as there was either lambda.1se or lambda.min
+        # idxLambdaCrit <- match(setParam$fit$lambdaCrit, rownames(tmp_fit$index)) # idx according to parameter (min or se)
+        # idxLambda <- tmp_fit$index[idxLambdaCrit] # optimal lambda index for lambda criterion (min or se)
+        # tmp_mse <- tmp_fit$cvm[idxLambda] # choose MSE value for lambda criterion (min or se)
+        # tmp_lambda <- tmp_fit[[paste0("lambda.", setParam$fit$lambdaCrit)]] 
+        # 
+        # list(cvm = tmp_mse,
+        #      lambda.1se = tmp_lambda)
       })
-    
+      
       # Groesse der Objekte mitschreiben lassen?
       
       # choose alpha & lambda based on cross validation tuning of lambda given 
@@ -160,35 +177,62 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       #   -> mse from fit_cvs to choose alpha since lambda in cv is chosen based on mse as well
       
       tuneParam <- lapply(seq_along(fit_cv), function(iAlpha) {
-        tmp_mse <- fit_cv[[iAlpha]]$cvm # MSE vector
-        tmp_l1se <- fit_cv[[iAlpha]]$lambda.1se # rather conservative
-        c(alpha = setParam$fit$alpha[iAlpha],
-             MSE = tmp_mse, 
-             lambda1SE = tmp_l1se)
+        t(sapply(setParam$fit$lambdaCrit, function(iCrit) {
+          tmp_mse <- fit_cv[[iAlpha]]["cvm", iCrit] # MSE vector
+          tmp_lambda <- fit_cv[[iAlpha]]["lambda", iCrit] # rather conservative
+          c(alpha = setParam$fit$alpha[iAlpha],
+            MSE = tmp_mse,
+            lambda = tmp_lambda)
+        }))
+        
+        # # as long as there was either lambda.1se or lambda.min
+        # # tmp_mse <- fit_cv[[iAlpha]]$cvm # MSE vector
+        # # tmp_l1se <- fit_cv[[iAlpha]]$lambda.1se # rather conservative
+        # tmp_mse <- fit_cv[[iAlpha]]["cvm", "1se"] # MSE vector
+        # tmp_l1se <- fit_cv[[iAlpha]]["lambda" ,"1se"] # rather conservative
+        # c(alpha = setParam$fit$alpha[iAlpha],
+        #   MSE = tmp_mse,
+        #   lambda1SE = tmp_l1se)
       })
       
       tuneParam <- do.call(rbind, tuneParam)
       
-      # ! to do: if there are multiple optima: which optimum should we choose?
-      # in the case of a tie the tied variable with lowest index is selected.
-      idxOptim <- which(tuneParam[,"MSE"] == min(tuneParam[,"MSE"]))[1]
+      # for every lambda criterion applied find the respective optimum, i.e., the 
+      #     minimum MSE and return alpha & lambda for this optimum
+      tunedParams <- sapply(setParam$fit$lambdaCrit, function(iCrit) {
+        
+        idxCrit <- row.names(tuneParam) == iCrit
+        # ! to do: if there are multiple optima: which optimum should we choose?
+        # in the case of a tie the tied variable with lowest index is selected.
+        idxOptim <- which(tuneParam[idxCrit,"MSE"] == min(tuneParam[idxCrit,"MSE"]))[1]
+        
+        # Best parameters
+        c(tunedAlpha = tuneParam[idxCrit,][idxOptim, "alpha"],
+          tunedLambda = tuneParam[idxCrit,][idxOptim, "lambda"])
+      })
       
-      # Best parameters
-      tunedAlpha <- tuneParam[idxOptim, "alpha"]
-      tunedLambda <- tuneParam[idxOptim, "lambda1SE"]
+      # # as long as there was either lambda.1se or lambda.min
+      # idxOptim <- which(tuneParam[,"MSE"] == min(tuneParam[,"MSE"]))[1]
+      # # Best parameters
+      # tunedAlpha <- tuneParam[idxOptim, "alpha"]
+      # tunedLambda <- tuneParam[idxOptim, "lambda1SE"]
       
-      # "lambda.min" = the lambda at which the smallest MSE is achieved.
-      # "lambda.1se" = the largest λ at which the MSE is within one SE of the smallest MSE (default).
-      # here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
-      #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
+      # here: run model for both lambda criterions, potentially 
+      # lapply(setParam$fit$lambdaCrit, function(iCrit) {
+      #   
+      # })
       fit <- glmnet(x = Xtrain,
                     y = ytrain, 
-                    alpha = tunedAlpha,
-                    lambda = tunedLambda,
+                    alpha = tunedParams["tunedAlpha", "1se"],
+                    # alpha = 0, # test ridge
+                    # alpha = 1, # test lasso
+                    lambda = tunedParams["tunedLambda", "1se"],
                     family = "gaussian", 
                     standardize = TRUE)
       
       # variable selection strongly depends on alpha ... 
+      ## if alpha == 0: estBeta with crazy small values (e.g.,-2.536770e-04)
+      ## if alpha != 0: estBeta values become actually 0; they are not NA (thus they affect the mean!)
       estBeta <- as.matrix(fit$beta)
       selectedVars <- estBeta != 0
       
@@ -284,10 +328,13 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     perfromPerSample <- cbind(performTrainMat, performTestMat, idxCondLabel = iCond)
     
     # join results 
-    list(estBeta = estBetaStats, 
-         varSelection = varSelection, selectSample = selectionPerSample, 
+    list(estBeta = estBetaStats, # M, SD, SE for coefficients across samples
+         # estBetaFull = estBeta, # coefficients for every predictor in every sample 
+         varSelection = varSelection, 
+         selectSample = selectionPerSample, 
          perfromPerSample = perfromPerSample, 
-         performTrainStats = performTrainStats, performTestStats = performTestStats)
+         performTrainStats = performTrainStats, 
+         performTestStats = performTestStats)
   }) # nested lapplys take ~ 15 mins
   
   # manage data 
