@@ -88,6 +88,8 @@ evalPerformance <- function(pred, obs) {
   # evaluate performance (R2, RMSE, MAE) for train or test data
   # see plorResample function of the caret package
   # https://github.com/topepo/caret/blob/master/pkg/caret/R/postResample.R
+  # adjusted caret package function to return 0 instead of NA if there are no 
+  #     predictors chosen in elastic net or lasso regression
   ## input:
   # pred    - [vector] outcome as predicted based on model 
   # obs     - [vector] observed outcome 
@@ -95,7 +97,15 @@ evalPerformance <- function(pred, obs) {
   #         - [vector] c(RMSE, Rsquared, MAE)
   ###
   
-  resamplCor <- try(cor(pred, obs, use = "pairwise.complete.obs"), silent = TRUE)
+  # # this is the original caret code; it produces NA if no predictor is chosen
+  # #     with (silent) warning message standard deviation is zero
+  # #   -> NAs bias the estimation of Rsquared in simulated conditions with low R2
+  # resamplCor <- try(cor(pred, obs, use = "pairwise.complete.obs"), silent = TRUE)
+  
+  # use tryCatch to set correlation and therefore R2 to zero if no predictor is 
+  #     chosen in elastic net or lasso regression
+  resamplCor <- tryCatch(cor(pred, obs, use = "pairwise.complete.obs"),
+                         warning = function(w) 0, silent = TRUE) 
   mse <- mean((pred - obs)^2)
   mae <- mean(abs(pred - obs))
   
