@@ -23,12 +23,18 @@ nCoresSampling <- 2
 # test it!
 # iSim = 9
 
-# variables included in Enet
+# different modes for Enet
+## variables included in Enet
 includePoly <- FALSE
 includeInter <- FALSE
 
+## warm start to arrive at lambda parameters for cross validation
+warmStart = TRUE
+
+# iterate through these combinations of data conditions
 condGrid <- expand.grid(N = setParam$dgp$N, 
-                        pTrash = setParam$dgp$pTrash)
+                        pTrash = setParam$dgp$pTrash,
+                        reliability = setParam$dgp$reliability)
 
 # remove lines in condGrid for which there already are results
 # check which files are already in the results folder
@@ -99,22 +105,27 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       
 
       # to do: think about "grid" size (are 100 lambda values too much?)
+      # lambdaVec = 10^seq(-1, 1, length = 100) # tune lambda within cv.glmnet
+      # alphaVec = seq(0, 1, .1) # tune alpha by iterating trough alphas
       #     -> alphaVec ~20 values?
       #     -> choose lambda in caret style? lambda vector based on enet with alpha = 0.5?
       # # provide lambda values by "warm start" for alpha = .5 as done in caret? 
       # #   -> kein warm start wie in caret (weil Kontrolle)
       # # https://stackoverflow.com/questions/48280074/r-how-to-let-glmnet-select-lambda-while-providing-an-alpha-range-in-caret
-      # init <- glmnet::glmnet(Matrix::as.matrix(X), y,
-      #                        family = "gaussian",
-      #                        nlambda = len+2,
-      #                        alpha = .5)
-      # 
-      # lambda <- unique(init$lambda)
-      # lambda <- lambda[-c(1, length(lambda))]
-      # lambda <- lambda[1:min(length(lambda), len)]
       
-      # lambdaVec = 10^seq(-1, 1, length = 100) # tune lambda within cv.glmnet
-      # alphaVec = seq(0, 1, .1) # tune alpha by iterating trough alphas
+      if (warmStart) {
+        init <- glmnet::glmnet(x = Xtrain, 
+                               y = ytrain,
+                               family = "gaussian",
+                               nlambda = length(setParam$fit$lambda)+2, # + 2 lambdas removed 
+                               alpha = .5)
+        
+        lambdaWS <- unique(init$lambda)
+        lambdaWS <- lambdaWS[-c(1, length(lambdaWS))] # remove first and last lambda
+        lambdaWS <- lambdaWS[1:min(length(lambdaWS), length(setParam$fit$lambda))]
+      }
+      
+      lambdaValues <- ifelse(warmStart, lambdaWS, setParam$fit$lambda)
       
       set.seed(89101)
       
@@ -126,7 +137,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
                              y = ytrain, 
                              foldid = foldid, # as suggested for alpha tuning via cv
                              alpha = iAlpha, 
-                             lambda = setParam$fit$lambda, # tune lambda within cv.glmnet
+                             lambda = lambdaValues, # tune lambda within cv.glmnet
                              family = "gaussian", 
                              standardize = TRUE, 
                              nfolds = setParam$fit$nfolds, # 10 fold cross validation  
