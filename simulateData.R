@@ -53,7 +53,8 @@ nCoresSampling <- 5 # simulate data
 # grid to simulate data with mapply later
 # simulation via mapply to easily simulate subsets of parameter combinations
 gridFull <- expand.grid(N = setParam$dgp$N,
-                        pTrash = setParam$dgp$pTrash)
+                        pTrash = setParam$dgp$pTrash,
+                        reliability = setParam$dgp$reliability)
 str(gridFull) # ! factors are interpreted as level numbers!; only character variables are interpreted by their name!
 # create seed number for parallel cluster (reproducibility of generated data)
 set.seed(8967369)
@@ -61,7 +62,7 @@ seedNum <- sample(1:999999, dim(gridFull)[1], replace = FALSE)
 gridFull$sampleSeed <- seedNum[1:dim(gridFull)[1]]
 
 # sample data in parallel
-createData <- function(N, pTrash, sampleSeed){
+createData <- function(N, pTrash, reliability, sampleSeed){
   
   environment(sampleData) <- environment()
   
@@ -89,7 +90,9 @@ sampleData <- function() {
     
     # # test it
     # pTrash <- 10
-    # N <- 10000
+    # N <- 1000
+    # reliability <- 0.7
+    # iSample <- 1
     
     P <- setParam$dgp$p + pTrash # total number of variables
     # generate matrix of (almost) uncorrelated predictors
@@ -137,41 +140,44 @@ sampleData <- function() {
     colnames(bMatrix) <- setParam$dgp$condLabels 
     
     # 50 - 50 (all effects with identical regresssion coefficients)
-    bMatrix[c(linEffects, interEffects), 1] <- rep(0.116, times = nEffects) # R2 = 0.1
-    bMatrix[c(linEffects, interEffects), 2] <- rep(0.227, times = nEffects) # R2 = 0.3
-    bMatrix[c(linEffects, interEffects), 3] <- rep(0.346, times = nEffects) # R2 = 0.5
-    bMatrix[c(linEffects, interEffects), 4] <- rep(0.693, times = nEffects) # R2 = 0.8
+    # R2 <- var(X %*% b) / (var(X %*% b) + sigmaE^2)
+    # (R2 <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_int, bMatrix[,x], setParam$dgp$sigmaE)))
+    
+    bMatrix[c(linEffects, interEffects), 1] <- rep(0.096, times = nEffects) # R2 = 0.1
+    bMatrix[c(linEffects, interEffects), 2] <- rep(0.187, times = nEffects) # R2 = 0.3
+    bMatrix[c(linEffects, interEffects), 3] <- rep(0.286, times = nEffects) # R2 = 0.5
+    bMatrix[c(linEffects, interEffects), 4] <- rep(0.572, times = nEffects) # R2 = 0.8
     
     # 80 - 20 (most effects in linEffects)
     # setParam$dgp$Rsquared/100*80
     # setParam$dgp$Rsquared/100*20
     
     # R^2 = 0.1
-    bMatrix[c(linEffects), 5] <- rep(0.144, times = length(linEffects)) # R2 = 0.08
-    bMatrix[c(interEffects), 5] <- rep(0.079, times = length(interEffects)) # R2 = 0.02
+    bMatrix[c(linEffects), 5] <- rep(0.101, times = length(linEffects)) # R2 = 0.08
+    bMatrix[c(interEffects), 5] <- rep(0.074, times = length(interEffects)) # R2 = 0.02
     # R^2 = 0.3
-    bMatrix[c(linEffects), 6] <- rep(0.28, times = length(linEffects)) # R2 = 0.24
-    bMatrix[c(interEffects), 6] <- rep(0.15, times = length(interEffects)) # R2 = 0.06
+    bMatrix[c(linEffects), 6] <- rep(0.192, times = length(linEffects)) # R2 = 0.24
+    bMatrix[c(interEffects), 6] <- rep(0.128, times = length(interEffects)) # R2 = 0.06
     # R^2 = 0.5
-    bMatrix[c(linEffects), 7] <- rep(0.43, times = length(linEffects)) # R2 = 0.4
-    bMatrix[c(interEffects), 7] <- rep(0.235, times = length(interEffects)) # R2 = 0.1
+    bMatrix[c(linEffects), 7] <- rep(0.32, times = length(linEffects)) # R2 = 0.4
+    bMatrix[c(interEffects), 7] <- rep(0.2, times = length(interEffects)) # R2 = 0.1
     # R^2 = 0.8
-    bMatrix[c(linEffects), 8] <- rep(0.85, times = length(linEffects)) # R2 = 0.64
-    bMatrix[c(interEffects), 8] <- rep(0.45, times = length(interEffects)) # R2 = 0.16
+    bMatrix[c(linEffects), 8] <- rep(0.655, times = length(linEffects)) # R2 = 0.64
+    bMatrix[c(interEffects), 8] <- rep(0.27, times = length(interEffects)) # R2 = 0.16
     
     # 20 - 80 (most effects in interEffects)
     # R^2 = 0.1
-    bMatrix[c(interEffects), 9] <- rep(0.144, times = length(interEffects)) # R2 = 0.08
-    bMatrix[c(linEffects), 9] <- rep(0.079, times = length(linEffects)) # R2 = 0.02
+    bMatrix[c(interEffects), 9] <- rep(0.151, times = length(interEffects)) # R2 = 0.08
+    bMatrix[c(linEffects), 9] <- rep(0.049, times = length(linEffects)) # R2 = 0.02
     # R^2 = 0.3
-    bMatrix[c(interEffects), 10] <- rep(0.28, times = length(interEffects)) # R2 = 0.24
-    bMatrix[c(linEffects), 10] <- rep(0.15, times = length(linEffects)) # R2 = 0.06
+    bMatrix[c(interEffects), 10] <- rep(0.305, times = length(interEffects)) # R2 = 0.24
+    bMatrix[c(linEffects), 10] <- rep(0.095, times = length(linEffects)) # R2 = 0.06
     # R^2 = 0.5
-    bMatrix[c(interEffects), 11] <- rep(0.43, times = length(interEffects)) # R2 = 0.4
-    bMatrix[c(linEffects), 11] <- rep(0.235, times = length(linEffects)) # R2 = 0.1
+    bMatrix[c(interEffects), 11] <- rep(0.48, times = length(interEffects)) # R2 = 0.4
+    bMatrix[c(linEffects), 11] <- rep(0.128, times = length(linEffects)) # R2 = 0.1
     # R^2 = 0.8
-    bMatrix[c(interEffects), 12] <- rep(0.85, times = length(interEffects)) # R2 = 0.64
-    bMatrix[c(linEffects), 12] <- rep(0.45, times = length(linEffects)) # R2 = 0.16
+    bMatrix[c(interEffects), 12] <- rep(1.0, times = length(interEffects)) # R2 = 0.64
+    bMatrix[c(linEffects), 12] <- rep(0.17, times = length(linEffects)) # R2 = 0.16
     
     # calculate R^2 for every combination of R2 and lin/inter effect balance
     # print R^2 as a quick sanity check (removed for speed sake) 
@@ -189,12 +195,12 @@ sampleData <- function() {
     #   add measurement error only to X (poly & interactions are calculated based on X)
     #   measurement error ...
     #     ... independent for each predictor 
-    #     ... normally distributed with mean = 0 & sd according to reliability 
-    covMatError <- diag(P)  
-    reliability <- 0.7
-    diag(covMatError) <- 1 - reliability
+    #     ... normally distributed with M = 0 & SD according to reliability 
+    covMatError <- diag(P)                              # identity matrix
+    diag(covMatError) <- (1 - reliability)/reliability  # error variance according to reliability
     measureError <- rmvnorm(n = N, mean = rep(0, P), sigma = covMatError)
     
+    # add measurement error to predictors
     XwME <- X + measureError
     
     # predictor matrix that allows for polynomials and interactions
@@ -203,16 +209,20 @@ sampleData <- function() {
     # remove first degree polynomials from data (they are duplicates!)
     X_final <- rmDuplicatePoly(X_final)
     
+    # recalculate R2 for predictors with measurement error
     R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_final, bMatrix[,x], setParam$dgp$sigmaE))
     
-    # here!    
-    # to do: 
-    #     - tuning grid
-    #     - beta-values for correlated predictors
-    #     - check reliability of simulated data with single indicator approach in SEM
-    # model <- ''
-    # Data <- ....
-    # fit <- sem(model, data=Data, estimator="MLM")
+    # # run single indicator SEM to check reliabilities of the simulated data 
+    # sapply(seq_len(dim(yMatrix)[2]), function(iR2_LI) {
+    #   X_check <- cbind(X_final[,1:P], y = yMatrix[,iR2_LI])
+    #   
+    #   SImodel <- genSingleIndicatorModel(P, reliability)
+    #   fit <- lavaan::sem(SImodel, data=X_check)
+    #   lavaan::summary(fit)  
+    #   # to do: maybe... 
+    #   #     - save correlations between latent variables of correlated predictors
+    #   #     - save path coefficients for predictors with simulated effects
+    # })
     
     # save ...
     #     ... yMat with dependent variable for all R2 - lin/inter effect conditions in columns
@@ -221,9 +231,10 @@ sampleData <- function() {
     #     ... R2 based on simulated regression coefficients
     list(yMat = yMatrix, 
          # X_int = X_int, # without measurement error
-         X_int = X_final,
+         X_int = X_final, # save predictors with measurement error
          trueB = bMatrix, 
-         R2 = R2)
+         R2 = R2,
+         R2wME = R2wME)
   })
   
   names(data) <- c(seq_len(setParam$dgp$nTrain), 
