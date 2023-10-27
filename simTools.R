@@ -136,13 +136,36 @@ rmDuplicatePoly <- function(X) {
   return(X)
 }
 
-# genSingleIndicatorModel <- function(nSamplingPoints, nFactors) {
-#   efaModelVars <- paste0(sapply(1:(nSamplingPoints-1), function(iP) {
-#     paste0("V", iP, " +")}, simplify = "array"), collapse = " ")
-#   efaModelVars <- paste(efaModelVars, paste0("V", nSamplingPoints))
-#   efaModel <- c()
-#   for (iFactor in 1:nFactors) {
-#     (efaModel <- paste0(efaModel, "\n", "efa('efa1')*f", iFactor, " =~ ", efaModelVars))
-#   }
-#   return(efaModel)
-# }
+# check simulated reliabilities with single-indicator SEM
+# check correlations between predictors (i.e., latent variables) and compare simulated 
+#     regression coefficients with path-coefficients of the structure model
+genSingleIndicatorModel <- function(P, reliability) { 
+  # define latent variables with single indicator each
+  lV <- paste0(sapply(seq_len(P), function(iP) {
+    paste0("F", iP, " =~ 1 * Var", iP, "\n")}, simplify = "array"), collapse = " ")
+  
+  # fix error variance in the observed variable according to reliability 
+  varError <- (1-reliability)/reliability 
+  varOV <- paste0(sapply(seq_len(P), function(iP) {
+    paste0("Var", iP, " ~~ ", varError," * Var", iP, "\n")}, simplify = "array"), collapse = " ")
+  
+  # fix variance in the latent variable to 1 (as modeled in the predictors)
+  # apply(X, 2, var)
+  varLV <- paste0(sapply(seq_len(P), function(iP) {
+    paste0("F", iP, " ~~ ", 1 ," * F", iP, "\n")}, simplify = "array"), collapse = " ")
+  
+  # # model dependent variable (all latent formulation)
+  # # this version is equivalent to simply using y as an observed variable in the structure model
+  # yLV <- "Fy =~ 1 * y\n y ~~ 0*y"
+  
+  # structure model (regression part to recover true simulated regression coefficients 
+  structureModel <- paste0(sapply(seq_len(P-1), function(iP) {
+    paste0("Var", iP, " + ")}, simplify = "array"), collapse = "")
+  # structureModel <- paste0("Fy ~ ", structureModel, paste0("Var", P)) # all latent
+  structureModel <- paste0("y ~ ", structureModel, paste0("Var", P)) # y as OV in structure model
+  
+  # SImodel <- paste0(lV, "\n", varOV, "\n", varLV, "\n", yLV, "\n", structureModel)
+  SImodel <- paste0(lV, "\n", varOV, "\n", varLV, "\n", structureModel)
+  return(SImodel)
+}
+
