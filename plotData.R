@@ -14,7 +14,8 @@ condGrid <- expand.grid(N = setParam$dgp$N,
                         pTrash = setParam$dgp$pTrash)
 condN_pTrash <- paste0("N", condGrid$N, "_pTrash", condGrid$pTrash)
 
-resFolder <- "results/resultsServer"
+resFolder <- "results/resultsWithInteractions"
+# resFolder <- "results/resultsWithoutInteractions"
 load(paste0(resFolder, "/fullData.rda"))
 
 ################################################################################
@@ -46,6 +47,12 @@ estB_effects$pTrash <- factor(estB_effects$pTrash, levels = sort(setParam$dgp$pT
 
 estB_effects$effectType <- ifelse(estB_effects$Var %in% 
                                     unique(estB_effects$Var)[stringr::str_detect(unique(estB_effects$Var), ":")], "inter", "lin")
+
+# when this data was simulated we used these true effects
+setParam$dgp$trueEffects <- cbind(p0.5 = c(0.116, 0.227, 0.346, 0.693),
+                                  p0.8 = c(0.144, 0.28, 0.43, 0.85),
+                                  p0.2 = c(0.079, 0.15, 0.235, 0.45))
+rownames(setParam$dgp$trueEffects) <- setParam$dgp$Rsquared
 
 # add true simulated effects to the data frame to be able to calculate biases in estimated coefficients
 trueB <- data.frame(R2 = setParam$dgp$Rsquared, setParam$dgp$trueEffects)
@@ -119,7 +126,7 @@ for (iVar in c(setParam$dgp$linEffects, setParam$dgp$interEffects)) {
 # plotNames <- ls(pattern = "^pRelBias")
 # for (iPlot in plotNames) {
 #   pName <- paste0(iPlot, "_testResults")
-#     
+# 
 #   ggplot2::ggsave(filename = paste0(plotFolder, "/", pName, ".eps"),
 #                     plot = eval(parse(text = iPlot)),
 #                     device = cairo_ps,
@@ -127,12 +134,12 @@ for (iVar in c(setParam$dgp$linEffects, setParam$dgp$interEffects)) {
 #                     width = 11.3,
 #                     height = 8.22,
 #                     units = "in")
-#     
+# 
 #   ggplot2::ggsave(filename = paste0(plotFolder, "/", pName, ".png"),
 #                     plot = eval(parse(text = iPlot)),
 #                     width = 11.3,
 #                     height = 8.22,
-#                     units = "in") 
+#                     units = "in")
 # }
 
 ################################################################################
@@ -201,7 +208,7 @@ pPerformTrainVStest <- ggplot(performanceStats[which(performanceStats$measure !=
 #                 plot = pPerformTrainVStest,
 #                 width = 13.95,
 #                 height = 11.51,
-#                 units = "in") 
+#                 units = "in")
 
 ################################################################################
 # plot selected variables
@@ -307,7 +314,7 @@ pNsamplesEffect <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nA
 #                 plot = pNsamplesEffect,
 #                 width = 13.95,
 #                 height = 11.51,
-#                 units = "in") 
+#                 units = "in")
 
 # nAllEffects vs. nExactModel_M 
 pAllvsExactEffects <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllEffects")), ],
@@ -350,7 +357,7 @@ pAllvsExactEffects <- ggplot(resSampleStats[which(resSampleStats$measure %in% c(
 #                 plot = pAllvsExactEffects,
 #                 width = 24.24,
 #                 height = 13.28,
-#                 units = "in") 
+#                 units = "in")
 pAllvsExactEffectsLine <- ggplot(resSampleStats[which(resSampleStats$measure %in% c("nAllEffects", "nExactModel_M")), ],
                           aes(x = interaction(pTrash, N, sep = " x "), y = values, 
                               group = R2, colour = R2)) +
@@ -382,7 +389,7 @@ pAllvsExactEffectsLine <- ggplot(resSampleStats[which(resSampleStats$measure %in
 #                 plot = pAllvsExactEffectsLine,
 #                 width = 13.95,
 #                 height = 11.51,
-#                 units = "in") 
+#                 units = "in")
 
 resSampleStats$measure <- factor(resSampleStats$measure, 
                                  levels = c("nExactModel_M", "percentOthers", "nAllEffects", 
@@ -474,3 +481,70 @@ pAlpha <- ggplot(hyperParamData[which(hyperParamData$measures == "alpha"),
 #                 height = 11.38,
 #                 units = "in")
 
+# plot lambda
+# turn factor back to numeric! 
+hyperParamData$values <- as.numeric(as.character(hyperParamData$values))
+range(hyperParamData[which(hyperParamData$measures == "lambda"), "values"])
+
+pLambda <- ggplot(hyperParamData[which(hyperParamData$measures == "lambda"), 
+                      c("sample", "pTrashxN", "R2", "lin_inter", "values")],
+       aes(x = values, group = R2, fill = R2)) +
+  geom_histogram(stat = "bin", binwidth = 0.5, position = position_dodge2(width = 0.9, preserve = "single")) +
+  scale_fill_manual(values = colValues) +
+  scale_y_continuous(limits = c(0, setParam$dgp$nTrain), 
+                     breaks = seq(0, setParam$dgp$nTrain, by = 30)) +
+  facet_grid(pTrashxN ~ lin_inter) +
+  ylab(paste0("n samples out of ", setParam$dgp$nTrain, " samples")) +
+  xlab(paste0("lambda (tuning result)")) +
+  ggtitle("lambda parameter value in (binned absolute) frequencies") +
+  theme(panel.background = element_rect(fill = "white",
+                                        colour = "white",
+                                        linewidth = 0.5, linetype = "solid"),
+        panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid',
+                                        colour = "lightgrey"), 
+        panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid',
+                                        colour = "lightgrey"),
+        axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15))
+
+# pLambda2 <- ggplot(hyperParamData[which(hyperParamData$measures == "lambda"), 
+#                                  c("sample", "pTrashxN", "R2", "lin_inter", "values")],
+#                   aes(x = values, group = R2, colour = R2)) +
+#   geom_freqpoly(binwidth = 0.1) +
+#   scale_colour_manual(values = colValues) +
+#   scale_y_continuous(limits = c(0, setParam$dgp$nTrain), 
+#                      breaks = seq(0, setParam$dgp$nTrain, by = 30)) +
+#   facet_grid(pTrashxN ~ lin_inter) +
+#   ylab(paste0("n samples out of ", setParam$dgp$nTrain, " samples")) +
+#   xlab(paste0("lambda (tuning result)")) +
+#   ggtitle("lambda parameter value in (binned absolute) frequencies") +
+#   theme(panel.background = element_rect(fill = "white",
+#                                         colour = "white",
+#                                         linewidth = 0.5, linetype = "solid"),
+#         panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid',
+#                                         colour = "lightgrey"), 
+#         panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid',
+#                                         colour = "lightgrey"),
+#         axis.text.y = element_text(size = 20),
+#         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+#         axis.title.x = element_text(size = 20),
+#         axis.title.y = element_text(size = 20),
+#         strip.text.x = element_text(size = 15))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/plotTunedLambda.eps"),
+#                 plot = pLambda,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 16.27,
+#                 height = 11.38,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/plotTunedLambda.png"),
+#                 plot = pLambda,
+#                 width = 16.27,
+#                 height = 11.38,
+#                 units = "in")
