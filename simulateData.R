@@ -211,12 +211,8 @@ sampleData <- function() {
     # remove first degree polynomials from data (they are duplicates!)
     X_final <- rmDuplicatePoly(X_final)
     
-    # recalculate R2 for predictors with measurement error
-    R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_final, bMatrix[,x], setParam$dgp$sigmaE))
-    
-    # R2; R2_wME
-    cov(X_final, yMatrix[,3])
-    diag(cov(X_final, X_final))
+    # # recalculate R2 for predictors with measurement error
+    # R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_final, bMatrix[,x], setParam$dgp$sigmaE))
     
     # # run single indicator SEM to check if reliabilities are simulated correctly
     # SImodel <- genSingleIndicatorModel(P, reliability)
@@ -257,15 +253,14 @@ sampleData <- function() {
          # X_int = X_int, # without measurement error
          X_int = X_final, # save predictors with measurement error
          trueB = bMatrix, 
-         R2 = R2,
-         R2wME = R2wME)
+         R2 = R2)
   })
   
   names(data) <- c(seq_len(setParam$dgp$nTrain), 
                    paste0("test", seq_len(setParam$dgp$nTest)))
   
   #save to rda file
-  fileName <- paste0("simDataN", N, "_pTrash", pTrash, ".rda")
+  fileName <- paste0("simDataN", N, "_pTrash", pTrash, "_rel", reliability, ".rda")
   save(data, file = paste0(dataFolder, "/", fileName))
 }
 
