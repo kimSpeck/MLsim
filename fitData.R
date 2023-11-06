@@ -29,7 +29,7 @@ includePoly <- TRUE
 includeInter <- TRUE
 
 ## warm start to arrive at lambda parameters for cross validation
-warmStart <- FALSE
+warmStart <- setParam$fit$warmStart
 
 # iterate through these combinations of data conditions
 condGrid <- expand.grid(N = setParam$dgp$N, 
@@ -41,7 +41,9 @@ condGrid <- expand.grid(N = setParam$dgp$N,
 resFileList <- list.files(resFolder)
 resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", resFileList)
 
-allDataFiles <- paste0("simDataN", condGrid[, "N"], "_pTrash", condGrid[, "pTrash"], ".rda")
+allDataFiles <- paste0("simDataN", condGrid[, "N"], 
+                       "_pTrash", condGrid[, "pTrash"], 
+                       "_rel", condGrid[,"reliability"], ".rda")
 allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", "", allDataFiles)
 
 fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
@@ -59,7 +61,9 @@ clusterSetRNGStream(cl = cl, iseed = s)
 
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
-  fileName <- paste0("simDataN", condGrid[iSim, "N"], "_pTrash", condGrid[iSim, "pTrash"], ".rda")
+  fileName <- paste0("simDataN", condGrid[iSim, "N"], 
+                     "_pTrash", condGrid[iSim, "pTrash"], 
+                     "_rel", condGrid[iSim,"reliability"], ".rda")
   load(paste0(dataFolder, "/", fileName))
   
   # fitte eine regularisierte Regression
@@ -264,8 +268,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
            selectedVars = selectedVars,
            performTrain = performTrain,
            performTest = performTest, 
-           tunedAlpha = tunedAlpha, 
-           tunedLambda = tunedLambda)
+           tunedAlpha = tunedParams["tunedAlpha", "1se"], 
+           tunedLambda = tunedParams["tunedLambda", "1se"])
       
       # # remove fitted sample to reduce working memory load
       # data[[iSample]] <- NULL
