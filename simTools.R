@@ -168,11 +168,15 @@ genSingleIndicatorModel <- function(P, reliability) {
   # # this version is equivalent to simply using y as an observed variable in the structure model
   # yLV <- "Fy =~ 1 * y\n y ~~ 0*y"
   
-  # structure model (regression part to recover true simulated regression coefficients 
+  # structure model (regression part to recover true simulated regression coefficients
+  # use latent factors to get simulated regression coefficients (without measurement error
+  #     and hence without attenuated estimated regression coefficients)
+  # if manifest variables in structure model we can observe the attenuation of the
+  #     regression coefficients due to measurement error as: estBeta = trueBeta * sqrt(reliability)
   structureModel <- paste0(sapply(seq_len(P-1), function(iP) {
-    paste0("Var", iP, " + ")}, simplify = "array"), collapse = "")
+    paste0("F", iP, " + ")}, simplify = "array"), collapse = "")
   # structureModel <- paste0("Fy ~ ", structureModel, paste0("Var", P)) # all latent
-  structureModel <- paste0("y ~ ", structureModel, paste0("Var", P)) # y as OV in structure model
+  structureModel <- paste0("y ~ ", structureModel, paste0("F", P)) # y as OV in structure model
   
   # SImodel <- paste0(lV, "\n", varOV, "\n", varLV, "\n", yLV, "\n", structureModel)
   SImodel <- paste0(lV, "\n", varOV, "\n", varLV, "\n", structureModel)
