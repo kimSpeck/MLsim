@@ -96,7 +96,7 @@ corNp <- setParam$dgp$p*(setParam$dgp$p-1)/2
 
 repeat{
   # correlations around 0 for trash variables (# alternatively exactly 0 correlations)
-  corVec <- rtruncnorm(corN, mean = setParam$dgp$meanR, sd = setParam$dgp$sdR, 
+  corVec <- truncnorm::rtruncnorm(corN, mean = setParam$dgp$meanR, sd = setParam$dgp$sdR, 
                        a = -0.5, b = 0.5) 
   rX <- lavaan::lav_matrix_upper2full(corVec, diagonal = F) # fill up upper triangle
   # rX <- lavaan::lav_matrix_upper2full(rep(0, corN), diagonal = F) # fill up upper triangle
@@ -118,11 +118,17 @@ rm(P, corN, corNp, corVec, rP, rX) # remove temporary variables
 # error "variance" (= standard deviation)
 setParam$dgp$sigmaE <- 1
 
-# measurement error in predictors
-setParam$dgp$reliability <- c(0.5, 0.7, 1)
+# measurement error in predictors 
+setParam$dgp$reliability <- c(0.6, 0.8, 1)
 
 # parameter for gbm or model fitting more general
 setParam$fit$lambda <- 10^seq(-1, 1, length = 100)
+# use warmStart?
+#  pro: this is how caret operates (i.e., get lambda values for alpha = 0.5)
+#         -> thus, lots of users use warm start for lambda tuning
+#       with warmStart exact model is chosen more frequently
+#  con: less control over lambda grid to be searched      
+setParam$fit$warmStart <- TRUE  # thus, lambda parameter are not used
 setParam$fit$alpha <- seq(0, 1, length.out = 20) # alpha with at least 20 steps
 setParam$fit$nfolds <- 10
 
@@ -131,7 +137,8 @@ setParam$fit$nfolds <- 10
 # "lambda.1se" = the largest lambda at which the MSE is within one SE of the smallest MSE (default).
 # here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
 #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
-setParam$fit$lambdaCrit <- c("1se", "min") # min or 1se
+# setParam$fit$lambdaCrit <- c("1se", "min") # min or 1se
+setParam$fit$lambdaCrit <- c("1se") # min or 1se
 for (iCrit in setParam$fit$lambdaCrit) {
   if (!(iCrit %in% c("min", "1se"))) {
     stop("value for 'setParam$fit$lambdaCrit' not available! Choose 'min' or '1se'.")
