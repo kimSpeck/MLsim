@@ -10,12 +10,14 @@
 #         calculate regression coefficients for this random but specific correlation matrix
 #         and check that R^2 is met exactly
 
-# details ... 
-# ToDo: depending in seed we receive non PSM matrices sigma as covariance matrices in multivariate normal
+
+# fixed: depending in seed we receive non PSM matrices sigma as covariance matrices in multivariate normal
 #     Warnmeldungen: 
 #       1: In rmvnorm(n = N, mean = mP, sigma = rX) :
 #       sigma is numerically not positive semidefinite
 # however, rmvnorm somehow deals with this issue (see: https://stats.stackexchange.com/questions/267908/clarification-regarding-rmvnorm-in-r)
+
+
 # ToDo: write big matrices directly to their final place of storage (memory intensive and time consuming)
 
 # ToDo: use simulated effects from setParam!
@@ -90,7 +92,7 @@ sampleData <- function() {
     
     # # test it
     # pTrash <- 10
-    # N <- 1000
+    # N <- 10000
     # reliability <- 0.7
     # iSample <- 1
     
@@ -212,17 +214,39 @@ sampleData <- function() {
     # recalculate R2 for predictors with measurement error
     R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_final, bMatrix[,x], setParam$dgp$sigmaE))
     
-    # # run single indicator SEM to check reliabilities of the simulated data 
-    # sapply(seq_len(dim(yMatrix)[2]), function(iR2_LI) {
+    # R2; R2_wME
+    cov(X_final, yMatrix[,3])
+    diag(cov(X_final, X_final))
+    
+    # # run single indicator SEM to check if reliabilities are simulated correctly
+    # SImodel <- genSingleIndicatorModel(P, reliability)
+    # checkSimParam <- lapply(seq_len(dim(yMatrix)[2]), function(iR2_LI) {
+    #   iR2_LI <- 6
     #   X_check <- cbind(X_final[,1:P], y = yMatrix[,iR2_LI])
-    #   
-    #   SImodel <- genSingleIndicatorModel(P, reliability)
+    # 
     #   fit <- lavaan::sem(SImodel, data=X_check)
-    #   lavaan::summary(fit)  
-    #   # to do: maybe... 
-    #   #     - save correlations between latent variables of correlated predictors
-    #   #     - save path coefficients for predictors with simulated effects
+    #   # lavaan::summary(fit) # check lavaan output 
+    #   
+    #   # save path coefficients for predictors with simulated effects
+    #   estBeta <- fit@Model@GLIST[["beta"]][(P+1),seq_along(setParam$dgp$linEffects)]
+    #   
+    #   # save correlations between latent variables of correlated predictors
+    #   estPsi <- fit@Model@GLIST[["psi"]][seq_along(setParam$dgp$linEffects), seq_along(setParam$dgp$linEffects)]
+    #   estPsi <- estPsi[upper.tri(estPsi)] # F1F2, F1F3, F2F3, F1F4, F2F4, F3F4 
+    #   
+    #   list(estBeta = estBeta, 
+    #        estPsi = estPsi)
     # })
+    # estPsi <- do.call(rbind, lapply(seq_along(checkSimParam), function(subList) {
+    #   rbind(checkSimParam[[subList]][["estPsi"]])
+    # }))
+    # colnames(estPsi) <- c("F1F2", "F1F3", "F2F3", "F1F4", "F2F4", "F3F4")
+    # 
+    # estBeta <- do.call(rbind, lapply(seq_along(checkSimParam), function(subList) {
+    #   rbind(checkSimParam[[subList]][["estBeta"]])
+    # }))
+    # estBeta <- cbind(estBeta, matrix(setParam$dgp$trueEffects$lin, ncol = 1))
+    # colnames(estBeta) <- c(setParam$dgp$linEffects, "trueBeta")
     
     # save ...
     #     ... yMat with dependent variable for all R2 - lin/inter effect conditions in columns
