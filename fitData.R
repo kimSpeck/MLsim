@@ -21,11 +21,11 @@ timeStamp <- format(Sys.time(), "%d%m%y_%H%M%S")
 nCoresSampling <- 2
 
 # test it!
-# iSim = 3
+# iSim = 1
 
 # different modes for Enet
 ## variables included in Enet (TRUE = include poly/inter; FALSE = without poly/inter)
-includePoly <- TRUE 
+includePoly <- TRUE
 includeInter <- TRUE
 
 ## warm start to arrive at lambda parameters for cross validation
@@ -61,8 +61,8 @@ clusterSetRNGStream(cl = cl, iseed = s)
 
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
-  fileName <- paste0("simDataN", condGrid[iSim, "N"], 
-                     "_pTrash", condGrid[iSim, "pTrash"], 
+  fileName <- paste0("simDataN", condGrid[iSim, "N"],
+                     "_pTrash", condGrid[iSim, "pTrash"],
                      "_rel", condGrid[iSim,"reliability"], ".rda")
   load(paste0(dataFolder, "/", fileName))
   
@@ -277,6 +277,10 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     
     # coefficients
     estBeta <- do.call(cbind, lapply(estRes, function(X) X[["estB"]]))
+    # remove variables which are not selected by Enet from mean calculation:
+    #   coefficients that are exactly 0 -> NA
+    estBeta <- ifelse(estBeta == 0, NA, estBeta)
+    
     estBetaStats <- getStats(estBeta, 1, setParam$dgp$nSamples)
     estBetaStats <- cbind(estBetaStats, idxCondLabel = iCond)
     
@@ -358,7 +362,9 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   # save separate each N x pTrash condition in rds files  
   #   -> pro: skip fitted condGrid conditions if algorithm does not run till the end... 
   #   -> con: writing data to rds file is slow and data needs to be united later on
-  resFileName <- paste0(resFolder, "/", "resultsN", condGrid[iSim, "N"], "_pTrash", condGrid[iSim, "pTrash"], ".rds")
+  resFileName <- paste0(resFolder, "/", "resultsN", condGrid[iSim, "N"], 
+                        "_pTrash", condGrid[iSim, "pTrash"], 
+                        "_rel", condGrid[iSim,"reliability"], ".rds")
   saveRDS(iCondRes, file = resFileName)
 })
 
