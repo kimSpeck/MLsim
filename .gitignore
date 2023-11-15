@@ -44,3 +44,5 @@ vignettes/*.pdf
 
 # ignore folder with files to be ignored by git
 ignoreFiles/
+log/
+data/
