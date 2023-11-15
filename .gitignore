@@ -38,5 +38,9 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# ignore all .png files
+# ignore all .eps & .html files
 *.eps
+*.html
+
+# ignore folder with files to be ignored by git
+ignoreFiles/
