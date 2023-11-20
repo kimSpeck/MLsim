@@ -15,10 +15,17 @@
 # load packages
 library(mvtnorm)
 library(truncnorm)
+library(parallel)
 
 # load parameters & custom functions 
 source("setParameters.R") # parameter values
 source("simTools.R") # functions for data simulation
+
+# generate folder for log files
+logFolder = "log"
+if (!file.exists(logFolder)){
+  dir.create(logFolder)
+}
 
 setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
 
@@ -274,7 +281,6 @@ checkOptim <- function(betaLin, betaInter, R2){
 
 X_int_df <- data.frame(X_int)
 
-
 init <- c(1, 0.1)
 names(init) <- c("betaLin", "betaInter")
 
@@ -290,6 +296,8 @@ setParam$fit$optimBetaTol <- 1e-4
 
 optimBeta <- function(init, R2, lin, inter) {
   
+  # estimate beta coefficient for linear effects conditioned on current value for
+  #   interaction effects
   init["betaLin"] <- optim(par = init["betaLin"], # parameters and their initial value
                            fn = linOptim, # optimization criterion
                            R2 = R2, # fixed R2
@@ -299,6 +307,8 @@ optimBeta <- function(init, R2, lin, inter) {
                            lower= setParam$fit$optimLowerLimit, # only positive beta coefficients
                            upper = setParam$fit$optimUpperLimit)$par
   
+  # estimate beta coefficient for interaction effects conditioned on current value for
+  #   linear effects
   init["betaInter"] <- optim(par = init["betaInter"], # parameters and their initial value
                              fn = interOptim, # optimization criterion
                              R2 = R2, # fixed R2
@@ -323,17 +333,25 @@ optimBeta <- function(init, R2, lin, inter) {
 gibbsB <- function(init, R2, lin, inter) {
   
   repeat{
+    
     # optimize beta for linear and interaction effects conditioned on the current other value
     tmp_init <- optimBeta(init, R2, lin, inter)
     print(tmp_init)
+    
     # evaluate performance
     accEstBeta <- checkOptim(tmp_init["betaLin"], tmp_init["betaInter"], R2)
     print(accEstBeta)
+    
     # check that every R2 (lin, inter, total) is near enough around target R2
     acc <- c(abs((lin*R2) - accEstBeta["R2_lin"]), 
              abs((inter*R2) - accEstBeta["R2_inter"]), 
-             abs(R2 - accEstBeta["R2_add"])) # R2_total would be more accurate but does not converge as fast
+             # R2_total would be more accurate but does not necessarily converge 
+             #    getting R2_total AND {R2_lin, R2_inter} right is more difficult
+             abs(R2 - accEstBeta["R2_add"])) 
     
+    # repeat previous steps if criterions for convergence are not met
+    #   a) R2_{lin, inter, add} near enough around target R2
+    #   b) changes in beta{Lin, Inter} smaller than tolerance parameter
     if (all(acc < setParam$fit$optimTol) | all(abs(init - tmp_init) < setParam$fit$optimBetaTol)) {
       return(list(init = tmp_init, 
                   checkAcc = accEstBeta))
@@ -350,10 +368,32 @@ gibbsB <- function(init, R2, lin, inter) {
 #        setParam$dgp$percentLinear[1],
 #        setParam$dgp$percentInter[1])
 
-# lapply(seq_len(dim(condGrid)[1]), function(iGrid) {
-lapply(seq_len(2), function(iGrid) {
+timeStampFolder <- format(Sys.time(), "%d%m%y_%H%M%S")
+nCoresSampling <- 6 # brute force beta estimation
+
+# Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
+cl <- makeCluster(nCoresSampling, type = "FORK",
+                  outfile = paste0(logFolder, "/", "bruteForceBeta",
+                                   timeStampFolder, ".txt"))
+
+# set seed that works for parallel processing
+set.seed(6723940)
+s <- .Random.seed
+clusterSetRNGStream(cl = cl, iseed = s)
+
+bruteForceB <- parLapply(cl, seq_len(dim(condGrid)[1]), function(iGrid) {
+#lapply(seq_len(dim(condGrid)[1]), function(iGrid) {
+  # lapply(seq_len(2), function(iGrid) {
+  
+  # reset init
+  init <- c(1, 0.1)
+  names(init) <- c("betaLin", "betaInter")
+  
   gibbsB(init, 
          condGrid[iGrid, "R2"], 
          condGrid[iGrid, "lin"], 
          condGrid[iGrid, "inter"])
 })
+
+# close cluster to return resources (memory) back to OS
+stopCluster(cl)
