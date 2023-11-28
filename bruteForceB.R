@@ -64,6 +64,43 @@ if (setParam$dgp$poly > 0) {
 # round(empCor, 3)
 cov(X_int)
 
+# # for independent normally distributed random variables 
+# mVar1 <- setParam$dgp$meanR
+# sdVar1 <- sqrt(diag(setParam$dgp$predictorCorMat)[1])
+# 
+# mVar2 <- setParam$dgp$meanR
+# sdVar2 <- sqrt(diag(setParam$dgp$predictorCorMat)[2])
+# var12_ind <- (mVar2 * sdVar1)**2 + (mVar1 * sdVar2)**2 + sdVar1**2 * sdVar2**2
+
+# the variance of the product of two correlated normally distributed random variables
+rho <- setParam$dgp$predictorCorMat[1,2] # correlation between linear predictors
+varProduct <- (1+rho**2)
+sdProduct <- sqrt(varProduct)
+# var12 <- (mVar2 * sdVar1)**2 + (mVar1 * sdVar2)**2 + 
+#   (sdVar1 * sdVar2)**2 * (1+rho**2) + 
+#   2*mVar1*mVar2*sdVar1*sdVar2
+
+
+covCommon <- rho + (rho)**2
+corCommon <- covCommon/(sdProduct * sdProduct)
+
+covExclusive <- (rho)**2 + (rho)**2
+corExclusive <- covExclusive/(sdProduct * sdProduct)
+covExclusive/varProduct
+
+corLin <- lavaan::lav_matrix_upper2full(rep(rho, setParam$dgp$p * (setParam$dgp$p-1) / 2), diagonal = F)
+diag(corLin) <- 1
+
+nInter <- setParam$dgp$p * (setParam$dgp$p-1) / 2
+corInter <- lavaan::lav_matrix_upper2full(rep(corCommon, nInter * (nInter-1)/2), diagonal = F)
+diag(corInter[,c(nInter:1)]) <- corExclusive
+diag(corInter) <- 1
+
+theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
+rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
+                                          "Var1:Var2", "Var1:Var3", "Var1:Var4",
+                                          "Var2:Var3", "Var2:Var3", "Var3:Var4")
+
 # # test formula in generall:
 # #     for 50:50 and different fixed Rsquared
 # setParam$dgp$Rsquared[3] * setParam$dgp$sigmaE / (1-setParam$dgp$Rsquared[3])
@@ -288,12 +325,6 @@ condGrid <- expand.grid(R2 = setParam$dgp$Rsquared,
                         lin = setParam$dgp$percentLinear)
 condGrid$inter <- 1 - condGrid$lin
 
-
-setParam$fit$optimLowerLimit <- 0
-setParam$fit$optimUpperLimit <- 2
-setParam$fit$optimTol <- 5*1e-3
-setParam$fit$optimBetaTol <- 1e-4
-
 optimBeta <- function(init, R2, lin, inter) {
   
   # estimate beta coefficient for linear effects conditioned on current value for
@@ -368,22 +399,21 @@ gibbsB <- function(init, R2, lin, inter) {
 #        setParam$dgp$percentLinear[1],
 #        setParam$dgp$percentInter[1])
 
-timeStampFolder <- format(Sys.time(), "%d%m%y_%H%M%S")
-nCoresSampling <- 6 # brute force beta estimation
+# timeStampFolder <- format(Sys.time(), "%d%m%y_%H%M%S")
+# nCoresSampling <- 6 # brute force beta estimation
+# 
+# # Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
+# cl <- makeCluster(nCoresSampling, type = "FORK",
+#                   outfile = paste0(logFolder, "/", "bruteForceBeta",
+#                                    timeStampFolder, ".txt"))
+# 
+# # set seed that works for parallel processing
+# set.seed(6723940)
+# s <- .Random.seed
+# clusterSetRNGStream(cl = cl, iseed = s)
 
-# Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
-cl <- makeCluster(nCoresSampling, type = "FORK",
-                  outfile = paste0(logFolder, "/", "bruteForceBeta",
-                                   timeStampFolder, ".txt"))
-
-# set seed that works for parallel processing
-set.seed(6723940)
-s <- .Random.seed
-clusterSetRNGStream(cl = cl, iseed = s)
-
-bruteForceB <- parLapply(cl, seq_len(dim(condGrid)[1]), function(iGrid) {
-#lapply(seq_len(dim(condGrid)[1]), function(iGrid) {
-  # lapply(seq_len(2), function(iGrid) {
+# bruteForceB <- parLapply(cl, seq_len(dim(condGrid)[1]), function(iGrid) {
+bruteForceB <- lapply(seq_len(dim(condGrid)[1]), function(iGrid) {
   
   # reset init
   init <- c(1, 0.1)
@@ -395,5 +425,24 @@ bruteForceB <- parLapply(cl, seq_len(dim(condGrid)[1]), function(iGrid) {
          condGrid[iGrid, "inter"])
 })
 
-# close cluster to return resources (memory) back to OS
-stopCluster(cl)
+# # close cluster to return resources (memory) back to OS
+# stopCluster(cl)
+
+names(bruteForceB) <- setParam$dgp$condLabels
+
+betaCoef <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
+  bruteForceB[[subList]][["init"]]
+}))
+
+checkAcc <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
+  bruteForceB[[subList]][["checkAcc"]]
+}))
+
+# getOption("scipen") # 0
+# options(scipen = 999)
+# options(scipen = 0)
+
+betaData <- cbind(condGrid, betaCoef, checkAcc)
+write.csv(betaData, "bruteForceBcoefficients.csv", row.names=FALSE)
+
+bruteForceB <- read.table("bruteForceBcoefficients.csv", header = T, sep = ",")
