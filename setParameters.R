@@ -12,7 +12,8 @@ setParam$dgp$N <- c(100, 300, 1000) # number of observations
 #   as a result, the empirical SE of Rsquared changes according to N 
 #   -> fix test sample size 
 setParam$dgp$testNpc <- 0.5 
-setParam$dgp$p <- 4
+setParam$dgp$p <- 4                   # number of latent variables
+setParam$dgp$nIndicator <- 5          # number of indicators per latent variables
 setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors
 
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
@@ -30,7 +31,7 @@ rm(P)
 # linear effects
 setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
 # choose variables for interaction that have no linear effects (R2 budget)
-# interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
+# setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
 setParam$dgp$interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
 
 # proportion of effect explained by linear effects vs. interaction
@@ -70,6 +71,12 @@ comboGrid <- expand.grid(setParam$dgp$Rsquared,
 setParam$dgp$condLabels <- sapply(seq_len(length(setParam$dgp$Rsquared) * length(setParam$dgp$percentLinear)), 
                                   function(x) paste0("R2", comboGrid$Var1[x], "lin_inter", comboGrid$Var2[x]))
 rm(comboGrid)
+
+# parameters for beta coefficient estimation
+setParam$fit$optimLowerLimit <- 0
+setParam$fit$optimUpperLimit <- 2
+setParam$fit$optimTol <- 5*1e-3
+setParam$fit$optimBetaTol <- 1e-4
 
 ################################################################################
 # predictor correlations
