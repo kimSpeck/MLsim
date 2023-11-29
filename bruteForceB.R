@@ -76,11 +76,13 @@ cov(X_int)
 rho <- setParam$dgp$predictorCorMat[1,2] # correlation between linear predictors
 varProduct <- (1+rho**2)
 sdProduct <- sqrt(varProduct)
+# # without the assumption of standardized predictors (i.e., zero means and unit variance)
 # var12 <- (mVar2 * sdVar1)**2 + (mVar1 * sdVar2)**2 + 
 #   (sdVar1 * sdVar2)**2 * (1+rho**2) + 
 #   2*mVar1*mVar2*sdVar1*sdVar2
 
-
+# covariances and correlations between two products of random variables from a 
+#   multivariate normal distribution
 covCommon <- rho + (rho)**2
 corCommon <- covCommon/(sdProduct * sdProduct)
 
@@ -88,6 +90,9 @@ covExclusive <- (rho)**2 + (rho)**2
 corExclusive <- covExclusive/(sdProduct * sdProduct)
 covExclusive/varProduct
 
+# build correlation matrix as block structure with ...
+#   ... block for linear predictors
+#   ... block for inetraction terms (products)
 corLin <- lavaan::lav_matrix_upper2full(rep(rho, setParam$dgp$p * (setParam$dgp$p-1) / 2), diagonal = F)
 diag(corLin) <- 1
 
@@ -96,6 +101,7 @@ corInter <- lavaan::lav_matrix_upper2full(rep(corCommon, nInter * (nInter-1)/2),
 diag(corInter[,c(nInter:1)]) <- corExclusive
 diag(corInter) <- 1
 
+# full correlation matrix (+ labels)
 theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
 rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
@@ -124,24 +130,16 @@ linOptim <- function(theta, R2, lin, inter, beta_inter) {
     stop("lin and inter do not sum up to 1!")
   }
   
-  beta <- vector(mode = "numeric", length = dim(empCor)[1])
-  names(beta) <- colnames(empCor)
+  beta <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(beta) <- colnames(theoCor)
   beta[names(beta) %in% setParam$dgp$linEffects] <- theta 
   beta[names(beta) %in% setParam$dgp$interEffects] <- beta_inter
   
-  # distribute effect size  
-  Y <- calcDV(X = X_int, b = beta, sigmaE = setParam$dgp$sigmaE, N = N)
+  betaVecLin <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(betaVecLin) <- colnames(theoCor)
+  betaVecLin[names(betaVecLin) %in% setParam$dgp$linEffects] <- theta 
   
-  
-  resVar1 <- residuals(lm(Var1 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4, 
-                          data = X_int_df))
-  resVar2 <- residuals(lm(Var2 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 + 
-                            Var1, data = X_int_df))
-  resVar3 <- residuals(lm(Var3 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 + 
-                            Var1 + Var2, data = X_int_df))
-  resVar4 <- residuals(lm(Var4 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 + 
-                            Var1 + Var2 + Var3, data = X_int_df))
-  (R2_lin <- cor(resVar1, Y)**2 + cor(resVar2, Y)**2 + cor(resVar3, Y)**2 + cor(resVar4, Y)**2)
+  R2_lin <- var(X_int %*% betaVecLin) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
   return(abs(R2_lin - (R2 * lin)))
 }
@@ -151,161 +149,49 @@ interOptim <- function(theta, R2, lin, inter, beta_lin) {
     stop("lin and inter do not sum up to 1!")
   }
   
-  beta <- vector(mode = "numeric", length = dim(empCor)[1])
-  names(beta) <- colnames(empCor)
+  beta <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(beta) <- colnames(theoCor)
   beta[names(beta) %in% setParam$dgp$linEffects] <- beta_lin 
   beta[names(beta) %in% setParam$dgp$interEffects] <- theta
   
-  # distribute effect size  
-  Y <- calcDV(X = X_int, b = beta, sigmaE = setParam$dgp$sigmaE, N = N)
+  betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(betaVecInter) <- colnames(theoCor)
+  betaVecInter[names(betaVecInter) %in% setParam$dgp$interEffects] <- theta
   
-  #
-  resVar12 <- residuals(lm(Var1.Var2 ~ Var1 + Var2 + Var3 + Var4,
-                           data = X_int_df))
-  resVar14 <- residuals(lm(Var1.Var4 ~ Var1 + Var2 + Var3 + Var4 +
-                             Var1.Var2, data = X_int_df))
-  resVar23 <- residuals(lm(Var2.Var3 ~ Var1 + Var2 + Var3 + Var4 +
-                             Var1.Var2 + Var1.Var4, data = X_int_df))
-  resVar34 <- residuals(lm(Var3.Var4 ~ Var1 + Var2 + Var3 + Var4 +
-                             Var1.Var2 + Var1.Var4 + Var2.Var3, data = X_int_df))
-  (R2_inter <- cor(resVar12, Y)**2 + cor(resVar14, Y)**2 + cor(resVar23, Y)**2 + cor(resVar34, Y)**2)
+  R2_inter <- var(X_int %*% betaVecInter) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
   return(abs(R2_inter - (R2 * inter)))
 }
 
-checkOptim <- function(betaLin, betaInter, R2){
-  # 
-  beta <- vector(mode = "numeric", length = dim(empCor)[1])
-  names(beta) <- colnames(empCor)
+checkOptim <- function(betaLin, betaInter){
+  #
+  beta <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(beta) <- colnames(theoCor)
   beta[names(beta) %in% setParam$dgp$linEffects] <- betaLin
   beta[names(beta) %in% setParam$dgp$interEffects] <- betaInter
   
-  # distribute effect size
-  Y <- calcDV(X = X_int, b = beta, sigmaE = setParam$dgp$sigmaE, N = N)
+  betaVecLin <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(betaVecLin) <- colnames(theoCor)
+  betaVecLin[names(betaVecLin) %in% setParam$dgp$linEffects] <- betaLin
   
-  resVar1 <- residuals(lm(Var1 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4,
-                          data = X_int_df))
-  resVar2 <- residuals(lm(Var2 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 +
-                            Var1, data = X_int_df))
-  resVar3 <- residuals(lm(Var3 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 +
-                            Var1 + Var2, data = X_int_df))
-  resVar4 <- residuals(lm(Var4 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 +
-                            Var1 + Var2 + Var3, data = X_int_df))
-  R2_lin <- cor(resVar1, Y)**2 + cor(resVar2, Y)**2 + cor(resVar3, Y)**2 + cor(resVar4, Y)**2
+  betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(betaVecInter) <- colnames(theoCor)
+  betaVecInter[names(betaVecInter) %in% setParam$dgp$interEffects] <- betaInter
   
-  #
-  resVar12 <- residuals(lm(Var1.Var2 ~ Var1 + Var2 + Var3 + Var4,
-                           data = X_int_df))
-  resVar14 <- residuals(lm(Var1.Var4 ~ Var1 + Var2 + Var3 + Var4 +
-                             Var1.Var2, data = X_int_df))
-  resVar23 <- residuals(lm(Var2.Var3 ~ Var1 + Var2 + Var3 + Var4 +
-                             Var1.Var2 + Var1.Var4, data = X_int_df))
-  resVar34 <- residuals(lm(Var3.Var4 ~ Var1 + Var2 + Var3 + Var4 +
-                             Var1.Var2 + Var1.Var4 + Var2.Var3, data = X_int_df))
-  R2_inter <- cor(resVar12, Y)**2 + cor(resVar14, Y)**2 + cor(resVar23, Y)**2 + cor(resVar34, Y)**2
+  R2_lin <- var(X_int %*% betaVecLin) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
+  R2_inter <- var(X_int %*% betaVecInter) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
   R2_total <- getR2(X_int, beta, setParam$dgp$sigmaE)
   R2_add <- R2_lin + R2_inter
   
-  betaOptim <- t(beta) %*% empCor %*% c(beta)
-  diff <- abs((R2 * setParam$dgp$sigmaE / (1 - R2)) -
+  betaOptim <- t(beta) %*% theoCor %*% c(beta)
+  diff <- abs((setParam$dgp$Rsquared[4] * setParam$dgp$sigmaE / (1 - setParam$dgp$Rsquared[4])) -
                 betaOptim)
   
   resVec <- c(R2_lin, R2_inter, R2_total, R2_add, diff)
   names(resVec) <- c("R2_lin", "R2_inter", "R2_total", "R2_add", "diff")
   return(resVec)
 }
-
-# #
-# diffOptim <- function(theta, R2, lin, inter){
-#   if (lin + inter != 1) {
-#     stop("lin and inter do not sum up to 1!")
-#   }
-#   
-#   # estimate beta for linear 
-#   init <- 0.1
-#   theta[1] <- optim(par = init, # parameters and their initial value
-#                     fn = linOptim, # optimization criterion
-#                     R2 = R2, # fixed R2
-#                     lin = lin, inter = inter, 
-#                     beta_inter = theta[2],
-#                     method = "L-BFGS-B",
-#                     lower= c(0), # only positive beta coefficients
-#                     upper = c(2))$par
-#   print(theta[1])
-#   
-#   init <- 0.1
-#   theta[2] <- optim(par = init, # parameters and their initial value
-#                     fn = interOptim, # optimization criterion
-#                     R2 = R2, # fixed R2
-#                     lin = lin, inter = inter, 
-#                     beta_lin = theta[1],
-#                     method = "L-BFGS-B",
-#                     lower= c(0), # only positive beta coefficients
-#                     upper = c(2))$par
-#   print(theta[2])
-#   
-#   # 
-#   beta <- vector(mode = "numeric", length = dim(empCor)[1])
-#   names(beta) <- colnames(empCor)
-#   beta[names(beta) %in% setParam$dgp$linEffects] <- theta[1] 
-#   beta[names(beta) %in% setParam$dgp$interEffects] <- theta[2]
-#   
-#   # # distribute effect size  
-#   # Y <- calcDV(X = X_int, b = beta, sigmaE = setParam$dgp$sigmaE, N = N)
-#   # 
-#   # resVar1 <- residuals(lm(Var1 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4, 
-#   #                         data = X_int_df))
-#   # resVar2 <- residuals(lm(Var2 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 + 
-#   #                           Var1, data = X_int_df))
-#   # resVar3 <- residuals(lm(Var3 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 + 
-#   #                           Var1 + Var2, data = X_int_df))
-#   # resVar4 <- residuals(lm(Var4 ~ Var1:Var2 + Var1:Var4 + Var2:Var3 + Var3:Var4 + 
-#   #                           Var1 + Var2 + Var3, data = X_int_df))
-#   # (R2_lin <- cor(resVar1, Y)**2 + cor(resVar2, Y)**2 + cor(resVar3, Y)**2 + cor(resVar4, Y)**2)  
-#   # 
-#   # #
-#   # resVar12 <- residuals(lm(Var1.Var2 ~ Var1 + Var2 + Var3 + Var4,
-#   #                          data = X_int_df))
-#   # resVar14 <- residuals(lm(Var1.Var4 ~ Var1 + Var2 + Var3 + Var4 +
-#   #                            Var1.Var2, data = X_int_df))
-#   # resVar23 <- residuals(lm(Var2.Var3 ~ Var1 + Var2 + Var3 + Var4 +
-#   #                            Var1.Var2 + Var1.Var4, data = X_int_df))
-#   # resVar34 <- residuals(lm(Var3.Var4 ~ Var1 + Var2 + Var3 + Var4 +
-#   #                            Var1.Var2 + Var1.Var4 + Var2.Var3, data = X_int_df))
-#   # (R2_inter <- cor(resVar12, Y)**2 + cor(resVar14, Y)**2 + cor(resVar23, Y)**2 + cor(resVar34, Y)**2)
-#   
-#   # getR2(X_int, beta, setParam$dgp$sigmaE)
-#   # R2_lin + R2_inter
-#   
-#   # # alternative: get R2 the "usual way" with only beta weights in linear effects
-#   # #   calculating R2 this way highly overestimates R2
-#   # beta_lin <- vector(mode = "numeric", length = dim(empCor)[1])
-#   # names(beta_lin) <- colnames(empCor)
-#   # beta_lin[names(beta_lin) %in% setParam$dgp$linEffects] <- init[1]
-#   # getR2(X_int, beta_lin, setParam$dgp$sigmaE)
-#   # 
-#   # beta_inter <- vector(mode = "numeric", length = dim(empCor)[1])
-#   # names(beta_inter) <- colnames(empCor)
-#   # beta_inter[names(beta_inter) %in% setParam$dgp$interEffects] <- init[2]
-#   # getR2(X_int, beta_inter, setParam$dgp$sigmaE)
-#   
-#   betaOptim <- t(beta) %*% empCor %*% c(beta)
-#   diff <- abs((R2 * setParam$dgp$sigmaE / (1 - R2)) -
-#                 betaOptim)
-#   
-#   print(diff)
-#   return(diff)
-# }
-# 
-# # example
-# optim(par = init, # parameters and their initial value
-#       fn = diffOptim, # optimization criterion
-#       R2 = setParam$dgp$Rsquared[4], # fixed R2
-#       lin = setParam$dgp$percentLinear[1], inter = setParam$dgp$percentInter[1], 
-#       method = "L-BFGS-B",
-#       lower= c(0, 0), # only positive beta coefficients
-#       upper = c(2, 2))
 
 ################################################################################
 
@@ -315,8 +201,6 @@ checkOptim <- function(betaLin, betaInter, R2){
 # parameters to estimate:
 #     beta coefficient for all linear predictors
 #     beta coefficient for all interactions
-
-X_int_df <- data.frame(X_int)
 
 init <- c(1, 0.1)
 names(init) <- c("betaLin", "betaInter")
@@ -370,7 +254,7 @@ gibbsB <- function(init, R2, lin, inter) {
     print(tmp_init)
     
     # evaluate performance
-    accEstBeta <- checkOptim(tmp_init["betaLin"], tmp_init["betaInter"], R2)
+    accEstBeta <- checkOptim(tmp_init["betaLin"], tmp_init["betaInter"])
     print(accEstBeta)
     
     # check that every R2 (lin, inter, total) is near enough around target R2
@@ -443,6 +327,7 @@ checkAcc <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
 # options(scipen = 0)
 
 betaData <- cbind(condGrid, betaCoef, checkAcc)
-write.csv(betaData, "bruteForceBcoefficients.csv", row.names=FALSE)
+round(betaData, 3)
 
-bruteForceB <- read.table("bruteForceBcoefficients.csv", header = T, sep = ",")
+# write.csv(betaData, "bruteForceBcoefficients.csv", row.names=FALSE)
+# bruteForceB <- read.table("bruteForceBcoefficients.csv", header = T, sep = ",")
