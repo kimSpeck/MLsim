@@ -56,15 +56,31 @@ setParam$dgp$Rsquared <- c(.10, .30, .50, .80)
 #                                   p0.2 = c(0.079, 0.15, 0.235, 0.45))  
 # rownames(setParam$dgp$trueEffects) <- setParam$dgp$Rsquared
 
-setParam$dgp$trueEffects$lin <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
-                                      p0.8 = c(0.101, 0.192, 0.32, 0.655),
-                                      p0.2 = c(0.049, 0.095, 0.128, 0.17))  
-setParam$dgp$trueEffects$inter <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
-                                        p0.8 = c(0.151, 0.305, 0.48, 1.0),
-                                        p0.2 = c(0.074, 0.128, 0.2, 0.27)) 
+# # initial (trial and error) beta coefficients 
+# setParam$dgp$trueEffects$lin <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
+#                                       p0.8 = c(0.101, 0.192, 0.32, 0.655),
+#                                       p0.2 = c(0.049, 0.095, 0.128, 0.17))
+# setParam$dgp$trueEffects$inter <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
+#                                         p0.8 = c(0.151, 0.305, 0.48, 1.0),
+#                                         p0.2 = c(0.074, 0.128, 0.2, 0.27))
+
+# # beta coefficients brute forced based on correlation matrix of predictors
+# #     via gibbs sampling procedure using optim to derive beta coefficients
+bruteForceB <- read.table("bruteForceBcoefficients.csv", header = T, sep = ",")
+
+setParam$dgp$trueEffects$lin <- 
+  cbind(bruteForceB[which(bruteForceB$lin == 0.5), "betaLin"], 
+        bruteForceB[which(bruteForceB$lin == 0.8), "betaLin"], 
+        bruteForceB[which(bruteForceB$lin == 0.2), "betaLin"])
+
+setParam$dgp$trueEffects$inter <- 
+  cbind(bruteForceB[which(bruteForceB$lin == 0.5), "betaInter"], 
+        bruteForceB[which(bruteForceB$lin == 0.8), "betaInter"], 
+        bruteForceB[which(bruteForceB$lin == 0.2), "betaInter"])
+
 rownames(setParam$dgp$trueEffects$lin) <- setParam$dgp$Rsquared
 rownames(setParam$dgp$trueEffects$inter) <- setParam$dgp$Rsquared
-
+rm(bruteForceB)
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
                          paste(setParam$dgp$percentLinear, setParam$dgp$percentInter, sep = "_"))
@@ -75,8 +91,8 @@ rm(comboGrid)
 # parameters for beta coefficient estimation
 setParam$fit$optimLowerLimit <- 0
 setParam$fit$optimUpperLimit <- 2
-setParam$fit$optimTol <- 5*1e-3
-setParam$fit$optimBetaTol <- 1e-4
+setParam$fit$optimTol <- 1e-5
+setParam$fit$optimBetaTol <- 1e-5
 
 ################################################################################
 # predictor correlations
