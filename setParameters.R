@@ -31,8 +31,8 @@ rm(P)
 # linear effects
 setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
 # choose variables for interaction that have no linear effects (R2 budget)
-# setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
-setParam$dgp$interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
+setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
+#setParam$dgp$interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
 
 # proportion of effect explained by linear effects vs. interaction
 setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2) 
@@ -78,8 +78,9 @@ setParam$dgp$trueEffects$inter <-
         bruteForceB[which(bruteForceB$lin == 0.8), "betaInter"], 
         bruteForceB[which(bruteForceB$lin == 0.2), "betaInter"])
 
-rownames(setParam$dgp$trueEffects$lin) <- setParam$dgp$Rsquared
-rownames(setParam$dgp$trueEffects$inter) <- setParam$dgp$Rsquared
+rownames(setParam$dgp$trueEffects$lin) <- rownames(setParam$dgp$trueEffects$inter) <- setParam$dgp$Rsquared
+colnames(setParam$dgp$trueEffects$lin) <- unique(bruteForceB$lin)
+colnames(setParam$dgp$trueEffects$inter) <- unique(bruteForceB$inter)
 rm(bruteForceB)
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
