@@ -5,6 +5,53 @@ createFolder <- function(folderPath) {
   }
 }
 
+genBmat <- function(X_int, setParam) {
+  ###
+  # create matrix with beta coefficients for each simulation condition R2 x lin_inter
+  ## input:
+  # X_int     - [scalar] number of predictors
+  # setParam  - [vector] mean values for predictors (default: centered predictors)
+  ## output:
+  # bMatrix   - [matrix] matrix with beta coefficients for each simulation condition R2 x lin_inter 
+  ###
+  
+  # generate empty matrix of beta coefficients with ...
+  #   ... number of rows = total number of terms (linear effects, poly, interactions)
+  #   ... number of columns = R2 {0.1, 0.3, 0.5, 0.8} x effect size splitting {0.5_0.5, 0.8_0.2, 0.2_0.8}
+  bMatrix <- matrix(0, 
+                    ncol = length(setParam$dgp$Rsquared) * length(setParam$dgp$percentLinear),
+                    nrow = ncol(X_int))
+  
+  rownames(bMatrix) <- colnames(X_int) # Var1, ..., poly(...), Var1:Var2 
+  colnames(bMatrix) <- setParam$dgp$condLabels # e.g., R20.1lin_inter0.5_0.5
+  
+  # match structure of bMatrix with arrangement of values in matrix of true effects 
+  #   (i.e., population beta coefficients)
+  bMatrixR2 <- stringr::str_sub(colnames(bMatrix), start = 3L, end = 5L)
+  idxRow <- match(bMatrixR2, rownames(setParam$dgp$trueEffects$lin))
+  
+  bMatrixLin <- stringr::str_sub(colnames(bMatrix), start = -7L, end = -5L)
+  bMatrixInter <- stringr::str_sub(colnames(bMatrix), start = -3L, end = -1L)
+  idxColLin <- match(bMatrixLin, colnames(setParam$dgp$trueEffects$lin))
+  idxColInter <- match(bMatrixInter, colnames(setParam$dgp$trueEffects$inter))
+  
+  # fill up bMatrix with different beta coefficients for linear and interaction
+  #   effects in each combination of ...
+  #   R2 {0.1, 0.3, 0.5, 0.8} and 
+  #   effect size splitting between linear & interaction effects {0.5_0.5, 0.8_0.2, 0.2_0.8}
+  for (iCond in seq_len(dim(bMatrix)[2])) {
+    # linear effects
+    bMatrix[c(setParam$dgp$linEffects), iCond] <- rep(
+      setParam$dgp$trueEffects$lin[idxRow[iCond],idxColLin[iCond]], 
+      times = length(setParam$dgp$linEffects)) 
+    # interaction effects
+    bMatrix[c(setParam$dgp$interEffects), iCond] <- rep(
+      setParam$dgp$trueEffects$inter[idxRow[iCond],idxColInter[iCond]], 
+      times = length(setParam$dgp$interEffects)) # R2 = 0.02
+  }
+  return(bMatrix)
+}
+
 createPredictors <- function(N, P, mP = rep(0, P), corMat) {
   ###
   # create matrix with predictor values
