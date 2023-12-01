@@ -115,7 +115,10 @@ sampleData <- function() {
     X_int <- model.matrix(as.formula(popModel),data.frame(X))
     
     # remove first degree polynomials from data (they are duplicates!)
-    X_int <- rmDuplicatePoly(X_int)
+    #   only if poly in model matrix, else error
+    if (setParam$dgp$poly > 0) {
+      X_int <- rmDuplicatePoly(X_int)
+    } 
     
     # generate vector regression weights
     b <- rep(0, ncol(X_int)) # initiate all b-values with value of zero 
@@ -125,10 +128,11 @@ sampleData <- function() {
     # interPreds <- names(b)[stringr::str_which(names(b), ":")]
     # linPreds <- names(b)[!(names(b) %in% polyEffects) & !(names(b) %in% interEffects)]
     
-    linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
+    linEffects <- setParam$dgp$linEffects
     # choose variables for interaction that have no linear effects (R2 budget)
     # interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
-    interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
+    # interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
+    interEffects <- setParam$dgp$interEffects
     nEffects <- length(c(linEffects, interEffects))
     
     # generate matrix of regression coefficients (matrix includes all conditions)
@@ -211,8 +215,8 @@ sampleData <- function() {
     # remove first degree polynomials from data (they are duplicates!)
     X_final <- rmDuplicatePoly(X_final)
     
-    # # recalculate R2 for predictors with measurement error
-    # R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_final, bMatrix[,x], setParam$dgp$sigmaE))
+    # recalculate R2 for predictors with measurement error
+    R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_final, bMatrix[,x], setParam$dgp$sigmaE))
     
     # # run single indicator SEM to check if reliabilities are simulated correctly
     # SImodel <- genSingleIndicatorModel(P, reliability)
@@ -253,7 +257,8 @@ sampleData <- function() {
          # X_int = X_int, # without measurement error
          X_int = X_final, # save predictors with measurement error
          trueB = bMatrix, 
-         R2 = R2)
+         R2 = R2, 
+         R2_wME = R2_wME)
   })
   
   names(data) <- c(seq_len(setParam$dgp$nTrain), 
