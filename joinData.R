@@ -8,29 +8,27 @@
 source("setParameters.R") # import parameter values
 
 # save results to this folder
-# resFolder <- paste0("results/resultsWithoutInteractionNA")
-resFolder <- paste0("results/resultsWithInteractionNA")
-
-# ## biased estBeta estimation (0 instead of NA if predictor is not chosen) 
-# resFolder <- paste0("results/resultsWithInteraction0")
-# resFolder <- paste0("results/resultsWithoutInteraction0")
-
+# resFolder <- paste0("results/resultsFactorsWithoutInteraction")
+resFolder <- paste0("results/resultsFactorsWithInteraction")
 
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash,
-                        reliability = setParam$dgp$reliability)
+                        reliability = setParam$dgp$reliability,
+                        factors = c(TRUE, FALSE))
 
 # read in data
 fullData <- vector(mode = "list", length = nrow(condGrid))
 for (iSim in seq_len(nrow(condGrid))) {
   resFileName <- paste0(resFolder, "/", "resultsN", condGrid[iSim, "N"], 
                         "_pTrash", condGrid[iSim, "pTrash"], 
-                        "_rel", condGrid[iSim, "reliability"], ".rds")
+                        "_rel", condGrid[iSim, "reliability"], 
+                        "_f", ifelse(condGrid[iSim,"factors"], 1, 0), ".rds")
   fullData[[iSim]] <- readRDS(resFileName)
 }
 names(fullData) <- paste0("N", condGrid$N, 
                           "_pTrash", condGrid$pTrash,
-                          "_rel", condGrid$reliability)
+                          "_rel", condGrid$reliability,
+                          "_f", condGrid$factors)
 
 fullDataFile <- paste0(resFolder, "/fullData.rda")
 save(fullData, file = fullDataFile)
