@@ -14,7 +14,9 @@ setParam$dgp$N <- c(100, 300, 1000) # number of observations
 setParam$dgp$testNpc <- 0.5 
 setParam$dgp$p <- 4                   # number of latent variables
 setParam$dgp$nIndicator <- 5          # number of indicators per latent variables
-setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors
+# setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors (original idea)
+setParam$dgp$pTrash <- c(10, 50) # number of "trash" predictors (smaller set due
+# to computation effort; combinatorical explosion with interactions)
 
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
 setParam$dgp$poly <- c(2) # degree of polynomials (so far: only quadratic effects)
@@ -47,7 +49,8 @@ if (!all(setParam$dgp$percentLinear+
 ################################################################################
 # R squared
 ################################################################################
-setParam$dgp$Rsquared <- c(.10, .30, .50, .80)
+# setParam$dgp$Rsquared <- c(.10, .30, .50, .80) # original idea
+setParam$dgp$Rsquared <- c(.20, .50, .80) # smaller due to runtime considerations
 
 # # true Effects for uncorrelated predictors 
 # # for uncorrelated predictors, coefficients for linear and interaction effects are the same for identical R2 and effect splitting
