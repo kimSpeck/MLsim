@@ -18,15 +18,15 @@ createFolder(logFolder)
 
 timeStamp <- format(Sys.time(), "%d%m%y_%H%M%S")
 # nCoresSampling <- detectCores() - 1 
-nCoresSampling <- 2
+nCoresSampling <- 2 # 10 on server
 
 # test it!
 # iSim = 1
 
 # different modes for Enet
 ## variables included in Enet (TRUE = include poly/inter; FALSE = without poly/inter)
-includePoly <- TRUE
-includeInter <- TRUE
+includePoly <- FALSE
+includeInter <- FALSE
 
 ## warm start to arrive at lambda parameters for cross validation
 warmStart <- setParam$fit$warmStart
@@ -34,7 +34,8 @@ warmStart <- setParam$fit$warmStart
 # iterate through these combinations of data conditions
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash,
-                        reliability = setParam$dgp$reliability)
+                        reliability = setParam$dgp$reliability,  
+                        factors = c(TRUE, FALSE))
 
 # remove lines in condGrid for which there already are results
 # check which files are already in the results folder
@@ -43,7 +44,8 @@ resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", r
 
 allDataFiles <- paste0("simDataN", condGrid[, "N"], 
                        "_pTrash", condGrid[, "pTrash"], 
-                       "_rel", condGrid[,"reliability"], ".rda")
+                       "_rel", condGrid[,"reliability"],
+                       "_f", ifelse(condGrid[,"factors"], 1, 0), ".rda")
 allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", "", allDataFiles)
 
 fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
@@ -63,7 +65,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   fileName <- paste0("simDataN", condGrid[iSim, "N"],
                      "_pTrash", condGrid[iSim, "pTrash"],
-                     "_rel", condGrid[iSim,"reliability"], ".rda")
+                     "_rel", condGrid[iSim,"reliability"], 
+                     "_f", ifelse(condGrid[iSim,"factors"], 1, 0), ".rda")
   load(paste0(dataFolder, "/", fileName))
   
   # fitte eine regularisierte Regression
@@ -364,7 +367,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   #   -> con: writing data to rds file is slow and data needs to be united later on
   resFileName <- paste0(resFolder, "/", "resultsN", condGrid[iSim, "N"], 
                         "_pTrash", condGrid[iSim, "pTrash"], 
-                        "_rel", condGrid[iSim,"reliability"], ".rds")
+                        "_rel", condGrid[iSim,"reliability"], 
+                        "_f", ifelse(condGrid[iSim,"factors"], 1, 0), ".rds")
   saveRDS(iCondRes, file = resFileName)
 })
 
