@@ -11,7 +11,9 @@ setParam$dgp$N <- c(100, 300, 1000) # number of observations
 # !if 50% of training sample size is used as test sample, test sample sizes vary across N observation conditions
 #   as a result, the empirical SE of Rsquared changes according to N 
 #   -> fix test sample size 
-setParam$dgp$testNpc <- 0.5 
+setParam$dgp$testN <- 1000            # fixed test sample size across all N conditions 
+# setParam$dgp$testNpc <- 0.5
+
 setParam$dgp$p <- 4                   # number of latent variables
 setParam$dgp$nIndicator <- 5          # number of indicators per latent variables
 # setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors (original idea)
@@ -25,6 +27,9 @@ setParam$dgp$poly <- c(2) # degree of polynomials (so far: only quadratic effect
 P <- (setParam$dgp$p + setParam$dgp$pTrash) # all predictors
 setParam$dgp$nModelPredictors <- P * setParam$dgp$poly + choose(P, setParam$dgp$interDepth)
 # P * setParam$dgp$poly + (P * (P-1) / 2) # this only works for interactionDepth = 2
+setParam$dgp$nModelPredictorsIndicators <- ((setParam$dgp$p * setParam$dgp$nIndicator) + 
+                                              setParam$dgp$pTrash) * setParam$dgp$poly + 
+  choose(setParam$dgp$p * setParam$dgp$nIndicator + setParam$dgp$pTrash, setParam$dgp$interDepth)
 rm(P)
 
 ################################################################################
@@ -35,6 +40,21 @@ setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("V
 # choose variables for interaction that have no linear effects (R2 budget)
 setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
 #setParam$dgp$interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
+
+# all indicators for predictors with simulated effect 
+#   -> effect simulated for factor but in effect it applies to all indicators
+setParam$dgp$indEffects <- c(sapply(seq_len(setParam$dgp$p), function(x) {
+  paste0("F", x, "_", seq_len(setParam$dgp$nIndicator))}))
+
+# all indicator-interactions for predictors with simulated effect 
+indCombination <- list(c("F1", "F2"), c("F1", "F4"), c("F2", "F3"), c("F3", "F4"))
+setParam$dgp$indInterEffects <- unlist(lapply(indCombination, function(iComb) {
+  indInter <- expand.grid(stringr::str_subset(setParam$dgp$indEffects, iComb[1]),
+                          stringr::str_subset(setParam$dgp$indEffects, iComb[2]))
+  paste0(indInter[,1], ":", indInter[,2])
+}))
+  
+rm(indCombination)
 
 # proportion of effect explained by linear effects vs. interaction
 setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2) 
