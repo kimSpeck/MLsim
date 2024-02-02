@@ -59,7 +59,7 @@ seedNum <- sample(1:999999, dim(gridFull)[1], replace = FALSE)
 gridFull$sampleSeed <- seedNum[1:dim(gridFull)[1]]
 
 # sample data in parallel
-createData <- function(N, pTrash, reliability, sampleSeed){
+createData <- function(N, pTrash, reliability, factors, sampleSeed){
   
   environment(sampleData) <- environment()
   
@@ -105,7 +105,7 @@ sampleData <- function() {
                                        nIndicator = setParam$dgp$nIndicator, 
                                        pTrash = pTrash, reliability = 1,
                                        corMat = setParam$dgp$predictorCorMat[seq_len(P), seq_len(P)])
-    
+      
       # add names to variables
       varGrid <- expand.grid(indicator = seq_len(setParam$dgp$nIndicator),
                              factor = seq_len(setParam$dgp$p))
