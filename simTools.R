@@ -92,6 +92,16 @@ createFactorPredictors <- function(N, p, nIndicator, pTrash, reliability = 1,
   # factorData  - [matrix] matrix of predictor values [N x (nIndicator*p + pTrash)] 
   ###
   
+  # # test it
+  # N <- setParam$dgp$N[1]
+  # p <- setParam$dgp$p
+  # nIndicator <- setParam$dgp$nIndicator
+  # pTrash <- setParam$dgp$pTrash[1]
+  # M = matrix(0, nrow = nIndicator*p + pTrash, ncol = 1)
+  # P <- p + pTrash 
+  # corMat <- setParam$dgp$predictorCorMat[seq_len(P), seq_len(P)]
+  # reliability = 0.6
+  
   # each factor consists of 5 predictors with equal loadings
   # matrix of expected values for each indicator 
   # [#items*#factors + #trashVariables x 1] = [setParam$dgp$nIndicator * setParam$dgp$p + pTrash x 1] 
@@ -118,6 +128,10 @@ createFactorPredictors <- function(N, p, nIndicator, pTrash, reliability = 1,
   #     error variance
   # [setParam$dgp$nIndicator * setParam$dgp$p + pTrash x setParam$dgp$nIndicator * setParam$dgp$p + pTrash] = [30, 30]
   sigmaMa <- lambda %*% corMat %*% t(lambda) + theta
+  
+  # # model-implied correlations
+  # d <- diag(sqrt(diag(sigmaMa)))
+  # solve(d) %*% sigmaMa %*% t(solve(d))
   
   # sampling raw data matrices 
   factorData <- rmvnorm(n = N, mean = M, sigma = sigmaMa)
