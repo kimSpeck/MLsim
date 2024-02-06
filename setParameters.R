@@ -192,3 +192,14 @@ for (iCrit in setParam$fit$lambdaCrit) {
   }
 }
 
+# hyperparameter tuning grid for gbm 
+setParam$fit$tuneGrid <- expand.grid(
+  max_depth = c(1,2,3), # tree depth (= interaction.depth in gbm)
+  min_child_weight = c(5,10), # end node size (= n.minobsinnode in gbm)
+  nTrees = c(50,100,150), # max number of trees (= n.trees in gbm)
+  eta = seq(.051, .201, .05), # shrinkage/learning rate (= shrinkage in gbm)
+  optimalTrees = NA,
+  minRMSE = NA)
+
+setParam$fit$nInterStrength <- 100
+
