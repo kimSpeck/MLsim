@@ -104,6 +104,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       # iCond <- 1
       # iSample <- 1
       
+      tstart <- Sys.time()
+      
       # get predictors
       Xtrain <- as.matrix(data[[iSample]][["X_int"]])
       
@@ -250,16 +252,27 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       # Friedman & Popescu (2005). 
       #   only for variables with simulated main effects otherwise interaction strength is overestimated
       #   see also Greenwell et al. (2018) and Henninger et al. (2023) 
-      interStrength <- lapply(paste0("Var", seq_len(setParam$dgp$p)), function(iVar) {
-        tmp <- iml::Interaction$new(predictor.gbm, feature = iVar, 
-                               grid.size = setParam$fit$nInterStrength)
-        idxTmp <- sort(tmp$results$.interaction, decreasing = T)
-        cbind(var = rep(iVar, length(idxTmp)),
-              feature = tmp$results$.feature[match(idxTmp, tmp$results$.interaction)],
-              interaction = tmp$results$.interaction[match(idxTmp, tmp$results$.interaction)])
-        
-      })
-      interStrength <- do.call(rbind, interStrength)
+      # interStrength <- lapply(paste0("Var", seq_len(setParam$dgp$p)), function(iVar) {
+      #   tmp <- iml::Interaction$new(predictor.gbm, feature = iVar, 
+      #                          grid.size = setParam$fit$nInterStrength)
+      #   idxTmp <- sort(tmp$results$.interaction, decreasing = T)
+      #   cbind(var = rep(iVar, length(idxTmp)),
+      #         feature = tmp$results$.feature[match(idxTmp, tmp$results$.interaction)],
+      #         interaction = tmp$results$.interaction[match(idxTmp, tmp$results$.interaction)])
+      #   
+      # })
+      # interStrength <- do.call(rbind, interStrength)
+      
+      tend <- Sys.time()
+      difftime(tend, tstart)
+      # timing: 
+      #   ! lower estimate data has only 10 trash variables (simDataN1000_pTrash10_rel1_f0.rda)
+      #   1 sample with interStrength (setParam$fit$nInterStrength = 100) = 2.098334 mins
+      #     -> 2 min x 100 samples = 200 Minuten = 3h 20min pro Bedingung 
+      #     -> 3h 20min x 18 Bedingungen = 60h
+      #   1 sample without interStrength = 23.39594 secs
+      #     -> 24 sec x 100 samples = 40 Minuten 
+      #     -> 40 Minuten x 18 Bedingungen = 12h
       
       # save dependent variables for each sample (in a list)
       list(#estB = estBeta, 
