@@ -300,3 +300,11 @@ genSingleIndicatorModel <- function(P, reliability) {
   return(SImodel)
 }
 
+# evaluate GBM 
+predGBM <- function(model, newdata)  {
+  # data format that works with xgboost models
+  newData_x = xgb.DMatrix(data.matrix(newdata), missing = NA)
+  results <- predict(model, newData_x)
+  # results <- predict(model, newdata)
+  return(results)
+}
