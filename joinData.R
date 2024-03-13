@@ -2,45 +2,32 @@
 # full Data (list with nested conditions)
 # full data list
 #   N.{100, 300, 1000}xpTrash.{10, 50, 100}xrel{0.6, 0.8, 1}
-#   {lambda, phi, eta, target, conv1step, conv2step, corLambda, cohensD, corDeriv, nFactorsPA}
 
 # parameter & general functions
 source("setParameters.R") # import parameter values
 
-# # save results to this folder
-# resFolder <- paste0("results/resultsFactorsWithoutInteraction")
-# resFolder <- paste0("results/resultsFactorsWithInteraction")
-
-# results data with no factor, 1 indicator; no factor, 5 indicators; factor, 5 indicators
-resFolder <- paste0("results/resultsWithoutInter_Indicators")
-#resFolder <- paste0("results/resultsWithInter_Indicators")
+# save results to this folder
+# results data GBM
+# resFolder <- paste0("results/resultsGBM")
+resFolder <- paste0("results/resultsGBMwInter")
 
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash,
-                        reliability = setParam$dgp$reliability,
-                        factors = c(TRUE, FALSE))
-
-# duplicate data with factors to run model on indicator data, too
-condGrid$indicators <- rep(FALSE, dim(condGrid)[1])
-addIndi <- condGrid[which(condGrid$factors == TRUE), ]
-addIndi$indicators <- TRUE
-condGrid <- rbind(addIndi, condGrid)
+                        reliability = setParam$dgp$reliability)
 
 # read in data
 fullData <- vector(mode = "list", length = nrow(condGrid))
 for (iSim in seq_len(nrow(condGrid))) {
   resFileName <- paste0(resFolder, "/", "resultsN", condGrid[iSim, "N"], 
                         "_pTrash", condGrid[iSim, "pTrash"], 
-                        "_rel", condGrid[iSim, "reliability"], 
-                        "_f", ifelse(condGrid[iSim,"factors"], 1, 0),
-                        "_ind", ifelse(condGrid[iSim,"indicators"], 1, 0), ".rds")
+                        "_rel", condGrid[iSim, "reliability"], ".rds")
+  
   fullData[[iSim]] <- readRDS(resFileName)
 }
+
 names(fullData) <- paste0("N", condGrid$N, 
                           "_pTrash", condGrid$pTrash,
-                          "_rel", condGrid$reliability,
-                          "_f", condGrid$factors,
-                          "_ind", condGrid$indicators)
+                          "_rel", condGrid$reliability)
 
 fullDataFile <- paste0(resFolder, "/fullData.rda")
 save(fullData, file = fullDataFile)
