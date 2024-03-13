@@ -15,21 +15,17 @@ setParam$dgp$testN <- 1000            # fixed test sample size across all N cond
 # setParam$dgp$testNpc <- 0.5
 
 setParam$dgp$p <- 4                   # number of latent variables
-setParam$dgp$nIndicator <- 5          # number of indicators per latent variables
 # setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors (original idea)
 setParam$dgp$pTrash <- c(10, 50) # number of "trash" predictors (smaller set due
 # to computation effort; combinatorical explosion with interactions)
 
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
-setParam$dgp$poly <- c(2) # degree of polynomials (so far: only quadratic effects)
+setParam$dgp$poly <- c(0) # degree of polynomials (so far: no polynomials)
 
 # predictors and their polynomials + all interactions of depth
 P <- (setParam$dgp$p + setParam$dgp$pTrash) # all predictors
 setParam$dgp$nModelPredictors <- P * setParam$dgp$poly + choose(P, setParam$dgp$interDepth)
 # P * setParam$dgp$poly + (P * (P-1) / 2) # this only works for interactionDepth = 2
-setParam$dgp$nModelPredictorsIndicators <- ((setParam$dgp$p * setParam$dgp$nIndicator) + 
-                                              setParam$dgp$pTrash) * setParam$dgp$poly + 
-  choose(setParam$dgp$p * setParam$dgp$nIndicator + setParam$dgp$pTrash, setParam$dgp$interDepth)
 rm(P)
 
 ################################################################################
@@ -39,22 +35,6 @@ rm(P)
 setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
 # choose variables for interaction that have no linear effects (R2 budget)
 setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
-#setParam$dgp$interEffects <- c("Var5:Var6", "Var5:Var8", "Var6:Var7", "Var7:Var8")
-
-# all indicators for predictors with simulated effect 
-#   -> effect simulated for factor but in effect it applies to all indicators
-setParam$dgp$indEffects <- c(sapply(seq_len(setParam$dgp$p), function(x) {
-  paste0("F", x, "_", seq_len(setParam$dgp$nIndicator))}))
-
-# all indicator-interactions for predictors with simulated effect 
-indCombination <- list(c("F1", "F2"), c("F1", "F4"), c("F2", "F3"), c("F3", "F4"))
-setParam$dgp$indInterEffects <- unlist(lapply(indCombination, function(iComb) {
-  indInter <- expand.grid(stringr::str_subset(setParam$dgp$indEffects, iComb[1]),
-                          stringr::str_subset(setParam$dgp$indEffects, iComb[2]))
-  paste0(indInter[,1], ":", indInter[,2])
-}))
-  
-rm(indCombination)
 
 # proportion of effect explained by linear effects vs. interaction
 setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2) 
@@ -72,23 +52,13 @@ if (!all(setParam$dgp$percentLinear+
 # setParam$dgp$Rsquared <- c(.10, .30, .50, .80) # original idea
 setParam$dgp$Rsquared <- c(.20, .50, .80) # smaller due to runtime considerations
 
-# # true Effects for uncorrelated predictors 
-# # for uncorrelated predictors, coefficients for linear and interaction effects are the same for identical R2 and effect splitting
-# setParam$dgp$trueEffects <- cbind(p0.5 = c(0.116, 0.227, 0.346, 0.693),
-#                                   p0.8 = c(0.144, 0.28, 0.43, 0.85),
-#                                   p0.2 = c(0.079, 0.15, 0.235, 0.45))  
-# rownames(setParam$dgp$trueEffects) <- setParam$dgp$Rsquared
-
-# # initial (trial and error) beta coefficients 
-# setParam$dgp$trueEffects$lin <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
-#                                       p0.8 = c(0.101, 0.192, 0.32, 0.655),
-#                                       p0.2 = c(0.049, 0.095, 0.128, 0.17))
-# setParam$dgp$trueEffects$inter <- cbind(p0.5 = c(0.096, 0.187, 0.286, 0.572),
-#                                         p0.8 = c(0.151, 0.305, 0.48, 1.0),
-#                                         p0.2 = c(0.074, 0.128, 0.2, 0.27))
-
-# # beta coefficients brute forced based on correlation matrix of predictors
-# #     via gibbs sampling procedure using optim to derive beta coefficients
+# beta coefficients brute forced based on correlation matrix of predictors
+#     via gibbs sampling procedure using optim to derive beta coefficients
+setParam$bruteForceB$pTrash <- 0
+setParam$bruteForceB$N <- 100000
+setParam$bruteForceB$reliability <- 1
+setParam$bruteForceB$poly <- setParam$dgp$poly
+# see bruteForceB.R
 bruteForceB <- read.table("bruteForceBcoefficients.csv", header = T, sep = ",")
 
 setParam$dgp$trueEffects$lin <- 
@@ -120,7 +90,6 @@ setParam$fit$optimBetaTol <- 1e-5
 
 ################################################################################
 # predictor correlations
-# ToDo: manipulate correlations between different variables (no separate simulated conditions)
 ################################################################################
 # do not randomly sample correlation matrix in each sample!
 # instead: randomly choose one correlation matrix and use the same correlation matrix in each sample
@@ -162,14 +131,15 @@ repeat{
 setParam$dgp$predictorCorMat <- rX # save PSM correlation matrix
 rm(P, corN, corNp, corVec, rP, rX) # remove temporary variables
 
-# error "variance" (= standard deviation)
+# error "variance" (= standard deviation when sampling via rnorm due to fun. argument)
 setParam$dgp$sigmaE <- 1
 
 # measurement error in predictors 
 setParam$dgp$reliability <- c(0.6, 0.8, 1)
 
 # parameter for gbm or model fitting more general
-setParam$fit$lambda <- 10^seq(-1, 1, length = 100)
+# fixed set of lambda parameters (only used if warmStart = FALSE)
+setParam$fit$lambda <- 10^seq(-1, 1, length = 100) 
 # use warmStart?
 #  pro: this is how caret operates (i.e., get lambda values for alpha = 0.5)
 #         -> thus, lots of users use warm start for lambda tuning
@@ -193,6 +163,10 @@ for (iCrit in setParam$fit$lambdaCrit) {
 }
 
 # hyperparameter tuning grid for gbm 
+# max_depth vielleicht größer wählen? je größer die "interaction depth", desto mehr 
+#   splitting points & desto smoother ist "Ebene" im mehrdimensionalen Raum 
+#   oder durch mehr Bäume? über ensemble Methode regeln?
+#   -> Je größer tree depth, desto smoother die "Ebene" im mehrdimensionalen Raum?
 setParam$fit$tuneGrid <- expand.grid(
   max_depth = c(1,2,3), # tree depth (= interaction.depth in gbm)
   min_child_weight = c(5,10), # end node size (= n.minobsinnode in gbm)
@@ -201,5 +175,9 @@ setParam$fit$tuneGrid <- expand.grid(
   optimalTrees = NA,
   minRMSE = NA)
 
-setParam$fit$nInterStrength <- 100
+# number of samples observations to calculate partial dependencies and h-statistic based on pds
+setParam$fit$nInterStrength <- 50
+
+# number of threads in xgb.cv (implicit parallelization)
+setParam$fit$nThread <- 1
 

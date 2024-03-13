@@ -73,72 +73,6 @@ createPredictors <- function(N, P, mP = rep(0, P), corMat) {
   return(X)
 }
 
-createFactorPredictors <- function(N, p, nIndicator, pTrash, reliability = 1, 
-                                   M = matrix(0, nrow = nIndicator*p + pTrash, ncol = 1), 
-                                   corMat) {
-  ###
-  # create matrix with predictor values including factor structure
-  #   factor structure == essentially tau equivalent model 
-  ## input:
-  # N           - [scalar] number of observations
-  # p           - [scalar] number of predictors (i.e., factors) woth effect on DV
-  # nIndicator  - [scalar] number of indicators/"items" for each predictor
-  # pTrash      - [scalar] number of trash predictors (i.e., single indicators)
-  # reliability - [scalar] reliability of every indicator variable (calculate error 
-  #                        variance from reliability!)
-  # M           - [vector] mean values for predictors (default: centered predictors)
-  # corMat      - [matrix] correlation between predictors
-  ## output:
-  # factorData  - [matrix] matrix of predictor values [N x (nIndicator*p + pTrash)] 
-  ###
-  
-  # # test it
-  # N <- setParam$dgp$N[1]
-  # p <- setParam$dgp$p
-  # nIndicator <- setParam$dgp$nIndicator
-  # pTrash <- setParam$dgp$pTrash[1]
-  # M = matrix(0, nrow = nIndicator*p + pTrash, ncol = 1)
-  # P <- p + pTrash 
-  # corMat <- setParam$dgp$predictorCorMat[seq_len(P), seq_len(P)]
-  # reliability = 0.6
-  
-  # each factor consists of 5 predictors with equal loadings
-  # matrix of expected values for each indicator 
-  # [#items*#factors + #trashVariables x 1] = [setParam$dgp$nIndicator * setParam$dgp$p + pTrash x 1] 
-  # M <- matrix(0, nrow = nIndicator*p + pTrash, ncol = 1)
-  
-  # covariance matrix of items with sigma = lambda %*% phi %*% t(lambda) + theta
-  # var-cov-matrix = loadings %*% factor correlationa %*% loadings + error var-cov-matrix
-  # loadings are all equal = essentially tau-equivalent model (== sum scores)
-  factorLambda <- matrix(rep(c(c(1, 0, 0, 0),
-                               c(0, 1, 0, 0),
-                               c(0, 0, 1, 0),
-                               c(0, 0, 0, 1)), each = nIndicator), 
-                         nrow = nIndicator*p, 
-                         ncol = p)
-  # add factor loadings for trash variables to factor loading matrix
-  lambda <- as.matrix(Matrix::bdiag(factorLambda, diag(pTrash)))
-  
-  # error variance
-  # to do:  error variance only added after calculating y?! 
-  #         how to simulate additional error variance later on?!
-  theta <- diag(nIndicator*p + pTrash) * ((1 - reliability)/reliability)
-  
-  # calculate variance-covariance matrix from loadings, factor correlations and 
-  #     error variance
-  # [setParam$dgp$nIndicator * setParam$dgp$p + pTrash x setParam$dgp$nIndicator * setParam$dgp$p + pTrash] = [30, 30]
-  sigmaMa <- lambda %*% corMat %*% t(lambda) + theta
-  
-  # # model-implied correlations
-  # d <- diag(sqrt(diag(sigmaMa)))
-  # solve(d) %*% sigmaMa %*% t(solve(d))
-  
-  # sampling raw data matrices 
-  factorData <- rmvnorm(n = N, mean = M, sigma = sigmaMa)
-  
-  return(factorData)
-}
-
 # 
 genModel <- function(varVec, interDepth, polyDegree) {
   ###
@@ -198,14 +132,13 @@ calcDV <- function(X, b, sigmaE, N) {
 
 evalPerformance <- function(pred, obs) {
   ###
-  # to do: change this function as soon as other ML models are introduced!
-  # ! equivalence of R^2 = r^2 = 1 - (QS_res / QS_tot) only holds for linear regression
-  
   # evaluate performance (R2, RMSE, MAE) for train or test data
-  # see plorResample function of the caret package
-  # https://github.com/topepo/caret/blob/master/pkg/caret/R/postResample.R
+  # see postResample function of the caret package
+  # https://github.com/topepo/caret/blob/5f4bd2069bf486ae92240979f9d65b5c138ca8d4/pkg/caret/R/postResample.R#L126C3-L144C49
   # adjusted caret package function to return 0 instead of NA if there are no 
   #     predictors chosen in elastic net or lasso regression
+  # to do: only do calculation if obs != factor && obs == numeric; otherwise we did 
+  #         classification and need an pseudo R²?
   ## input:
   # pred    - [vector] outcome as predicted based on model 
   # obs     - [vector] observed outcome 
@@ -218,13 +151,19 @@ evalPerformance <- function(pred, obs) {
   # #   -> NAs bias the estimation of Rsquared in simulated conditions with low R2
   # resamplCor <- try(cor(pred, obs, use = "pairwise.complete.obs"), silent = TRUE)
   
-  # empirical R2
-  # use tryCatch to set correlation and therefore R2 to zero if no predictor is 
-  #     chosen in elastic net or lasso regression
-  resamplCor <- tryCatch(cor(pred, obs, use = "pairwise.complete.obs"),
-                         warning = function(w) 0, silent = TRUE) 
-  mse <- mean((pred - obs)^2)
-  mae <- mean(abs(pred - obs))
+  if (!is.factor(obs) && is.numeric(obs)) {
+    # empirical R2
+    # use tryCatch to set correlation and therefore R2 to zero if no predictor is 
+    #     chosen in elastic net or lasso regression
+    resamplCor <- tryCatch(cor(pred, obs, use = "pairwise.complete.obs"),
+                           warning = function(w) 0, silent = TRUE) 
+    mse <- mean((pred - obs)^2)
+    mae <- mean(abs(pred - obs))
+  } else {
+    resamplCor <- NA
+    mse <- NA
+    mae <- NA
+  }
   
   return(c(RMSE = sqrt(mse), Rsquared = resamplCor^2, MAE = mae))
 }
@@ -266,6 +205,7 @@ rmDuplicatePoly <- function(X) {
 # check simulated reliabilities with single-indicator SEM
 # check correlations between predictors (i.e., latent variables) and compare simulated 
 #     regression coefficients with path-coefficients of the structure model
+# see checkDataSimulation.R
 genSingleIndicatorModel <- function(P, reliability) { 
   # define latent variables with single indicator each
   lV <- paste0(sapply(seq_len(P), function(iP) {
