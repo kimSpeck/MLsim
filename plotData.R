@@ -14,8 +14,10 @@ condGrid <- expand.grid(N = setParam$dgp$N,
                         pTrash = setParam$dgp$pTrash)
 condN_pTrash <- paste0("N", condGrid$N, "_pTrash", condGrid$pTrash)
 
-resFolder <- "results/resultsWithInteractions"
+# resFolder <- "results/resultsWithInteractions"
 # resFolder <- "results/resultsWithoutInteractions"
+# resFolder <- "results/resultsWithInterWarmStart"
+resFolder <- "results/resultsWithoutInterWarmStart"
 load(paste0(resFolder, "/fullData.rda"))
 
 ################################################################################

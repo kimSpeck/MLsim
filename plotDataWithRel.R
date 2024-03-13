@@ -15,15 +15,94 @@ condN_pTrash <- paste0("N", condGrid$N,
                        "_pTrash", condGrid$pTrash,
                        "_rel", condGrid$reliability)
 
-# beta coefficients are NA instead of 0 if they are not in the model
-resFolder <- "results/resultsWithoutInteractionNA"
-resFolder <- "results/resultsWithInteractionNA"
+resFolder <- "results/resultsGBM"
+
+# # beta coefficients are NA instead of 0 if they are not in the model
+# resFolder <- "results/resultsWithoutInteractionNA"
+# resFolder <- "results/resultsWithInteractionNA"
 
 # coefficients are exactly 0 instead of NA! 
 # resFolder <- "results/resultsWithInteraction0"
 
 # to do: run fitData again with NA instead of 0
 load(paste0(resFolder, "/fullData.rda"))
+
+################################################################################
+# plot train and test performance
+################################################################################
+# pull data from nested list of all results (fullData)
+performanceTrain <- rbindResults(fullData, "performTrainStats")
+performanceTest <- rbindResults(fullData, "performTestStats")
+
+# variables from rownames to own column to work woth variable information
+performanceTrain$measure <- rownames(performanceTrain)
+performanceTrain$measure <- stringr::str_replace(performanceTrain$measure, "\\.[:digit:]{1,}$", "")
+performanceTrain$measure <- paste0(performanceTrain$measure, "_train")
+
+performanceTest$measure <- rownames(performanceTest)
+performanceTest$measure <- stringr::str_replace(performanceTest$measure, "\\.[:digit:]{1,}$", "")
+performanceTest$measure[which(performanceTest$measure == "Rsq_test")] <- "Rsquared_test"
+
+# get informative variables for simulated conditions (N, pTrash, R2, lin_inter) 
+performanceTrain <- idx2info(performanceTrain)
+performanceTest <- idx2info(performanceTest)
+
+# change type of columns or specific entry details to prepare plotting  
+performanceTrain$N <- factor(performanceTrain$N, levels = setParam$dgp$N)
+performanceTrain$pTrash <- factor(performanceTrain$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+
+performanceTest$N <- factor(performanceTest$N, levels = setParam$dgp$N)
+performanceTest$pTrash <- factor(performanceTest$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+
+# merge performance Train and performance Test
+performanceStats <- rbind(performanceTrain, performanceTest)
+performanceStats <- tidyr::separate(performanceStats, measure, c("measure", "trainTest"), sep = "_")
+
+# plot performance measures for train and test data
+colValues <- c("green3", "darkcyan", "darkblue", "darkmagenta")
+
+(pPerformTrainVStest <- ggplot(performanceStats[which(performanceStats$measure != "MAE" &
+                                                        performanceStats$measure != "RMSE"),],
+                               aes(x = interaction(pTrash, N, sep = " x "), y = M, 
+                                   group = R2, colour = R2)) +
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+    scale_color_manual(values = colValues) +
+    geom_hline(aes(yintercept = 0)) +
+    facet_grid(trainTest + rel ~ lin_inter, labeller = label_both) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "green3",
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "darkcyan",
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "darkblue",
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[4], col = "darkmagenta",
+               alpha = 0.4) +
+    ylab("") +
+    xlab("pTrash (decreasing) x N (increasing)") +
+    ggtitle("R^2: Training vs. Test performance") +
+    theme(axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.eps"),
+#                 plot = pPerformTrainVStest,
+#                 device = cairo_ps,
+#                 dpi = 300,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.png"),
+#                 plot = pPerformTrainVStest,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
 
 ################################################################################
 # plot relative bias in estimated coefficients 
@@ -189,82 +268,7 @@ estB_falsePositive <- lapply(seq_along(estB_noEffects_sub), function(iSublist) {
 
 estB_falsePositive <- do.call(rbind, estB_falsePositive)
 
-################################################################################
-# plot train and test performance
-################################################################################
-# pull data from nested list of all results (fullData)
-performanceTrain <- rbindResults(fullData, "performTrainStats")
-performanceTest <- rbindResults(fullData, "performTestStats")
 
-# variables from rownames to own column to work woth variable information
-performanceTrain$measure <- rownames(performanceTrain)
-performanceTrain$measure <- stringr::str_replace(performanceTrain$measure, "\\.[:digit:]{1,}$", "")
-performanceTrain$measure <- paste0(performanceTrain$measure, "_train")
-
-performanceTest$measure <- rownames(performanceTest)
-performanceTest$measure <- stringr::str_replace(performanceTest$measure, "\\.[:digit:]{1,}$", "")
-performanceTest$measure[which(performanceTest$measure == "Rsq_test")] <- "Rsquared_test"
-
-# get informative variables for simulated conditions (N, pTrash, R2, lin_inter) 
-performanceTrain <- idx2info(performanceTrain)
-performanceTest <- idx2info(performanceTest)
-
-# change type of columns or specific entry details to prepare plotting  
-performanceTrain$N <- factor(performanceTrain$N, levels = setParam$dgp$N)
-performanceTrain$pTrash <- factor(performanceTrain$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
-
-performanceTest$N <- factor(performanceTest$N, levels = setParam$dgp$N)
-performanceTest$pTrash <- factor(performanceTest$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
-
-# merge performance Train and performance Test
-performanceStats <- rbind(performanceTrain, performanceTest)
-performanceStats <- tidyr::separate(performanceStats, measure, c("measure", "trainTest"), sep = "_")
-
-# plot performance measures for train and test data
-colValues <- c("green3", "darkcyan", "darkblue", "darkmagenta")
-
-(pPerformTrainVStest <- ggplot(performanceStats[which(performanceStats$measure != "MAE" &
-                                                       performanceStats$measure != "RMSE"),],
-                              aes(x = interaction(pTrash, N, sep = " x "), y = M, 
-                                  group = R2, colour = R2)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-  scale_color_manual(values = colValues) +
-  geom_hline(aes(yintercept = 0)) +
-  facet_grid(trainTest + rel ~ lin_inter, labeller = label_both) +
-  geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "green3",
-             alpha = 0.4) +
-  geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "darkcyan",
-             alpha = 0.4) +
-  geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "darkblue",
-             alpha = 0.4) +
-  geom_hline(yintercept = setParam$dgp$Rsquared[4], col = "darkmagenta",
-             alpha = 0.4) +
-  ylab("") +
-  xlab("pTrash (decreasing) x N (increasing)") +
-  ggtitle("R^2: Training vs. Test performance") +
-  theme(axis.text.y = element_text(size = 20),
-        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-        axis.title.x = element_text(size = 20),
-        axis.title.y = element_text(size = 20),
-        strip.text.x = element_text(size = 15),
-        strip.text.y = element_text(size = 15)))
-
-# # save plots as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.eps"),
-#                 plot = pPerformTrainVStest,
-#                 device = cairo_ps,
-#                 dpi = 300,
-#                 width = 13.08,
-#                 height = 12.18,
-#                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest.png"),
-#                 plot = pPerformTrainVStest,
-#                 width = 13.08,
-#                 height = 12.18,
-#                 units = "in")
 
 ################################################################################
 # plot selected variables
