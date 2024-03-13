@@ -23,16 +23,11 @@ source("simTools.R") # functions for data simulation
 
 # generate folder for log files
 logFolder = "log"
-if (!file.exists(logFolder)){
-  dir.create(logFolder)
-}
+createFolder(logFolder)
 
-setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
-
-pTrash <- 0
-N <- 100000
-reliability <- 1
-setParam$dgp$poly <- 0
+pTrash <- setParam$bruteForceB$pTrash
+N <- setParam$bruteForceB$N
+reliability <- setParam$bruteForceB$reliability
 
 P <- setParam$dgp$p + pTrash # total number of variables
 
