@@ -30,7 +30,9 @@ N <- 100000
 
 checkSimData <- function(pTrash, reliability, sampleSeed){
   set.seed(sampleSeed)
+  print(paste0("in progress: ", pTrash, " x ", reliability))
   
+  ##### simulate data ######
   P <- setParam$dgp$p + pTrash # total number of variables
   # generate matrix of (almost) uncorrelated predictors
   
@@ -92,7 +94,7 @@ checkSimData <- function(pTrash, reliability, sampleSeed){
     X_final <- rmDuplicatePoly(X_final)
   }
   
-  
+  ##### fit SEM to check data simulation ######
   # run single indicator SEM to check if reliabilities are simulated correctly
   # idea: fix residuals of the items according to the simulated reliability and check
   #       if correlations between factors and path coefficients between predictors 
@@ -103,7 +105,7 @@ checkSimData <- function(pTrash, reliability, sampleSeed){
     R2 <- stringr::str_sub(colnames(yMatrix)[iR2_LI], start = 3L, end = 5L)
     lin_inter <- stringr::str_sub(colnames(yMatrix)[iR2_LI], start = 15L)
     
-    fit <- lavaan::sem(SImodel, data=X_check)
+    fit <- lavaan::sem(SImodel, data=X_check, se = "none")
     # lavaan::summary(fit) # check lavaan output
     
     # save path coefficients for predictors with simulated effects
@@ -137,13 +139,123 @@ checkSimData <- function(pTrash, reliability, sampleSeed){
 
 # # test it 
 # checkSimData(pTrash = 10, reliability = 0.6, sampleSeed = 42)
-out <- do.call(mapply, c(FUN = checkSimData, gridFull[1:2,], SIMPLIFY = FALSE))
 
+# # run data simulation and SEM fitting again or load the saved data (see plot check data below)
+# out <- do.call(mapply, c(FUN = checkSimData, gridFull, SIMPLIFY = FALSE))
+
+# # save data
+# save(out, file = "checkDataSimulation.rda")
 ################################################################################
-estPsi <- data.frame(estPsi)
-estBeta <- data.frame(estBeta)
+# plot check data
+################################################################################
+# load data
+load("checkDataSimulation.rda")
 
-col2num.psi <- c("F1F2", "F1F3", "F2F3", "F1F4", "F2F4", "F3F4")
-estPsi[col2num.psi] <- lapply(estPsi[col2num.psi], as.numeric)
+# concatenate matrices across condition sublists (R2 x lin_inter)
+estBeta <- do.call(rbind, lapply(seq_along(out), function(subList) {
+  cbind(out[[subList]][["estBeta"]],
+        gridFull[subList,1:2])
+}))
+
+estPsi <- do.call(rbind, lapply(seq_along(out), function(subList) {
+  cbind(out[[subList]][["estPsi"]],
+        gridFull[subList,1:2])
+}))
+
+# change parameter value variables to numeric
+str(estBeta)
 col2num.beta <- c(setParam$dgp$linEffects, "trueBeta")
 estBeta[col2num.beta] <- lapply(estBeta[col2num.beta], as.numeric)
+col2num.psi <- c("F1F2", "F1F3", "F2F3", "F1F4", "F2F4", "F3F4")
+estPsi[col2num.psi] <- lapply(estPsi[col2num.psi], as.numeric)
+
+# calculate average estimates across variables and correlations
+# (all variables with simulated effects and all correlations are respectively the same)
+estBeta$mBeta <- rowMeans(estBeta[, setParam$dgp$linEffects], na.rm = T)
+estBeta$deltaBeta <- estBeta$mBeta - estBeta$trueBeta 
+
+estPsi$mPsi <- rowMeans(estPsi[, col2num.psi], na.rm = T)
+estPsi$deltaPsi <- estPsi$mPsi - setParam$dgp$Reffects
+
+estParam <- merge(estBeta, estPsi)
+estParamLong <- tidyr::pivot_longer(estParam, c(deltaPsi, deltaBeta),
+                                    names_to = "deltaType", values_to = "delta")
+
+# plot all conditions in any random arrangement to quickly check the recovered parameters
+library(ggplot2)
+
+colValues <- c("green3", "darkblue", "darkmagenta")
+
+# mean values for correlations and pathcoefficients
+(ggplot(estParamLong,
+        aes(x = interaction(pTrash, lin_inter, sep = " x "), y = delta, 
+            group = interaction(R2, deltaType), colour = R2, linetype = deltaType)) +
+    geom_point() +
+    geom_line() +
+    scale_linetype_manual(values = c("solid", "dotted")) +
+    scale_color_manual(values = colValues) +
+    geom_hline(aes(yintercept = 0)) +
+    facet_wrap(~ reliability, labeller = label_both) +
+    ylab("") +
+    xlab("pTrash (decreasing) x lin_inter") +
+    ggtitle("average estimated parameter - true, simulated parameter") +
+    theme(axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+# all recovered correlations
+estPsiLong <- tidyr::pivot_longer(estPsi, c(tidyr::all_of(col2num.psi)),
+                                  names_to = "corType", values_to = "cor")
+(ggplot(estPsiLong,
+        aes(x = interaction(pTrash, lin_inter, sep = " x "), y = cor, 
+            group = interaction(R2, corType), colour = R2, linetype = corType)) +
+    geom_point() +
+    geom_line() +
+    # scale_linetype_manual(values = c("solid", "dotted")) +
+    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+    scale_color_manual(values = colValues) +
+    geom_hline(aes(yintercept = setParam$dgp$Reffects)) +
+    facet_wrap(~ reliability, labeller = label_both) +
+    ylab("") +
+    xlab("pTrash (decreasing) x lin_inter") +
+    ggtitle("estimated correlations - true, simulated correlations") +
+    theme(axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+# all recovered path coefficients
+# substract 
+subtractTrue <- function(varName){
+  return(varName - estBeta$trueBeta)
+}
+
+estBeta <- cbind(estBeta, apply(estBeta[,setParam$dgp$linEffects], 2, subtractTrue))
+deltaVars <- sapply(setParam$dgp$linEffects, function(x) paste0("delta", x))
+colnames(estBeta)[12:15] <- deltaVars
+
+estBetaLong <- tidyr::pivot_longer(estBeta, c("deltaVar1", "deltaVar2", "deltaVar3", "deltaVar4"),
+                                  names_to = "pathCoefType", values_to = "pathCoef")
+
+(ggplot(estBetaLong,
+        aes(x = interaction(pTrash, lin_inter, sep = " x "), y = pathCoef, 
+            group = interaction(R2, pathCoefType), colour = R2, linetype = pathCoefType)) +
+    geom_point() +
+    geom_line() +
+    scale_color_manual(values = colValues) +
+    geom_hline(aes(yintercept = 0)) +
+    facet_wrap(~ reliability, labeller = label_both) +
+    ylab("") +
+    xlab("pTrash (decreasing) x lin_inter") +
+    ggtitle("estimated path coefficient - true, simulated path coefficient") +
+    theme(axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
