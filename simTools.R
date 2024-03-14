@@ -240,8 +240,15 @@ genSingleIndicatorModel <- function(P, reliability) {
   return(SImodel)
 }
 
-# evaluate GBM 
-predGBM <- function(model, newdata)  {
+
+# evaluate ENET (for xgboost fit models)
+predEnet <- function(model, newdata)  {
+  results <- predict(model, as.matrix(newdata))
+  return(results)
+}
+
+# evaluate GBM (for xgboost fit models)
+predGBM.xgboost <- function(model, newdata)  {
   # data format that works with xgboost models
   newData_x = xgb.DMatrix(data.matrix(newdata), missing = NA)
   results <- predict(model, newData_x)
