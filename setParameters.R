@@ -1,6 +1,8 @@
 setParam <- list()
 
+################################################################################
 # data generating process
+################################################################################
 setParam$dgp$nTrain <- 100
 setParam$dgp$nTest <- 1
 setParam$dgp$nSamples <- setParam$dgp$nTrain + setParam$dgp$nTest
@@ -28,9 +30,7 @@ setParam$dgp$nModelPredictors <- P * setParam$dgp$poly + choose(P, setParam$dgp$
 # P * setParam$dgp$poly + (P * (P-1) / 2) # this only works for interactionDepth = 2
 rm(P)
 
-################################################################################
-# simulated effects
-################################################################################
+##### simulated effects #####
 # linear effects
 setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
 # choose variables for interaction that have no linear effects (R2 budget)
@@ -46,9 +46,7 @@ if (!all(setParam$dgp$percentLinear+
          setParam$dgp$percentInter +
          setParam$dgp$percentPoly == 1)) stop("Proportion of different kinds of effects do not sum up to 1! Check values!")
 
-################################################################################
-# R squared
-################################################################################
+##### R squared #####
 # setParam$dgp$Rsquared <- c(.10, .30, .50, .80) # original idea
 setParam$dgp$Rsquared <- c(.20, .50, .80) # smaller due to runtime considerations
 
@@ -88,9 +86,7 @@ setParam$fit$optimUpperLimit <- 2
 setParam$fit$optimTol <- 1e-5
 setParam$fit$optimBetaTol <- 1e-5
 
-################################################################################
-# predictor correlations
-################################################################################
+##### predictor correlations #####
 # do not randomly sample correlation matrix in each sample!
 # instead: randomly choose one correlation matrix and use the same correlation matrix in each sample
 setParam$dgp$Reffects <- 0.4 # correlation between predictors with simulated effects
@@ -137,6 +133,23 @@ setParam$dgp$sigmaE <- 1
 # measurement error in predictors 
 setParam$dgp$reliability <- c(0.6, 0.8, 1)
 
+################################################################################
+# model fitting
+################################################################################
+# always create the full set of conditions including sample seeds and remove conditions 
+#   -> ensure reproducibility
+# iterate through these combinations of data conditions
+setParam$fit$condGrid <- expand.grid(model = c("ENETwo", "ENETw", "GBM"),
+                                     N = setParam$dgp$N, 
+                                     pTrash = setParam$dgp$pTrash,
+                                     reliability = setParam$dgp$reliability)
+
+# create seed number for parallel cluster (reproducibility of results)
+set.seed(7849380)
+seedNum <- sample(1:999999, dim(setParam$fit$condGrid)[1], replace = FALSE) 
+setParam$fit$condGrid$sampleSeed <- seedNum[1:dim(setParam$fit$condGrid)[1]]
+
+##### ENET #####
 # parameter for gbm or model fitting more general
 # fixed set of lambda parameters (only used if warmStart = FALSE)
 setParam$fit$lambda <- 10^seq(-1, 1, length = 100) 
@@ -162,21 +175,29 @@ for (iCrit in setParam$fit$lambdaCrit) {
   }
 }
 
+##### GBM #####
 # hyperparameter tuning grid for gbm 
 # max_depth vielleicht größer wählen? je größer die "interaction depth", desto mehr 
 #   splitting points & desto smoother ist "Ebene" im mehrdimensionalen Raum 
 #   oder durch mehr Bäume? über ensemble Methode regeln?
 #   -> Je größer tree depth, desto smoother die "Ebene" im mehrdimensionalen Raum?
+# setParam$fit$tuneGrid <- expand.grid(
+#   max_depth = c(1,2,3), # tree depth (= interaction.depth in gbm)
+#   min_child_weight = c(5,10), # end node size (= n.minobsinnode in gbm)
+#   nTrees = c(50,100,150), # max number of trees (= n.trees in gbm)
+#   eta = seq(.051, .201, .05), # shrinkage/learning rate (= shrinkage in gbm)
+#   optimalTrees = NA,
+#   minRMSE = NA)
+
 setParam$fit$tuneGrid <- expand.grid(
-  max_depth = c(1,2,3), # tree depth (= interaction.depth in gbm)
-  min_child_weight = c(5,10), # end node size (= n.minobsinnode in gbm)
-  nTrees = c(50,100,150), # max number of trees (= n.trees in gbm)
-  eta = seq(.051, .201, .05), # shrinkage/learning rate (= shrinkage in gbm)
-  optimalTrees = NA,
-  minRMSE = NA)
+  interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
+  n.minobsinnode = c(5, 10),    # end node size (= min_child_weight in xgboost)
+  n.trees = c(50,100,150),      # max number of trees (= nTrees in xgboost)
+  shrinkage = seq(.051, .201, .05)) # shrinkage/learning rate (= eta in xgboost)
 
 # number of samples observations to calculate partial dependencies and h-statistic based on pds
 setParam$fit$nInterStrength <- 50
+setParam$fit$InterStrength <- TRUE
 
 # number of threads in xgb.cv (implicit parallelization)
 setParam$fit$nThread <- 1
