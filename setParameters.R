@@ -168,7 +168,9 @@ setParam$fit$nfolds <- 10
 # here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
 #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
 # setParam$fit$lambdaCrit <- c("1se", "min") # min or 1se
-setParam$fit$lambdaCrit <- c("1se") # min or 1se
+setParam$fit$lambdaCrit <- c("1se") # 1se
+# -> despite the more conservative criterion (lambda.1se instead of lambda.min) all
+#     predictors are found often but too much trash is extracted to find the exact model
 for (iCrit in setParam$fit$lambdaCrit) {
   if (!(iCrit %in% c("min", "1se"))) {
     stop("value for 'setParam$fit$lambdaCrit' not available! Choose 'min' or '1se'.")
