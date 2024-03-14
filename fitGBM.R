@@ -70,8 +70,7 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
     # model agnostic measures
     pvi = cbind(pviRank, pviValue), # permutation variable importance
     # h-statistic two-way interactions
-    if (setParam$fit$InterStrength) {interStrength = interStrength 
-    } else {interStrength = NA},
+    interStrength = if (setParam$fit$InterStrength) interStrength else NA,
     # tuning parameters (GBM)
     tunedShrinkage = tunedShrinkage,
     tunedMax_depth = tunedMax_depth,
