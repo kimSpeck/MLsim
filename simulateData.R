@@ -163,5 +163,5 @@ sampleData <- function() {
   save(data, file = paste0(dataFolder, "/", fileName))
 }
 
-# out <- do.call(mapply, c(FUN = createData, gridFull[1,])) # test
+# out <- do.call(mapply, c(FUN = createData, gridFull[13,])) # test
 out <- do.call(mapply, c(FUN = createData, gridFull))
