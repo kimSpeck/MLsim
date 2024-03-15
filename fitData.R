@@ -9,8 +9,13 @@ library(iml)      # permutation variable importance, h-statistic
 source("setParameters.R") # parameter values
 source("simTools.R")
 
+# functions to fit different models
 source("fitENET.R")
 source("fitGBM.R")
+
+# functions to calculate and save outcome measures from models
+source("saveENET.R")
+source("saveGBM.R")
 
 # build folder structure
 dataFolder <- "data"
@@ -40,11 +45,6 @@ allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", ""
 fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
 condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
 
-# Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
-cl <- makeCluster(nCoresSampling, type = "FORK",
-                  outfile = paste0(logFolder, "/", "fitDataStatus",
-                                   timeStamp, ".txt"))
-
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   # test it!
@@ -58,19 +58,28 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   load(paste0(dataFolder, "/", fileName))
   
-  # set seed that works for parallel processing
-  set.seed(condGrid[iSim, "sampleSeed"])
-  s <- .Random.seed
-  clusterSetRNGStream(cl = cl, iseed = s)
-  
   # fitte eine regularisierte Regression
   tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { # R2 x lin_inter combinations
+  
+    # test it: 
+    # iCond <- 1
     
+    # Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
+    cl <- makeCluster(nCoresSampling, type = "FORK",
+                      outfile = paste0(logFolder, "/", "fitDataStatus",
+                                       timeStamp, ".txt"))
+    
+    # set seed that works for parallel processing
+    set.seed(condGrid[iSim, "sampleSeed"])
+    s <- .Random.seed
+    clusterSetRNGStream(cl = cl, iseed = s)
+      
     # estRes <- lapply(seq_len(setParam$dgp$nTrain), function(iSample) {
-    estRes <- parLapply(cl, seq_len(setParam$dgp$nTrain), function(iSample) {
+    # estRes <- parLapply(cl, seq_len(setParam$dgp$nTrain), function(iSample) {
+    tStart <- Sys.time()
+    estRes <- parLapply(cl, seq_len(10), function(iSample) {
       
       # # test it; set lapply variables to any possible value 
-      # iCond <- 1
       # iSample <- 1
       
       # monitor progress of the simulation study (irrespective of model)
@@ -113,92 +122,62 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       }
     
     }) # end of parallel fitting for samples
+    tEnd <- Sys.time()
+    difftime(tEnd, tStart)
     
-    # coefficients
-    estBeta <- do.call(cbind, lapply(estRes, function(X) X[["estB"]]))
-    # remove variables which are not selected by Enet from mean calculation:
-    #   coefficients that are exactly 0 -> NA
-    estBeta <- ifelse(estBeta == 0, NA, estBeta)
+    # close cluster to return resources (memory) back to OS
+    stopCluster(cl)
     
-    estBetaStats <- getStats(estBeta, 1, setParam$dgp$nSamples)
-    estBetaStats <- cbind(estBetaStats, idxCondLabel = iCond)
+    ##### save measures #####
+    # model agnostic measures
+    #   - training and test performance (RMSE, Rsquared, MAE)
+    #   - permutation variable importance (pvi)
     
-    # selected variables (how often are predictors selected in model)
-    selectedVars <- do.call(cbind, lapply(estRes, function(X) X[["selectedVars"]]))
-    
-    # AV: Wie oft bleiben Terme (lineare Praediktoren/Interaktionen) im Modell?
-    nSelection <- apply(selectedVars, MARGIN = 1, sum) # frequency of variable selection 
-    percSelection <- nSelection / ncol(selectedVars) * 100 # relative frequency 
-    varSelection <- cbind(nSelection = nSelection, 
-                          percSelection = percSelection,
-                          idxCondLabel = iCond) # stats per predictor
-    
-    # here! to do! only linear and interaction effects extracted; not indicators!
-    
-    # only true predictors in model (8 predictors with simulated effects and every other variable == 0)
-    # how many of the linear effects are recovered?
-    nSelectedLin <- sapply(seq_len(ncol(selectedVars)), function(iCol) { 
-      sum(setParam$dgp$linEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    # how many of the interaction effects are recovered?
-    nSelectedInter <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-      sum(setParam$dgp$interEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    
-    # how many of the single indicators were recovered?
-    nSelectedInd <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-      sum(setParam$dgp$indEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    
-    # how many of the single indicator interactions were recovered?
-    nSelectedIndInter <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-      sum(setParam$dgp$indInterEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    
-    # all simulated effects selected in model?
-    selectedAll <- nSelectedLin + nSelectedInter == length(c(setParam$dgp$linEffects, setParam$dgp$linEffects))
-    selectedAllInd <- nSelectedInd + nSelectedIndInter == length(c(setParam$dgp$indEffects, setParam$dgp$indInterEffects))
-    
-    # only simulated effects selected (i.e., every other predictor is not selected!)
-    nSelectedOthers <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-      sum(!(rownames(selectedVars)[selectedVars[,iCol]] %in% c(setParam$dgp$interEffects, setParam$dgp$linEffects)))})
-    
-    nSelectedOthersInd <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-      sum(!(rownames(selectedVars)[selectedVars[,iCol]] %in% c(setParam$dgp$indInterEffects, setParam$dgp$indEffects)))})
-    
-    
-    # final Enet-Parameters for each sample
-    tunedAlphaVec <- unname(do.call(c, lapply(estRes, function(X) X[["tunedAlpha"]])))
-    tunedLambdaVec <- unname(do.call(c, lapply(estRes, function(X) X[["tunedLambda"]])))
-    
-    # variable selection stats per sample
-    # for all: 1 = TRUE, 0 = FALSE
-    selectionPerSample <- cbind(nLin = nSelectedLin, nInter = nSelectedInter, 
-                                nInd = nSelectedInd, nIndInter = nSelectedIndInter,
-                                all.T1F0 = selectedAll, all.Ind = selectedAllInd,
-                                nOthers = nSelectedOthers, nOthersInd = nSelectedOthersInd,
-                                alpha = tunedAlphaVec, lambda = tunedLambdaVec,
-                                idxCondLabel = iCond)
+    # generate list for all results; write results in list immediatly after generating! 
+    if (condGrid[iSim, "model"] != "GBM") {
+      resList <- vector(mode = "list", 
+                        length = setParam$fit$out + setParam$fit$outENET)
+      names(resList) <- c(setParam$fit$outLabels, setParam$fit$enetLabels)
+    } else if (condGrid[iSim, "model"] == "GBM") {
+      resList <- vector(mode = "list", 
+                        length = setParam$fit$out + setParam$fit$outGBM)
+      names(resList) <- c(setParam$fit$outLabels, setParam$fit$gbmLabels)
+    }
     
     # training performance (RMSE, Rsquared, MAE)
     performTrainMat <- do.call(rbind, lapply(estRes, function(X) X[["performTrain"]])) # each sample
     colnames(performTrainMat) <- c("RMSE_train", "Rsq_train", "MAE_train")
-    performTrainStats <- getStats(performTrainMat, 2, setParam$dgp$nSamples) # M, SD, SE
-    rownames(performTrainStats) <- c("RMSE", "Rsquared", "MAE")
-    performTrainStats <- cbind(performTrainStats, idxCondLabel = iCond)
+    # aggregated performance measures (M, SD, SE)
+    resList[["performTrainStats"]] <- cbind(getStats(performTrainMat, 2, setParam$dgp$nSamples),
+                          idxCondLabel = iCond)
+    rownames(resList[["performTrainStats"]]) <- c("RMSE", "Rsquared", "MAE")
+    
     
     # test performance (RMSE, Rsquared, MAE)
     performTestMat <- do.call(rbind, lapply(estRes, function(X) X[["performTest"]])) # each sample
     colnames(performTestMat) <- c("RMSE_test", "Rsq_test", "MAE_test")
-    performTestStats <- getStats(performTestMat, 2, setParam$dgp$nSamples) # M, SD, SE
-    performTestStats <- cbind(performTestStats, idxCondLabel = iCond)
+    # aggregated performance measures (M, SD, SE)
+    resList[["performTestStats"]] <- cbind(getStats(performTestMat, 2, setParam$dgp$nSamples),
+                          idxCondLabel = iCond)
+  
     
-    perfromPerSample <- cbind(performTrainMat, performTestMat, idxCondLabel = iCond)
+    # test & train performance for each sample
+    resList[["performPerSample"]] <- cbind(performTrainMat, performTestMat, idxCondLabel = iCond)
     
-    # join results 
-    list(estBeta = estBetaStats, # M, SD, SE for coefficients across samples
-         estBetaFull = estBeta, # coefficients for every predictor in every sample 
-         varSelection = varSelection, 
-         selectSample = selectionPerSample, 
-         perfromPerSample = perfromPerSample, 
-         performTrainStats = performTrainStats, 
-         performTestStats = performTestStats)
+    # PVI - permutation variable importance from every sample
+    resList[["pvi"]] <- do.call(rbind, lapply(seq_len(length(estRes)), function(iSample) {
+      cbind(idxCondLabel = rep(iCond, dim(estRes[[iSample]][["pvi"]])[1]),
+            sample = iSample, 
+            estRes[[iSample]][["pvi"]])
+    }))
+    
+    resList <- if (condGrid[iSim, "model"] != "GBM") {
+      saveENET(estRes, iCond, setParam, resList)
+    } else if (condGrid[iSim, "model"] == "GBM") {
+      saveGBM(estRes, iCond, setParam, resList)
+    }
+    
+    resList
   }) # nested lapplys take ~ 15 mins
   
   # manage data 
@@ -218,15 +197,15 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   # save separate each N x pTrash condition in rds files  
   #   -> pro: skip fitted condGrid conditions if algorithm does not run till the end... 
   #   -> con: writing data to rds file is slow and data needs to be united later on
-  resFileName <- paste0(resFolder, "/", "resultsModel", condGrid[iSim, "model"], 
+  resFileName <- paste0(resFolder, "/", 
+                        "resultsModel", condGrid[iSim, "model"], 
                         "_N", condGrid[iSim, "N"], 
                         "_pTrash", condGrid[iSim, "pTrash"], 
                         "_rel", condGrid[iSim,"reliability"], ".rds")
   saveRDS(iCondRes, file = resFileName)
 })
 
-# close cluster to return resources (memory) back to OS
-stopCluster(cl)
+
 
 
 
