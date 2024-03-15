@@ -37,7 +37,7 @@ nCoresSampling <- 10
 # includeInter <- TRUE # run Enet with and without interactions
 
 # run GBM without interactions!
-includePoly <- FALSE
+# includePoly <- FALSE
 includeInter <- FALSE
 
 ## warm start to arrive at lambda parameters for cross validation
@@ -47,8 +47,7 @@ warmStart <- setParam$fit$warmStart
 # only use data without simulated factors
 condGrid <- expand.grid(N = setParam$dgp$N, 
                         pTrash = setParam$dgp$pTrash,
-                        reliability = setParam$dgp$reliability,
-                        factors = FALSE)
+                        reliability = setParam$dgp$reliability)
 
 # remove lines in condGrid for which there already are results
 # check which files are already in the results folder
@@ -57,8 +56,7 @@ resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", r
 
 allDataFiles <- paste0("simDataN", condGrid[, "N"], 
                        "_pTrash", condGrid[, "pTrash"], 
-                       "_rel", condGrid[,"reliability"], 
-                       "_f", ifelse(condGrid[,"factors"], 1, 0), ".rda")
+                       "_rel", condGrid[,"reliability"], ".rda")
 allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", "", allDataFiles)
 
 fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
@@ -78,18 +76,17 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   fileName <- paste0("simDataN", condGrid[iSim, "N"],
                      "_pTrash", condGrid[iSim, "pTrash"],
-                     "_rel", condGrid[iSim, "reliability"], 
-                     "_f", ifelse(condGrid[iSim, "factors"], 1, 0), ".rda")
-  # test it
-  fileName <- "simDataN1000_pTrash10_rel1_f0.rda"
+                     "_rel", condGrid[iSim, "reliability"], ".rda")
+  # # test it
+  # fileName <- "simDataN1000_pTrash10_rel1_f0.rda"
   load(paste0(dataFolder, "/", fileName))
   
   # fitte eine regularisierte Regression
   # R2 x lin_inter combinations
   tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { 
     
-    # test it
-    iCond <- 3
+    # # test it
+    # iCond <- 3
     estRes <- lapply(seq_len(2), function(iSample) {
     # estRes <- lapply(seq_len(setParam$dgp$nTrain), function(iSample) {
     # estRes <- parLapply(cl, seq_len(setParam$dgp$nTrain), function(iSample) {
@@ -109,11 +106,11 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       # get predictors
       Xtrain <- as.matrix(data[[iSample]][["X_int"]])
       
-      # remove polynomials for Enet and GBM 
-      if (!includePoly) {
-        idx_rmPoly <- stringr::str_detect(colnames(Xtrain), "^poly")
-        Xtrain <- Xtrain[,colnames(Xtrain)[!idx_rmPoly]]
-      }
+      # # remove polynomials for Enet and GBM 
+      # if (!includePoly) {
+      #   idx_rmPoly <- stringr::str_detect(colnames(Xtrain), "^poly")
+      #   Xtrain <- Xtrain[,colnames(Xtrain)[!idx_rmPoly]]
+      # }
       # remove interactions from predictor matrix in GBM (and depending on condition in Enet)
       if (!includeInter) {
         idx_rmInter <- stringr::str_detect(colnames(Xtrain), ":")
@@ -128,6 +125,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       
       # copy tuning grid from setParam
       tuneGrid <- setParam$fit$tuneGrid
+      
+      tstart <- Sys.time()
       
       # cross validation loop for training model
       for (iGline in seq_len(nrow(tuneGrid))) {
@@ -145,6 +144,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
           min_child_weight = tuneGrid$min_child_weight[iGline],
           objective = "reg:squarederror",   # for regression models
           verbose = FALSE,                  # silent
+          nthread = setParam$fit$nThread,   # sweetspot: implicit parallelization with 10 threads 
           early_stopping_rounds = 10)       # stop running if the cross validated error 
                                             # does not improve for n continuous trees
         
@@ -154,6 +154,25 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         tuneGrid$minRMSE[iGline] <- min(fit_cv$evaluation_log$test_rmse_mean)
         
       }
+      
+      tend <- Sys.time()
+      difftime(tend, tstart)
+      # timing xgb.cv with different nthread-values (locally)
+      #   nthread = ? (default): 23.39451 secs
+      #   nthread = 1: 26.15472 secs
+      #   nthread = 10: 16.20503 secs; 16.93245 secs
+      #   nthread = 12: 17.42677 secs
+      #   nthread = 15: 17.30737 secs
+      #   nthread = 20: 50.79177 secs
+      
+      # timing xgb.cv with different nthread-values (on server)
+      #   nthread = ? (default): 13.8757 secs
+      #   nthread = 1: 6.42259 secs; 6.376863 secs
+      #   nthread = 5: 16.28784 secs
+      #   nthread = 10: 15.22439 secs
+      
+      # warum führt increase von nthreads lokal zu schnelleren Rechenzeiten und 
+      #   auf dem Server wird es langsamer?
       
       # save tuning parameters! (results from cross validation)
       # cross-validated tuning parameters
@@ -174,7 +193,14 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         min_child_weight = tuneGrid$min_child_weight[idxOptim],
         nrounds = tuneGrid$optimalTrees[idxOptim],
         objective = "reg:squarederror",   # for regression models
+        nthread = setParam$fit$nThread,
         verbose = FALSE)
+      
+      # timing xgboost with different nthread-values (on server)
+      # this is not the time critical step!
+      #   nthread = ? (default): 0.01711226 secs, 0.03578639 secs
+      #   nthread = 1: 0.01500988 secs
+      #   nthread = 10: 0.0141151 secs, 0.01404333 secs
       
       # calculate dependent measures
       
@@ -266,13 +292,27 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       tend <- Sys.time()
       difftime(tend, tstart)
       # timing: 
-      #   ! lower estimate data has only 10 trash variables (simDataN1000_pTrash10_rel1_f0.rda)
+      # xgboost does parallelization WITHIN a single tree by using openMP (implicit)
+      # https://stackoverflow.com/questions/34151051/how-does-xgboost-do-parallel-computation
+      # to do: nested parallelization with openMP?
+      # https://stackoverflow.com/questions/4317551/openmp-what-is-the-benefit-of-nesting-parallelizations
+      #   ohne Parallelisierung
+      #   ! lower estimate (?) data has only 10 trash variables (simDataN1000_pTrash10_rel1_f0.rda)
       #   1 sample with interStrength (setParam$fit$nInterStrength = 100) = 2.098334 mins
       #     -> 2 min x 100 samples = 200 Minuten = 3h 20min pro Bedingung 
-      #     -> 3h 20min x 18 Bedingungen = 60h
+      #     -> 3h 20min x 9 R2_lin_inter x 18 Bedingungen (iCond) = 540h = 22.5 Tage
       #   1 sample without interStrength = 23.39594 secs
       #     -> 24 sec x 100 samples = 40 Minuten 
-      #     -> 40 Minuten x 18 Bedingungen = 12h
+      #     -> 40 Minuten x 9 R2_lin_inter x 18 Bedingungen = 108h = 4.5 Tage
+      # Parallelisierung funktioniert aktuell nicht
+      # xgboost: Parallelization is automatically enabled if OpenMP is present. Number of
+      #   threads can also be manually specified via the nthread parameter.
+      # https://stackoverflow.com/questions/34151051/how-does-xgboost-do-parallel-computation
+      
+      # 1 sample without interStrength & without parallelization (nthread = 0 & 
+      #   keine Parallelisierung über samples) on server = ~ 6 sec
+      #     -> 6 sec * 100 samples = 600 sec = 10 min
+      #     -> 10 Minuten x 9 R2_lin_inter x 18 Bedingungen = 1620 min = 27h 
       
       # save dependent variables for each sample (in a list)
       list(#estB = estBeta, 
@@ -336,65 +376,6 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
                                 min_child_weight = tunedMin_child_weight, 
                                 Nrounds = tunedNrounds,
                                 idxCondLabel = iCond)
-    # # coefficients
-    # estBeta <- do.call(cbind, lapply(estRes, function(X) X[["estB"]]))
-    # # remove variables which are not selected by Enet from mean calculation:
-    # #   coefficients that are exactly 0 -> NA
-    # estBeta <- ifelse(estBeta == 0, NA, estBeta)
-    # 
-    # estBetaStats <- getStats(estBeta, 1, setParam$dgp$nSamples)
-    # estBetaStats <- cbind(estBetaStats, idxCondLabel = iCond)
-    # 
-    # # selected variables (how often are predictors selected in model)
-    # selectedVars <- do.call(cbind, lapply(estRes, function(X) X[["selectedVars"]]))
-    # 
-    # # AV: Wie oft bleiben Terme (lineare Praediktoren/Interaktionen) im Modell?
-    # nSelection <- apply(selectedVars, MARGIN = 1, sum) # frequency of variable selection 
-    # percSelection <- nSelection / ncol(selectedVars) * 100 # relative frequency 
-    # varSelection <- cbind(nSelection = nSelection, 
-    #                       percSelection = percSelection,
-    #                       idxCondLabel = iCond) # stats per predictor
-    # 
-    # # here! to do! only linear and interaction effects extracted; not indicators!
-    # 
-    # # only true predictors in model (8 predictors with simulated effects and every other variable == 0)
-    # # how many of the linear effects are recovered?
-    # nSelectedLin <- sapply(seq_len(ncol(selectedVars)), function(iCol) { 
-    #   sum(setParam$dgp$linEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    # # how many of the interaction effects are recovered?
-    # nSelectedInter <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-    #   sum(setParam$dgp$interEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    # 
-    # # how many of the single indicators were recovered?
-    # nSelectedInd <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-    #   sum(setParam$dgp$indEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    # 
-    # # how many of the single indicator interactions were recovered?
-    # nSelectedIndInter <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-    #   sum(setParam$dgp$indInterEffects %in% rownames(selectedVars)[selectedVars[,iCol]])})
-    # 
-    # # all simulated effects selected in model?
-    # selectedAll <- nSelectedLin + nSelectedInter == length(c(setParam$dgp$linEffects, setParam$dgp$linEffects))
-    # selectedAllInd <- nSelectedInd + nSelectedIndInter == length(c(setParam$dgp$indEffects, setParam$dgp$indInterEffects))
-    # 
-    # # only simulated effects selected (i.e., every other predictor is not selected!)
-    # nSelectedOthers <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-    #   sum(!(rownames(selectedVars)[selectedVars[,iCol]] %in% c(setParam$dgp$interEffects, setParam$dgp$linEffects)))})
-    # 
-    # nSelectedOthersInd <- sapply(seq_len(ncol(selectedVars)), function(iCol) {
-    #   sum(!(rownames(selectedVars)[selectedVars[,iCol]] %in% c(setParam$dgp$indInterEffects, setParam$dgp$indEffects)))})
-    # 
-    # 
-    # # variable selection stats per sample
-    # # for all: 1 = TRUE, 0 = FALSE
-    # selectionPerSample <- cbind(nLin = nSelectedLin, nInter = nSelectedInter, 
-    #                             nInd = nSelectedInd, nIndInter = nSelectedIndInter,
-    #                             all.T1F0 = selectedAll, all.Ind = selectedAllInd,
-    #                             nOthers = nSelectedOthers, nOthersInd = nSelectedOthersInd,
-    #                             alpha = tunedAlphaVec, lambda = tunedLambdaVec,
-    #                             idxCondLabel = iCond)
-    
-    
     
     # join results 
     list(# estBeta = estBetaStats, # M, SD, SE for coefficients across samples
