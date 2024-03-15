@@ -204,3 +204,10 @@ setParam$fit$InterStrength <- TRUE
 # number of threads in xgb.cv (implicit parallelization)
 setParam$fit$nThread <- 1
 
+# number of list elements to save as outcome measures
+setParam$fit$out <- 4 # performTrainStats, performTestStats, performPerSample, pvi
+setParam$fit$outLabels <- c("performTrainStats", "performTestStats", "performPerSample", "pvi")
+setParam$fit$outGBM <- 2 # interStrength, selectionPerSample
+setParam$fit$gbmLabels <- c("interStrength", "selectionPerSample")
+setParam$fit$outENET <- 4 # estBeta, estBetaFull, varSelection, selectionPerSample 
+setParam$fit$enetLabels <- c("estBeta", "estBetaFull", "varSelection", "selectionPerSample")
