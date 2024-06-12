@@ -3,7 +3,7 @@ setParam <- list()
 ################################################################################
 # data generating process
 ################################################################################
-setParam$dgp$nTrain <- 100
+setParam$dgp$nTrain <- 1000
 setParam$dgp$nTest <- 1
 setParam$dgp$nSamples <- setParam$dgp$nTrain + setParam$dgp$nTest
 

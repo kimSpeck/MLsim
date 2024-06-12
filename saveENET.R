@@ -17,9 +17,7 @@ saveENET <- function(estRes, iCond, setParam, resList) {
   resList[["varSelection"]] <- cbind(nSelection = nSelection, 
                         percSelection = percSelection,
                         idxCondLabel = iCond) # stats per predictor
-  
-  # here! to do! only linear and interaction effects extracted; not indicators!
-  
+
   # only true predictors in model (8 predictors with simulated effects and every other variable == 0)
   # how many of the linear effects are recovered?
   nSelectedLin <- sapply(seq_len(ncol(selectedVars)), function(iCol) { 

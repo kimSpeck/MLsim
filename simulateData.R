@@ -165,3 +165,7 @@ sampleData <- function() {
 
 # out <- do.call(mapply, c(FUN = createData, gridFull[13,])) # test
 out <- do.call(mapply, c(FUN = createData, gridFull))
+
+# with 20 cores: 
+#     - on nerdholland (with openblas): ~ 3 Minutes
+#     - on dalek (without openblas): ~ 2 Minute 

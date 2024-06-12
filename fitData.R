@@ -1,4 +1,8 @@
 # Model fitting
+# to do:
+# fitting of only unfitted files does not work (modelGBM in filename now!)
+# with 10 cores at simDataN300_pTrash50_rel0.6.rda; model: GBM; iCond: R20.5lin_inter0.2_0.8
+# Error in serialize(data, node$con, xdr = FALSE) : error writing to connection
 library(parallel) # fit models in parallel across samples
 library(glmnet)   # ENET
 library(caret)    # GBM
@@ -29,6 +33,7 @@ createFolder(logFolder)
 timeStamp <- format(Sys.time(), "%d%m%y_%H%M%S")
 # nCoresSampling <- detectCores() - 1 
 nCoresSampling <- 10
+# 10 cores seem to be max for ENET memory usage wise
 
 # get condGrid from parameter set 
 condGrid <- setParam$fit$condGrid
