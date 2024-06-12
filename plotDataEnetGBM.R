@@ -13,87 +13,63 @@ if (!file.exists(plotFolder)){
   dir.create(plotFolder)
 }
 
-condGridGBM <- expand.grid(N = setParam$dgp$N,
+condGrid <- expand.grid(N = setParam$dgp$N,
                         pTrash = setParam$dgp$pTrash,
                         reliability = setParam$dgp$reliability)
 
-condN_pTrashGBM <- paste0("N", condGridGBM$N, 
-                       "_pTrash", condGridGBM$pTrash,
-                       "_rel", condGridGBM$reliability)
+condN_pTrash <- paste0("N", condGrid$N, 
+                       "_pTrash", condGrid$pTrash,
+                       "_rel", condGrid$reliability)
 
-condGridENET <- expand.grid(N = setParam$dgp$N,
-                            pTrash = setParam$dgp$pTrash,
-                            reliability = setParam$dgp$reliability,
-                            factors = c(TRUE, FALSE))
 
-# duplicate data with factors to run model on indicator data, too
-condGridENET$indicators <- rep(FALSE, dim(condGridENET)[1])
-addIndi <- condGridENET[which(condGridENET$factors == TRUE), ]
-addIndi$indicators <- TRUE
-condGridENET <- rbind(addIndi, condGridENET)
+resFolder <- "results/finalResults/dependentMeasures"
 
-condN_pTrashENET <- paste0("N", condGridENET$N, 
-                       "_pTrash", condGridENET$pTrash,
-                       "_rel", condGridENET$reliability,
-                       "_f", ifelse(condGridENET$factors, 1, 0),
-                       "_ind", ifelse(condGridENET$indicators, 1, 0))
-
-# GBM results
-# resFolder <- "results/resultsGBM"
-resFolder <- "results/resultsGBMwInter"
-
-# to do: run fitData again with NA instead of 0
-load(paste0(resFolder, "/fullData.rda"))
-fullDataGBM <- fullData
-rm(fullData)
-
-# enet results
-resFolderENET_woInt <- paste0("results/resultsWithoutInter_Indicators") # without interactions
-resFolderENET_wInt <- paste0("results/resultsWithInter_Indicators") # with interactions
-
-# to do: run fitData again with NA instead of 0
-load(paste0(resFolderENET_woInt, "/fullData.rda"))
-fullDataENET_wo <- fullData
-
-load(paste0(resFolderENET_wInt, "/fullData.rda"))
-fullDataENET_w <- fullData
-
-rm(fullData)
+listDir <- dir(resFolder)
+dataList <- listDir[stringr::str_detect(listDir, "^performT")]
+models <- stringr::str_extract(dataList, "_[:alpha:]*.rda$")
+models <- stringr::str_sub(models, start = 2L, end = -5)
+tvst <- stringr::str_extract(dataList, "(Test|Train)") 
+for (iData in seq_len(length(dataList))) {
+  objectName <- paste0("p", tvst[iData], "_", models[iData])
+  assign(objectName, loadRData(paste0(resFolder, "/", dataList[iData])))
+}
 
 ################################################################################
 # plot train and test performance
 ################################################################################
-#### only GBM
-# pull data from nested list of all results (fullData)
-performanceTrain <- rbindResults(fullDataGBM, "performTrainStats")
-performanceTest <- rbindResults(fullDataGBM, "performTestStats")
+# change list of  matrices to data.frame
+pTest_GBM <- rbindSingleResults(pTest_GBM)
+pTrain_GBM <- rbindSingleResults(pTrain_GBM)
 
-# variables from rownames to own column to work woth variable information
-performanceTrain$measure <- rownames(performanceTrain)
-performanceTrain$measure <- stringr::str_replace(performanceTrain$measure, "\\.[:digit:]{1,}$", "")
-performanceTrain$measure <- paste0(performanceTrain$measure, "_train")
+# variables from rownames to own column to work with variable information
+pTrain_GBM <- rowNames2col(pTrain_GBM, "measure")
+pTrain_GBM$measure <- paste0(pTrain_GBM$measure, "_train")
 
-performanceTest$measure <- rownames(performanceTest)
-performanceTest$measure <- stringr::str_replace(performanceTest$measure, "\\.[:digit:]{1,}$", "")
-performanceTest$measure[which(performanceTest$measure == "Rsq_test")] <- "Rsquared_test"
+pTest_GBM <- rowNames2col(pTest_GBM, "measure")
+pTest_GBM$measure[which(pTest_GBM$measure == "Rsq_test")] <- "Rsquared_test"
 
 # get informative variables for simulated conditions (N, pTrash, R2, lin_inter) 
-performanceTrain <- idx2info(performanceTrain, condN_pTrashGBM, type = "gbm")
-performanceTest <- idx2info(performanceTest, condN_pTrashGBM, type = "gbm")
-
-# change type of columns or specific entry details to prepare plotting  
-performanceTrain$N <- factor(performanceTrain$N, levels = setParam$dgp$N)
-performanceTrain$pTrash <- factor(performanceTrain$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
-
-performanceTest$N <- factor(performanceTest$N, levels = setParam$dgp$N)
-performanceTest$pTrash <- factor(performanceTest$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+pTrain_GBM <- idx2infoNew(pTrain_GBM)
+pTest_GBM <- idx2infoNew(pTest_GBM) 
 
 # merge performance Train and performance Test
-performanceStats <- rbind(performanceTrain, performanceTest)
+performanceStats <- rbind(pTrain_GBM, pTest_GBM)
 performanceStats <- tidyr::separate(performanceStats, measure, c("measure", "trainTest"), sep = "_")
 
+# change type of columns or specific entry details to prepare plotting  
+performanceStats$N <- factor(performanceStats$N, levels = setParam$dgp$N)
+performanceStats$pTrash <- factor(performanceStats$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+str(performanceStats)
+chr2fac <- c("rel", "measure", "R2", "lin_inter")
+performanceStats[chr2fac] <- lapply(performanceStats[chr2fac], factor)
+
+
 # plot overfit instead of train as train - test
-performanceStats <- tidyr::pivot_wider(performanceStats, names_from = trainTest, values_from = c(M, SE, SD))
+performanceStats <- tidyr::pivot_wider(performanceStats, 
+                                       names_from = "trainTest", values_from = c(M, SE, SD))
+chr2num <- c("M_train", "M_test", "SE_train", "SE_test", "SD_train", "SD_test")
+performanceStats[chr2num] <- lapply(performanceStats[chr2num], as.numeric)
+
 performanceStats$overfit <- performanceStats$M_train - performanceStats$M_test
 performanceSub <- performanceStats[which(performanceStats$measure != "MAE" &
                                            performanceStats$measure != "RMSE"),]
@@ -145,54 +121,63 @@ colValues <- c("green3", "darkblue", "darkmagenta")
 #                 height = 12.18,
 #                 units = "in")
 
-#### add enet results 
-# pull data from nested list of all results (fullData)
-performanceTrainENET_w <- rbindResults(fullDataENET_w, "performTrainStats")
-performanceTrainENET_wo <- rbindResults(fullDataENET_wo, "performTrainStats")
-performanceTestENET_w <- rbindResults(fullDataENET_w, "performTestStats")
-performanceTestENET_wo <- rbindResults(fullDataENET_wo, "performTestStats")
-
-# get informative variables for simulated conditions (N, pTrash, R2, lin_inter)
-performanceTrainENET_w <- idx2info(performanceTrainENET_w, condN_pTrashENET, type = "enet")
-performanceTrainENET_wo <- idx2info(performanceTrainENET_wo, condN_pTrashENET, type = "enet")
-performanceTestENET_w <- idx2info(performanceTestENET_w, condN_pTrashENET, type = "enet")
-performanceTestENET_wo <- idx2info(performanceTestENET_wo, condN_pTrashENET, type = "enet")
-
-# code if interaction were fitted or not
-performanceTrainENET_w$fitInter <- rep(1, dim(performanceTrainENET_w)[1])
-performanceTrainENET_wo$fitInter <- rep(0, dim(performanceTrainENET_wo)[1])
-performanceTestENET_w$fitInter <- rep(1, dim(performanceTestENET_w)[1])
-performanceTestENET_wo$fitInter <- rep(0, dim(performanceTestENET_wo)[1])
-
-performanceTrainENET <- rbind(performanceTrainENET_w, performanceTrainENET_wo)
-performanceTestENET <- rbind(performanceTestENET_w, performanceTestENET_wo)
-
-rm(performanceTrainENET_w, performanceTrainENET_wo,
-   performanceTestENET_w, performanceTestENET_wo)
-
-performanceTestENET <- performanceTestENET[which(performanceTestENET$factor == 0),]
-performanceTrainENET <- performanceTrainENET[which(performanceTrainENET$factor == 0),]
+################################################################################
+# ENET results 
+################################################################################
+# change list of  matrices to data.frame
+pTest_ENETw <- rbindSingleResults(pTest_ENETw)
+pTest_ENETwo <- rbindSingleResults(pTest_ENETwo)
+pTrain_ENETw <- rbindSingleResults(pTrain_ENETw)
+pTrain_ENETwo <- rbindSingleResults(pTrain_ENETwo)
 
 # variables from rownames to own column to work woth variable information
-performanceTrainENET <- rownames2col(performanceTrainENET, "measure")
-performanceTrainENET$measure <- paste0(performanceTrainENET$measure, "_train")
+pTrain_ENETw <- rowNames2col(pTrain_ENETw, "measure")
+pTrain_ENETw$measure <- paste0(pTrain_ENETw$measure, "_train")
 
-performanceTestENET <- rownames2col(performanceTestENET, "measure")
-performanceTestENET$measure[which(performanceTestENET$measure == "Rsq_test")] <- "Rsquared_test"
+pTrain_ENETwo <- rowNames2col(pTrain_ENETwo, "measure")
+pTrain_ENETwo$measure <- paste0(pTrain_ENETwo$measure, "_train")
 
-# change type of columns or specific entry details to prepare plotting  
-performanceTrainENET$N <- factor(performanceTrainENET$N, levels = setParam$dgp$N)
-performanceTrainENET$pTrash <- factor(performanceTrainENET$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+pTest_ENETw <- rowNames2col(pTest_ENETw, "measure")
+pTest_ENETw$measure[which(pTest_ENETw$measure == "Rsq_test")] <- "Rsquared_test"
 
-performanceTestENET$N <- factor(performanceTestENET$N, levels = setParam$dgp$N)
-performanceTestENET$pTrash <- factor(performanceTestENET$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+pTest_ENETwo <- rowNames2col(pTest_ENETwo, "measure")
+pTest_ENETwo$measure[which(pTest_ENETwo$measure == "Rsq_test")] <- "Rsquared_test"
+
+# join data
+# pTrainENET <- rbind(pTrain_ENETw, pTrain_ENETwo)
+# pTestENET <- rbind(pTest_ENETw, pTest_ENETwo)
 
 # merge performance Train and performance Test
-performanceStatsENET <- rbind(performanceTrainENET, performanceTestENET)
+performanceStatsENET <- rbind(pTrain_ENETw, pTrain_ENETwo, pTest_ENETw, pTest_ENETwo)
 performanceStatsENET <- tidyr::separate(performanceStatsENET, measure, c("measure", "trainTest"), sep = "_")
+# unique(performanceStatsENET$trainTest)
+# rm(pTrain_ENETw, pTrain_ENETwo, pTest_ENETw, pTest_ENETwo)
+
+# get informative variables for simulated conditions (N, pTrash, R2, lin_inter) 
+# pTrainENET <- idx2infoNew(pTrainENET)
+# pTestENET <- idx2infoNew(pTestENET)
+performanceStatsENET <- idx2infoNew(performanceStatsENET)
+
+# code if interaction were fitted or not
+unique(performanceStatsENET$model)
+performanceStatsENET$fitInter <- ifelse(performanceStatsENET$model == "ENETw", 1, 0)
+
+# change type of columns or specific entry details to prepare plotting  
+str(performanceStatsENET)
+performanceStatsENET$N <- factor(performanceStatsENET$N, levels = setParam$dgp$N)
+performanceStatsENET$pTrash <- factor(performanceStatsENET$pTrash, 
+                                      levels = sort(setParam$dgp$pTrash, decreasing = T))
 
 # plot overfit instead of train as train - test
-performanceStatsENET <- tidyr::pivot_wider(performanceStatsENET, names_from = trainTest, values_from = c(M, SE, SD))
+performanceStatsENET <- tidyr::pivot_wider(performanceStatsENET, 
+                                           names_from = trainTest, values_from = c(M, SE, SD))
+
+str(performanceStatsENET)
+chr2fac <- c("model", "rel", "measure", "R2", "lin_inter", "fitInter")
+performanceStatsENET[chr2fac] <- lapply(performanceStatsENET[chr2fac], factor)
+chr2num <- c("M_train", "M_test", "SE_train", "SE_test", "SD_train", "SD_test")
+performanceStatsENET[chr2num] <- lapply(performanceStatsENET[chr2num], as.numeric)
+
 performanceStatsENET$overfit <- performanceStatsENET$M_train - performanceStatsENET$M_test
 performanceSubENET <- performanceStatsENET[which(performanceStatsENET$measure != "MAE" &
                                                performanceStatsENET$measure != "RMSE"),]
@@ -200,8 +185,6 @@ performanceSubENET[,c("M_train", "SE_train", "SE_test", "SD_train", "SD_test")] 
 performanceSubENET <- tidyr::pivot_longer(performanceSubENET, c(M_test, overfit),
                                       names_to = "measures", values_to = "values")
 
-unique(performanceSubENET$factor); unique(performanceSubENET$indicators)
-performanceSubENET[,c("factor", "indicators")] <- list(NULL)
 head(performanceSubENET)
 head(performanceSub)
 performanceSub$fitInter <- rep(2, dim(performanceSub)[1])
@@ -209,22 +192,33 @@ performanceSub$fitInter <- rep(2, dim(performanceSub)[1])
 colnames(performanceSub)
 colnames(performanceSubENET)
 performanceData <- rbind(performanceSub, performanceSubENET)
-performanceData$fitInter <- plyr::mapvalues(performanceData$fitInter, 
-                                            from=c(0,1,2), 
-                                            to=c("ENET - ohne","ENET - mit","GBM"))
+# performanceData$fitInter <- plyr::mapvalues(performanceData$fitInter, 
+#                                             from=c(0,1,2), 
+#                                             to=c("ENET - ohne","ENET - mit","GBM"))
+
 unique(performanceData$fitInter)
-performanceData$fit <- ifelse(performanceData$fitInter != "GBM", "enet", "gbm")
+performanceData$fit <- ifelse(performanceData$fitInter != 2, "enet", "gbm")
+unique(performanceData$fit)
+unique(performanceData$model)
 
 # to use in analyseDataEnetGBM.R to calculate ANOVA
-# save(performanceData, file = "results/RsquaredData.rda")
+# save(performanceData, file = "results/finalResults/dependentMeasures/RsquaredData_stats.rda")
 
+################################################################################
+# hier einsteigen?
+################################################################################
+load("results/finalResults/dependentMeasures/RsquaredData_stats.rda")
+load("results/finalResults/dependentMeasures/rSquaredData_eachSample.rda")
+
+
+##### basic plot from exploratory tests #####
 # plot performance measures for train and test data
 colValues <- c("green3", "darkblue", "darkmagenta")
 
 (pPerformTrainVStest <- ggplot(performanceData,
                                aes(x = interaction(pTrash, N, sep = " x "), y = values, 
-                               group = interaction(R2, fitInter, fit), colour = R2,
-                               linetype = fitInter, shape = fit)) +
+                               group = interaction(R2, model, fit), colour = R2,
+                               linetype = model, shape = fit)) +
     geom_point() +
     geom_line() +
     scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
@@ -264,11 +258,181 @@ colValues <- c("green3", "darkblue", "darkmagenta")
 #                 height = 12.18,
 #                 units = "in")
 
+##### basic plot from exploratory tests #####
+# pTrash raus lassen (nicht mehr auf y-Achse; aber beide Varianten vergleichen) 
+
+# x Achse: rel
+# Farbe: R^2
+# 3 Facetten für lin_inter
+
+# Facetten für N zusätzlich ()
+pR2_overview <- ggplot(performanceData[performanceData$pTrash == 50 &
+                         performanceData$measures == "M_test", ],
+       aes(x = rel, y = values, 
+           group = interaction(R2, model, fit), colour = R2,
+           linetype = model, shape = fit)) +
+  geom_point() +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  scale_shape_manual(values = c(16, 8)) +
+  # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_grid(N ~ lin_inter, labeller = label_both) +
+  geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "green3",
+             alpha = 0.4) +
+  geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "darkblue",
+             alpha = 0.4) +
+  geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "darkmagenta",
+             alpha = 0.4) +
+  ylab("") +
+  xlab("reliability of predictors") +
+  ggtitle("R^2: Training vs. Test performance") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+# # save plot as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_newOverview.png"),
+#                 plot = pR2_overview,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+
+##### add Monte Carlo Error
+# as standard deviation of the Monte Carlo estimate
+# plot 2 Monte Carlo Errors as Error Bars  
+
+getMCE <- aggregate(Rsq_test ~ model + N + pTrash + rel + R2 + lin_inter, 
+          data = rSquaredTest, sd)
+aggregate(Rsq_test ~ model + N + pTrash + rel + R2 + lin_inter, 
+          data = rSquaredTest, mean)
+
+pR2sub <- performanceData[performanceData$measure == "Rsquared" &
+                            performanceData$measures == "M_test", ]
+
+pR2sub <- merge(pR2sub, getMCE, by = c("model", "N", "pTrash", "rel", "R2", "lin_inter"))
+colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'MCE'
+
+(pR2_N100 <- ggplot(pR2sub[pR2sub$pTrash == 50 &
+                             pR2sub$N == 100, ],
+                               aes(x = rel, y = values, 
+                                   group = interaction(R2, model, fit), colour = R2,
+                                   linetype = model, shape = fit)) +
+   geom_point() +
+   geom_line() +
+   geom_errorbar(aes(ymin = values - 2* MCE, ymax = values + 2*MCE), 
+                 width = 0.2, alpha = 0.4) +  
+   scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+   scale_shape_manual(values = c(16, 8)) +
+   scale_color_manual(values = colValues) +
+   geom_hline(aes(yintercept = 0)) +
+   facet_wrap(~ lin_inter) +
+   geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "green3",
+              alpha = 0.4) +
+   geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "darkblue",
+              alpha = 0.4) +
+   geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "darkmagenta",
+              alpha = 0.4) +
+   ylab("test R²") +
+   xlab("reliability of predictors") +
+   ggtitle("R²: Training vs. Test performance {N = 100, pTrash = 50}") +
+   theme(axis.text.y = element_text(size = 20),
+         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+         axis.title.x = element_text(size = 20),
+         axis.title.y = element_text(size = 20),
+         strip.text.x = element_text(size = 15),
+         strip.text.y = element_text(size = 15)))
+
+(pR2_N100_0MCE <- ggplot(pR2sub[pR2sub$pTrash == 50 &
+                             pR2sub$N == 100, ],
+                    aes(x = rel, y = values, 
+                        group = interaction(R2, model, fit), colour = R2,
+                        linetype = model, shape = fit)) +
+    geom_point() +
+    geom_line() +
+    #geom_errorbar(aes(ymin = values - 2* MCE, ymax = values + 2*MCE), width = 0.2) +  
+    scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+    scale_shape_manual(values = c(16, 8)) +
+    scale_color_manual(values = colValues) +
+    geom_hline(aes(yintercept = 0)) +
+    facet_wrap(~ lin_inter) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "green3",
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "darkblue",
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "darkmagenta",
+               alpha = 0.4) +
+    ylab("test R²") +
+    xlab("reliability of predictors") +
+    ggtitle("R²: Training vs. Test performance {N = 100, pTrash = 50}") +
+    theme(axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+(pR2_N1000 <- ggplot(pR2sub[pR2sub$pTrash == 50 &
+                             pR2sub$N == 1000, ],
+                    aes(x = rel, y = values, 
+                        group = interaction(R2, model, fit), colour = R2,
+                        linetype = model, shape = fit)) +
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin = values - 2*MCE, ymax = values + 2*MCE), 
+                  width = 0.2, alpha = 0.4) +  
+    scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+    scale_shape_manual(values = c(16, 8)) +
+    scale_color_manual(values = colValues) +
+    geom_hline(aes(yintercept = 0)) +
+    facet_wrap(~ lin_inter) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "green3",
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "darkblue",
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "darkmagenta",
+               alpha = 0.4) +
+    ylab("test R²") +
+    xlab("reliability of predictors") +
+    ggtitle("R²: Training vs. Test performance {N = 1000, pTrash = 50}") +
+    theme(axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+# # save plot as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N100_2MCE.png"),
+#                 plot = pR2_N100,
+#                 width = 13.63,
+#                 height = 8.59,
+#                 units = "in")
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N100_0MCE.png"),
+#                 plot = pR2_N100_0MCE,
+#                 width = 13.63,
+#                 height = 8.59,
+#                 units = "in")
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N1000_2MCE.png"),
+#                 plot = pR2_N1000,
+#                 width = 13.63,
+#                 height = 8.59,
+#                 units = "in")
+
+
+
 ################################################################################
 # permutation variable importance measure
 # 
 # stats calculation for ENET is reused in interaction strength plots
 ################################################################################
+# here!
 #### only GBM
 # pull data from nested list of all results (fullData)
 pvi <- rbindResults(fullDataGBM, "pvi")
