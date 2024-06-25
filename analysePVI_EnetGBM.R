@@ -6,6 +6,9 @@ library(afex) # für aov_ez()
 library(effectsize) # für Berechnung von Effektstärken; generalisiertes eta²
 library(ggplot2)
 library(patchwork)
+library(see)
+
+colValues <- c("green3", "darkblue", "darkmagenta")
 
 plotFolder <- "plots"
 if (!file.exists(plotFolder)){
@@ -112,6 +115,9 @@ linENETw <- aggregate(cbind(linTP, linFP, linFP_woTInter) ~ sample + idxCondLabe
 linGBM <- aggregate(cbind(linTP, linFP, linFP_woTInter) ~ sample + idxCondLabel + model + N_pTrash, 
           data = pviGBM, sum)
 
+# predictors, trash variables and all possible interactions
+setParam$dgp$nModelPredictors
+
 # id 
 # independent observations for samples {1:100} in different simulated conditions
 #   that all have the same sample numbers
@@ -137,6 +143,72 @@ linPPV <- idx2infoNew(linPPV)
 linENETwo <- idx2infoNew(linENETwo)
 linENETw <- idx2infoNew(linENETw)
 linGBM <- idx2infoNew(linGBM)
+
+# to do: 
+# 1. draw matrix with TP, FP, TN, FN for all models in terms of PVI measure
+# ENETw & GBM:
+#   TP = extracted and simulated effect in DGP
+#   FP = extracted and no simulated effect in DGP 
+#   TN = not extracted and no simulated effect in DGP; Anzahl an pTrash - FP
+#   FN = not extracted but simulated in DGP; Anzahl linearer Effekte - TP
+# ENETwo
+#   TP = extracted and simulated (linear) effect in DGP
+#   FP = extracted and no simulated effect in DGP
+#   FP_woInter = extracted and no simulated effect in DGP (true interaction are excluded) 
+#   TN = not extracted and no simulated effect in DGP; 
+#         (Anzahl an pTrash + alle Interaktionen) - FP_woInter (true interactions are excluded)
+#   FN = not extracted but simulated linear effects in DGP; Anzahl linearer Effekte - TP
+
+# 2a. add measures...
+#   ... linTN = trash variable (or interaction effect) that is correctly not extracted
+linENETwo$linTN <- as.numeric(linENETwo$pTrash) - linENETwo$linFP
+linGBM$linTN <- as.numeric(linGBM$pTrash) - linGBM$linFP
+
+linENETw$linTN <- (as.numeric(linENETw$pTrash) + # trash variables
+                     choose(as.numeric(linENETw$pTrash) + length(setParam$dgp$linEffects), 
+                            setParam$dgp$interDepth)) - # all possible interactions
+  length(setParam$dgp$linEffects) -  # remove true interactions
+  linENETw$linFP_woTInter
+
+#   ... linFN = linear effect that is not extracted
+linENETwo$linFN <- length(setParam$dgp$linEffects) - linENETwo$linTP
+linGBM$linFN <- length(setParam$dgp$linEffects) - linGBM$linTP
+
+linENETw$linFN <- length(setParam$dgp$linEffects) - linENETw$linTP
+
+# 2b. add measures...
+#   ... accuracy = (TP + TN) / (TP + TN + FP + FN)
+# getAccuracy <- function(data) {
+#   data$ACC <- (data$linTP + data$linTN) / (data$linTP + data$linTN + data$linFP + data$linFN)
+#   return(data)
+# }
+# linENETwo <- getAccuracy(linENETwo)
+# linGBM <- getAccuracy(linGBM)
+linENETwo$ACC <- (linENETwo$linTP + linENETwo$linTN) / (linENETwo$linTP + linENETwo$linTN + 
+                                                          linENETwo$linFP + linENETwo$linFN)
+linGBM$ACC <- (linGBM$linTP + linGBM$linTN) / (linGBM$linTP + linGBM$linTN + 
+                                                 linGBM$linFP + linGBM$linFN)
+
+linENETw$ACC <- (linENETw$linTP + linENETw$linTN) / (linENETw$linTP + linENETw$linTN + 
+                                                          linENETw$linFP + linENETw$linFN)
+
+#   ... sensitivity = TP / (TP + FN)
+linENETwo$sensitivity <- linENETwo$linTP / (linENETwo$linTP + linENETwo$linFN)
+linGBM$sensitivity <- linGBM$linTP / (linGBM$linTP + linGBM$linFN)
+
+linENETw$sensitivity <- linENETw$linTP / (linENETw$linTP + linENETw$linFN)
+
+#   ... specificity = TN / (TN + FP)
+linENETwo$specificity <- linENETwo$linTN / (linENETwo$linTN + linENETwo$linFP)
+linGBM$specificity <- linGBM$linTN / (linGBM$linTN + linGBM$linFP)
+
+linENETw$specificity <- linENETw$linTN / (linENETw$linTN + linENETw$linFP)
+
+#   ... balanced accuracy = (sensitivity + specificity) / 2 
+linENETwo$balACC <- (linENETwo$specificity + linENETwo$sensitivity) / 2
+linGBM$balACC <- (linGBM$specificity + linGBM$sensitivity) / 2
+
+linENETw$balACC <- (linENETw$specificity + linENETw$sensitivity) / 2
 
 # change variables to factors
 col2fac <- c("N", "pTrash" , "R2" , "rel" , "lin_inter", "model")
@@ -332,6 +404,147 @@ pEta2_GBM <- plotEta2_4eachModel(eta2GBM_linFP_woTInter, eta2Thresh, "#990000") 
 #                 units = "in")
 
 ################################################################################
+# plot specificity, sensitivity and (balanced) accuracy 
+################################################################################
+# calculate M, SE, 2.5% Quantile, 97.5% Quantile for dependent measures:
+#   ... linear TP effects
+#   ... linear FP effects
+#   ... positive predictive value
+#   ... accuracy
+#   ... specificity
+#   ... sensitivity
+#   ... balanced accuracy
+
+plotDiags <- aggregate(cbind(linTP, linFP_woTInter, PPV, ACC,
+                             specificity, sensitivity, balACC) ~ 
+                          model + N + pTrash + rel + R2 + lin_inter, 
+                        data = rbind(linENETwo, linENETw, linGBM), 
+                        function(x) {cbind(mean(x), 
+                                           sd(x),
+                                           quantile(x, 0.025),
+                                           quantile(x, 0.975))})
+
+get(plotDiags)
+for (iCol in paste0("df",1:3)){
+  d=get(i)
+  colnames(d)[10]=i
+  assign(i,d)
+}
+
+# names(plotDiags) <- "M_balACC"
+# 
+# plotBalACC$M <- plotBalACC[,"balACC"][,1]
+# plotBalACC$SE <- plotBalACC[,"balACC"][,2]
+# plotBalACC$balACC <- NULL
+
+plotDiags$N <- factor(plotDiags$N, levels = c(100, 300, 1000))
+plotDiags$model <- factor(plotDiags$model, 
+                        levels = c("ENETw", "ENETwo", "GBM"))
+
+
+ggplot(plotDiags[plotDiags$pTrash == 50 &
+                   , ],
+       aes(x = rel, y = M, 
+           group = interaction(R2, model), colour = R2,
+           linetype = model)) +
+  geom_point() +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  # scale_shape_manual(values = c(16, 8)) +
+  geom_errorbar(aes(ymin = M - 2*SE, ymax = M + 2*SE), 
+                width = 0.2, alpha = 0.4) +  
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 1)) +
+  facet_grid(N~ lin_inter, labeller = label_both) +
+  ylab("PPV") +
+  xlab("reliability of predictors") +
+  ggtitle("PPV: TP / (TP + FP)") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+################################################################################
+# plot sensitivity and specificity
+################################################################################
+plotSensitivity <- aggregate(sensitivity ~ model + N + pTrash + rel + R2 + lin_inter, 
+                        data = rbind(linENETwo, linENETw, linGBM), 
+                        function(x) {cbind(mean(x), sd(x))})
+
+plotSensitivity$M <- plotSensitivity[,"sensitivity"][,1]
+plotSensitivity$SE <- plotSensitivity[,"sensitivity"][,2]
+plotSensitivity$sensitivity <- NULL
+
+str(plotSensitivity)
+plotSensitivity$N <- factor(plotSensitivity$N, levels = c(100, 300, 1000))
+plotSensitivity$model <- factor(plotSensitivity$model, 
+                           levels = c("ENETw", "ENETwo", "GBM"))
+
+
+ggplot(plotSensitivity[plotSensitivity$pTrash == 10, ],
+       aes(x = rel, y = M, 
+           group = interaction(R2, model), colour = R2,
+           linetype = model)) +
+  geom_point() +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  # scale_shape_manual(values = c(16, 8)) +
+  geom_errorbar(aes(ymin = M - 2*SE, ymax = M + 2*SE), 
+                width = 0.2, alpha = 0.4) +  
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 1)) +
+  facet_grid(N~ lin_inter, labeller = label_both) +
+  ylab("PPV") +
+  xlab("reliability of predictors") +
+  ggtitle("PPV: TP / (TP + FP)") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+plotSpecificity <- aggregate(specificity ~ model + N + pTrash + rel + R2 + lin_inter, 
+                             data = rbind(linENETwo, linENETw, linGBM), 
+                             function(x) {cbind(mean(x), sd(x))})
+
+plotSpecificity$M <- plotSpecificity[,"sensitivity"][,1]
+plotSpecificity$SE <- plotSpecificity[,"speci"][,2]
+plotSpecificity$sensitivity <- NULL
+
+str(plotSensitivity)
+plotSensitivity$N <- factor(plotSensitivity$N, levels = c(100, 300, 1000))
+plotSensitivity$model <- factor(plotSensitivity$model, 
+                                levels = c("ENETw", "ENETwo", "GBM"))
+
+
+ggplot(plotSpeci[plotSensitivity$pTrash == 10, ],
+       aes(x = rel, y = M, 
+           group = interaction(R2, model), colour = R2,
+           linetype = model)) +
+  geom_point() +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  # scale_shape_manual(values = c(16, 8)) +
+  geom_errorbar(aes(ymin = M - 2*SE, ymax = M + 2*SE), 
+                width = 0.2, alpha = 0.4) +  
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 1)) +
+  facet_grid(N~ lin_inter, labeller = label_both) +
+  ylab("PPV") +
+  xlab("reliability of predictors") +
+  ggtitle("PPV: TP / (TP + FP)") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+
+################################################################################
 # plot PVI
 ################################################################################
 plotPPV <- aggregate(PPV ~ model + N + pTrash + rel + R2 + lin_inter, 
@@ -354,7 +567,7 @@ plotPPV$model <- factor(plotPPV$model,
 # ... as can be seen in ANOVA: the relevant simulated conditions for performance 
 #     in terms of PPV are really different for models 
 
-colValues <- c("green3", "darkblue", "darkmagenta")
+
 
 ##### ENETs #####
 # R2, lin_inter, N
@@ -432,10 +645,15 @@ colValues <- c("green3", "darkblue", "darkmagenta")
 ################################################################################
 plotLinTP <- aggregate(linTP ~ model + N + pTrash + rel + R2 + lin_inter, 
                        data = rbind(linENETwo, linENETw, linGBM), 
-                       function(x) {cbind(mean(x), sd(x))})
+                       function(x) {cbind(M_TP = mean(x), 
+                                          SE_TP = sd(x),
+                                          q25 = quantile(x, 0.25),
+                                          q75 = quantile(x, 0.75))})
 
 plotLinTP$M_TP <- plotLinTP[,"linTP"][,1]
-plotLinTP$MCE_TP <- plotLinTP[,"linTP"][,2]
+plotLinTP$SE_TP <- plotLinTP[,"linTP"][,2]
+plotLinTP$q25 <- plotLinTP[,"linTP"][,3]
+plotLinTP$q75 <- plotLinTP[,"linTP"][,4]
 plotLinTP$linTP <- NULL
 
 str(plotLinTP)
@@ -443,13 +661,18 @@ plotLinTP$N <- factor(plotLinTP$N, levels = c(100, 300, 1000))
 plotLinTP$model <- factor(plotLinTP$model, 
                           levels = c("ENETw", "ENETwo", "GBM"))
 
-plotLinFP <- aggregate(linFP ~ model + N + pTrash + rel + R2 + lin_inter, 
+plotLinFP <- aggregate(linFP_woTInter ~ model + N + pTrash + rel + R2 + lin_inter, 
                        data = rbind(linENETwo, linENETw, linGBM), 
-                       function(x) {cbind(mean(x), sd(x))})
+                       function(x) {cbind(mean(x), 
+                                          sd(x),
+                                          q25 = quantile(x, 0.25),
+                                          q75 = quantile(x, 0.75))})
 
-plotLinFP$M_FP <- plotLinFP[,"linFP"][,1]
-plotLinFP$MCE_FP <- plotLinFP[,"linFP"][,2]
-plotLinFP$linFP <- NULL
+plotLinFP$M_FP <- plotLinFP[,"linFP_woTInter"][,1]
+plotLinFP$SE_FP <- plotLinFP[,"linFP_woTInter"][,2]
+plotLinFP$q25 <- plotLinFP[,"linFP_woTInter"][,3]
+plotLinFP$q75 <- plotLinFP[,"linFP_woTInter"][,4]
+plotLinFP$linFP_woTInter <- NULL
 
 str(plotLinFP)
 plotLinFP$N <- factor(plotLinFP$N, levels = c(100, 300, 1000))
@@ -458,25 +681,27 @@ plotLinFP$model <- factor(plotLinFP$model,
 
 colValues <- c("green3", "darkblue", "darkmagenta")
 
-##### ENETs #####
-# R2, lin_inter, N
-# p Trash mactht hier quasi keinen Unterschied
-(ggplot(plotLinTP[plotLinTP$model == "GBM", ],
-        aes(x = rel, y = M_TP, 
+##### GBM #####
+# je größer N/je größer R2, desto eher werden TP gefunden
+# je höher R2, desto weniger entscheidend ist N für TP = bei höherem R2 genügt 
+#     kleinere Stichprobe, um alle TP zu finden
+(pTP_GBM <- ggplot(plotLinTP[plotLinTP$model == "GBM", ],
+        aes(x = N, y = M_TP, 
             group = interaction(R2, pTrash), colour = R2,
             linetype = pTrash)) +
    geom_point() +
    geom_line() +
    scale_linetype_manual(values = c("dotted", "solid")) +
    # scale_shape_manual(values = c(16, 8)) +
-   geom_errorbar(aes(ymin = M_TP - 2*MCE_TP, ymax = M_TP + 2*MCE_TP), 
+   # geom_errorbar(aes(ymin = M_TP - 2*SE_TP, ymax = M_TP + 2*SE_TP), 
+   geom_errorbar(aes(ymin = q25, ymax = q75), 
                  width = 0.2, alpha = 0.4) +  
    scale_color_manual(values = colValues) +
    geom_hline(aes(yintercept = 1)) +
-   facet_grid(N ~ lin_inter, labeller = label_both) +
-   ylab("PPV") +
+   facet_grid(rel ~ lin_inter, labeller = label_both) +
+   ylab("number of true positive predictors") +
    xlab("reliability of predictors") +
-   ggtitle("PPV: TP / (TP + FP)") +
+   ggtitle("TP (GBM)") +
    theme(axis.text.y = element_text(size = 20),
          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
          axis.title.x = element_text(size = 20),
@@ -484,44 +709,22 @@ colValues <- c("green3", "darkblue", "darkmagenta")
          strip.text.x = element_text(size = 15),
          strip.text.y = element_text(size = 15)))
 
-
-##### GBM #####
-(ggplot(plotLinTP[plotLinTP$model == "GBM", ],
-        aes(x = rel, y = M_TP, 
-        group = interaction(R2, pTrash), colour = R2,
-        linetype = pTrash)) +
-   geom_point() +
-   geom_line() +
-   scale_linetype_manual(values = c("dotted", "solid")) +
-   # scale_shape_manual(values = c(16, 8)) +
-   geom_errorbar(aes(ymin = M_TP - 2*MCE_TP, ymax = M_TP + 2*MCE_TP), 
-                 width = 0.2, alpha = 0.4) +  
-   scale_color_manual(values = colValues) +
-   geom_hline(aes(yintercept = 1)) +
-   facet_grid(N ~ lin_inter, labeller = label_both) +
-   ylab("PPV") +
-   xlab("reliability of predictors") +
-   ggtitle("PPV: TP / (TP + FP)") +
-   theme(axis.text.y = element_text(size = 20),
-         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-         axis.title.x = element_text(size = 20),
-         axis.title.y = element_text(size = 20),
-         strip.text.x = element_text(size = 15),
-         strip.text.y = element_text(size = 15)))
-
-(ggplot(plotLinFP[plotLinFP$model == "GBM", ],
-        aes(x = rel, y = M_FP, 
+# basically consistently all 10 trash variables extracted; 
+# je größer R2 und je größer N, desto mehr Trash wird mit extrahiert
+(pFP_GBM <- ggplot(plotLinFP[plotLinFP$model == "GBM", ],
+        aes(x = N, y = M_FP, 
             group = interaction(R2, pTrash), colour = R2,
             linetype = pTrash)) +
     geom_point() +
     geom_line() +
     scale_linetype_manual(values = c("dotted", "solid")) +
     # scale_shape_manual(values = c(16, 8)) +
-    geom_errorbar(aes(ymin = M_FP - 2*MCE_FP, ymax = M_FP + 2*MCE_FP), 
+    #geom_errorbar(aes(ymin = M_FP - 2*SE_FP, ymax = M_FP + 2*SE_FP), 
+    geom_errorbar(aes(ymin = q25, ymax = q75), 
                   width = 0.2, alpha = 0.4) +  
     scale_color_manual(values = colValues) +
     geom_hline(aes(yintercept = 1)) +
-    facet_grid(N~ lin_inter, labeller = label_both) +
+    facet_grid(rel ~ lin_inter, labeller = label_both) +
     ylab("PPV") +
     xlab("reliability of predictors") +
     ggtitle("PPV: TP / (TP + FP)") +
@@ -532,9 +735,76 @@ colValues <- c("green3", "darkblue", "darkmagenta")
           strip.text.x = element_text(size = 15),
           strip.text.y = element_text(size = 15)))
 
+##### ENETs #####
+(pTP_ENETs <- ggplot(plotLinTP[plotLinTP$model != "GBM", ],
+        aes(x = N, y = M_TP, 
+            group = interaction(R2, model, pTrash), colour = R2,
+            linetype = model, alpha = pTrash)) +
+   geom_point() +
+   geom_line() +
+   scale_linetype_manual(values = c("solid", "dashed")) +
+   scale_alpha_manual(values = c(1, 0.3)) +
+   # scale_shape_manual(values = c(16, 8)) +
+   #geom_errorbar(aes(ymin = M_TP - 2*SE_TP, ymax = M_TP + 2*SE_TP), 
+   geom_errorbar(aes(ymin = q25, ymax = q75), 
+                 width = 0.2, alpha = 0.4) +  
+   scale_color_manual(values = colValues) +
+   geom_hline(aes(yintercept = 4)) +
+   facet_grid(rel ~ lin_inter, labeller = label_both) +
+   ylab("PPV") +
+   xlab("reliability of predictors") +
+   ggtitle("PPV: TP / (TP + FP)") +
+   theme(axis.text.y = element_text(size = 20),
+         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+         axis.title.x = element_text(size = 20),
+         axis.title.y = element_text(size = 20),
+         strip.text.x = element_text(size = 15),
+         strip.text.y = element_text(size = 15)))
+
+(pFP_ENETs <- ggplot(plotLinFP[plotLinFP$model != "GBM", ],
+                     aes(x = N, y = M_FP, 
+                         group = interaction(R2, model, pTrash), colour = R2,
+                         linetype = model, alpha = pTrash)) +
+                geom_point() +
+                geom_line() +
+                scale_linetype_manual(values = c("solid", "dashed")) +
+                scale_alpha_manual(values = c(1, 0.3)) +
+                # scale_shape_manual(values = c(16, 8)) +
+                # geom_errorbar(aes(ymin = M_FP - 2*SE_FP, ymax = M_FP + 2*SE_FP), 
+                geom_errorbar(aes(ymin = q25, ymax = q75), 
+                              width = 0.2, alpha = 0.4) +  
+                scale_color_manual(values = colValues) +
+                geom_hline(aes(yintercept = 1)) +
+                facet_grid(rel ~ lin_inter, labeller = label_both) +
+                ylab("PPV") +
+                xlab("reliability of predictors") +
+                ggtitle("PPV: TP / (TP + FP)") +
+                theme(axis.text.y = element_text(size = 20),
+                      axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+                      axis.title.x = element_text(size = 20),
+                      axis.title.y = element_text(size = 20),
+                      strip.text.x = element_text(size = 15),
+                      strip.text.y = element_text(size = 15)))
+
+
 ################################################################################
 # calculate rank correlations
 ################################################################################
+# to do: issues with calculating rank correlations
+#     - how do we get variance in the rank of variables of the dgm?
+#       (a) random ranks for variables with effects (near zero correlations)
+#       (b) cheat it: result ranks for linear effect variables in dgm
+#       issue: multiple true linear effects might have the same rank therefore reducing variance again
+#       issue: multiple samples; ranks are therefore used nTrain times 
+#     - what if only a subset of variables is in the model? 
+#       issue: if only one of 4 TP variables are extracted but nothing else the correlation will be 1
+#             -> more conservative models benefit in terms of rank correlation
+
+# alternative Maße: 
+#     - Wie oft ist Variable mit simuliertem linearen Effekt in Top 4?
+#     - Wie viele der Prädiktoren sind in Top 4?
+#     - Sind die ersten 4 extrahierten Variablen die wahren Prädiktoren?
+
 # to get rank values by group
 library(tidyverse)
 
@@ -566,11 +836,8 @@ pviENETw <- pviENETw %>%
 
 # remove every variable that does not have simulated effects in dgm
 pviENETwo_rank <- pviENETwo[pviENETwo$pviRank %in% setParam$dgp$linEffects, ]
-pviENETwo_rank <- pviENETwo[pviENETwo$pviRank %in% setParam$dgp$linEffects, ]
-
-# to do: issues with calculating rank correlations
-#     - how do we get variance in the rank of variables of the dgm?
-#     - what if only a subset of variables is in the model?
+pviENETw_rank <- pviENETw[pviENETw$pviRank %in% setParam$dgp$linEffects, ]
+pviGBM_rank <- pviGBM[pviGBM$pviRank %in% setParam$dgp$linEffects, ]
 
 rankDGM <- expand.grid(idxCondLabel = unique(pviENETwo$idxCondLabel), 
                        sample = 1:setParam$dgp$nTrain,
@@ -583,19 +850,51 @@ rankDGM <- rankDGM %>%
 
 pviENETwo_rank <- merge(rankDGM, pviENETwo_rank, all = T, 
                         by = c("idxCondLabel", "sample", "N_pTrash", "pviRank"))
-
-# correlation with random rankDGM
-# range: -0.05404035  0.03688970
-pviENETwo_rankCor <- pviENETwo_rank %>% 
-  group_by(idxCondLabel, model, N_pTrash) %>% 
-  # negative pvi values as ranks are given in ascending instead of descending order
-  # 1 = 1, 1.001 = 2, ... instead of 1.9 = 1, 1.8 = 2, ...
-  mutate(rankCor = cor(x = rankDGM, y = rankModel, method = "spearman", 
-                       use = "pairwise.complete.obs"))
+pviENETw_rank <- merge(rankDGM, pviENETw, all = T, 
+                        by = c("idxCondLabel", "sample", "N_pTrash", "pviRank"))
+pviGBM_rank <- merge(rankDGM, pviGBM_rank, all = T, 
+                        by = c("idxCondLabel", "sample", "N_pTrash", "pviRank"))
+#####
+# # correlation with random rankDGM
+# # > range(pviGBM_rankCor$rankCor, na.rm = T)
+# # [1] -0.0468  0.0620
+# # > range(pviENETwo_rankCor$rankCor, na.rm = T)
+# # [1] -0.0526  0.0490
+# # > range(pviENETw_rankCor$rankCor, na.rm = T)
+# # [1] -0.0530018  0.0438000
+# pviENETwo_rankCor <- pviENETwo_rank %>% 
+#   group_by(idxCondLabel, model, N_pTrash) %>% 
+#   # negative pvi values as ranks are given in ascending instead of descending order
+#   # 1 = 1, 1.001 = 2, ... instead of 1.9 = 1, 1.8 = 2, ...
+#   mutate(rankCor = cor(x = rankDGM, y = rankModel, method = "spearman", 
+#                        use = "pairwise.complete.obs"))
+# 
+# pviENETw_rankCor <- pviENETw_rank %>% 
+#   group_by(idxCondLabel, model, N_pTrash) %>% 
+#   # negative pvi values as ranks are given in ascending instead of descending order
+#   # 1 = 1, 1.001 = 2, ... instead of 1.9 = 1, 1.8 = 2, ...
+#   mutate(rankCor = cor(x = rankDGM, y = rankModel, method = "spearman", 
+#                        use = "pairwise.complete.obs"))
+# 
+# pviGBM_rankCor <- pviGBM_rank %>% 
+#   group_by(idxCondLabel, model, N_pTrash) %>% 
+#   # negative pvi values as ranks are given in ascending instead of descending order
+#   # 1 = 1, 1.001 = 2, ... instead of 1.9 = 1, 1.8 = 2, ...
+#   mutate(rankCor = cor(x = rankDGM, y = rankModel, method = "spearman", 
+#                        use = "pairwise.complete.obs"))
+# 
+# range(pviENETwo_rankCor$rankCor, na.rm = T)
+# range(pviENETw_rankCor$rankCor, na.rm = T)
+# range(pviGBM_rankCor$rankCor, na.rm = T)
+#####
 
 # push correlations by using the rank of the model als rankDGM if rankModel in 1:4
 pviENETwo_rankCor$rankDGMpush <- ifelse(pviENETwo_rankCor$rankModel %in% 1:4, 
                                         pviENETwo_rankCor$rankModel, pviENETwo_rankCor$rankDGM)
+pviENETw_rankCor$rankDGMpush <- ifelse(pviENETw_rankCor$rankModel %in% 1:4, 
+                                        pviENETw_rankCor$rankModel, pviENETw_rankCor$rankDGM)
+pviGBM_rankCor$rankDGMpush <- ifelse(pviGBM_rankCor$rankModel %in% 1:4, 
+                                     pviGBM_rankCor$rankModel, pviGBM_rankCor$rankDGM)
 
 pviENETwo_rankCor <- pviENETwo_rankCor %>% 
   group_by(idxCondLabel, model, N_pTrash) %>% 
@@ -604,13 +903,45 @@ pviENETwo_rankCor <- pviENETwo_rankCor %>%
   mutate(rankCorPush = cor(x = rankDGMpush, y = rankModel, method = "spearman", 
                        use = "pairwise.complete.obs"))
 
+pviENETw_rankCor <- pviENETw_rankCor %>% 
+  group_by(idxCondLabel, model, N_pTrash) %>% 
+  # negative pvi values as ranks are given in ascending instead of descending order
+  # 1 = 1, 1.001 = 2, ... instead of 1.9 = 1, 1.8 = 2, ...
+  mutate(rankCorPush = cor(x = rankDGMpush, y = rankModel, method = "spearman", 
+                           use = "pairwise.complete.obs"))
+
+pviGBM_rankCor <- pviGBM_rankCor %>% 
+  group_by(idxCondLabel, model, N_pTrash) %>% 
+  # negative pvi values as ranks are given in ascending instead of descending order
+  # 1 = 1, 1.001 = 2, ... instead of 1.9 = 1, 1.8 = 2, ...
+  mutate(rankCorPush = cor(x = rankDGMpush, y = rankModel, method = "spearman", 
+                           use = "pairwise.complete.obs"))
+
 # range: 0.4432967 1.0000000
 range(pviENETwo_rankCor$rankCorPush, na.rm = T)
+range(pviENETw_rankCor$rankCorPush, na.rm = T)
+range(pviGBM_rankCor$rankCorPush, na.rm = T)
 
+str(pviENETwo_rankCor)
+str(pviENETw_rankCor)
+str(pviGBM_rankCor)
+pviENETw_rankCor$sample <- as.integer(pviENETw_rankCor$sample)
+
+pviRankCor <- rbind(pviENETwo_rankCor, pviENETw_rankCor, pviGBM_rankCor)
 plotRankCor <- aggregate(rankCorPush ~ idxCondLabel + N_pTrash + model, 
-          data = pviENETwo_rankCor, mean) 
+          data = pviRankCor, mean) 
+
+plotRankCor_ENETwo <- aggregate(rankCorPush ~ idxCondLabel + N_pTrash + model, 
+                         data = pviENETwo_rankCor, mean) 
+plotRankCor_ENETw <- aggregate(rankCorPush ~ idxCondLabel + N_pTrash + model, 
+                                data = pviENETw_rankCor, mean) 
+plotRankCor_GBM <- aggregate(rankCorPush ~ idxCondLabel + N_pTrash + model, 
+                                data = pviGBM_rankCor, mean) 
 
 plotRankCor <- idx2infoNew(plotRankCor)
+plotRankCor_ENETwo <- idx2infoNew(plotRankCor_ENETwo)
+plotRankCor_ENETw <- idx2infoNew(plotRankCor_ENETw)
+plotRankCor_GBM <- idx2infoNew(plotRankCor_GBM)
 
 # change variables to factors
 col2fac <- c("N", "pTrash" , "R2" , "rel" , "lin_inter", "model")
@@ -618,7 +949,17 @@ plotRankCor[col2fac] <- lapply(plotRankCor[col2fac], factor)
 plotRankCor$N <- factor(plotRankCor$N, 
                         levels = c(100, 300, 1000))
 
-pRankCor_ENETwo <- ggplot(plotRankCor,
+plotRankCor_ENETwo[col2fac] <- lapply(plotRankCor_ENETwo[col2fac], factor)
+plotRankCor_ENETwo$N <- factor(plotRankCor_ENETwo$N, 
+                        levels = c(100, 300, 1000))
+plotRankCor_ENETw[col2fac] <- lapply(plotRankCor_ENETw[col2fac], factor)
+plotRankCor_ENETw$N <- factor(plotRankCor_ENETw$N, 
+                               levels = c(100, 300, 1000))
+plotRankCor_GBM[col2fac] <- lapply(plotRankCor_GBM[col2fac], factor)
+plotRankCor_GBM$N <- factor(plotRankCor_GBM$N, 
+                               levels = c(100, 300, 1000))
+
+pRankCor_ENETwo <- ggplot(plotRankCor_ENETwo,
        aes(x = rel, y = rankCorPush, 
            group = interaction(R2, pTrash), colour = R2,
            linetype = pTrash)) +
@@ -640,11 +981,101 @@ pRankCor_ENETwo <- ggplot(plotRankCor,
         strip.text.x = element_text(size = 15),
         strip.text.y = element_text(size = 15))
 
+pRankCor_ENETw <- ggplot(plotRankCor_ENETw,
+                          aes(x = rel, y = rankCorPush, 
+                              group = interaction(R2, pTrash), colour = R2,
+                              linetype = pTrash)) +
+  geom_point() +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  #scale_shape_manual(values = c(16, 8)) +
+  # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_grid(N ~ lin_inter, labeller = label_both) +
+  ylab("rank correlation (Spearman)") +
+  xlab("reliability of predictors") +
+  ggtitle("rank correlation: ENETwo") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+pRankCor_GBM <- ggplot(plotRankCor_GBM,
+                          aes(x = rel, y = rankCorPush, 
+                              group = interaction(R2, pTrash), colour = R2,
+                              linetype = pTrash)) +
+  geom_point() +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  #scale_shape_manual(values = c(16, 8)) +
+  # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_grid(N ~ lin_inter, labeller = label_both) +
+  ylab("rank correlation (Spearman)") +
+  xlab("reliability of predictors") +
+  ggtitle("rank correlation: ENETwo") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+pRankCor_ENETwo
+pRankCor_ENETw
+pRankCor_GBM
+
 # ggplot2::ggsave(filename = paste0(plotFolder, "/rankCorrelation_ENETwo.png"),
 #                 plot = pRankCor_ENETwo,
 #                 width = 13.08,
 #                 height = 12.18,
 #                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/rankCorrelation_ENETw.png"),
+#                 plot = pRankCor_ENETw,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/rankCorrelation_GBM.png"),
+#                 plot = pRankCor_GBM,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+
+pRankCor <- ggplot(plotRankCor,
+       aes(x = rel, y = rankCorPush, 
+           group = interaction(R2, model, pTrash), colour = R2,
+           linetype = model, alpha = pTrash, shape = pTrash)) +
+  geom_point() +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  scale_shape_manual(values = c(16, 8)) +
+  scale_alpha_manual(values = c(1, 0.2)) +
+  # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+  scale_color_manual(values = colValues) +
+  geom_hline(aes(yintercept = 0)) +
+  facet_grid(N ~ lin_inter, labeller = label_both) +
+  ylab("rank correlation (Spearman)") +
+  xlab("reliability of predictors") +
+  ggtitle("rank correlation: ENETwo") +
+  theme(axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/rankCorrelation.png"),
+#                 plot = pRankCor,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+
 
 ################################################################################
 
@@ -675,27 +1106,3 @@ pviENETw$interTP <- ifelse(pviENETw$pviRank %in% interEffectsDot, 1, 0)
 #     ENETwo: no interactions extracted
 # all simulated effects selected in model?
 # only simulated effects selected (i.e., every other predictor is not selected!)
-
-
-# # get informative variables for simulated conditions (N, pTrash, R2, lin_inter) 
-# pviENETw <- idx2infoNew(pviENETw)
-# pviENETwo <- idx2infoNew(pviENETwo)
-# pviGBM <- idx2infoNew(pviGBM)
-# 
-# pviENETw$ID <- seq_len(dim(pviENETw)[1])
-# pviENETwo$ID <- seq_len(dim(pviENETwo)[1])
-# pviGBM$ID <- seq_len(dim(pviGBM)[1])
-# 
-# # # check
-# # all(colnames(ppsENETw) == colnames(ppsENETwo))
-# # all(colnames(ppsGBM) == colnames(ppsENETw))
-# 
-# # merge ENET_w, ENET_wo and GBM data; concatenate data for all models
-# rSquaredTest <- rbind(ppsENETw, ppsENETwo, ppsGBM)
-# 
-# # change variables to factors
-# col2fac <- c("N", "pTrash" , "R2" , "rel" , "lin_inter", "model")
-# rSquaredTest[col2fac] <- lapply(rSquaredTest[col2fac], factor)
-# # change variables to numeric
-# chr2num <- c("RMSE_train", "Rsq_train", "MAE_train", "RMSE_test", "Rsq_test", "MAE_test")
-# rSquaredTest[chr2num] <- lapply(rSquaredTest[chr2num], as.numeric)

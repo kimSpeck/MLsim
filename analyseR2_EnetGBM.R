@@ -90,6 +90,11 @@ rSquaredTest[chr2num] <- lapply(rSquaredTest[chr2num], as.numeric)
 # ... within: 
 #   model {Enetw; Enetwo, GBM}
 
+# Type 3 sums of squaress (e.g., Maxwell and Delaney, 2004)
+# contr.sum for effects-coding for the categorical variables
+# outcome: generalized eta2 (Olejnik and Algina 2003)
+
+
 # ANOVA: 
 ## mit ENET - ohne
 anovaTestR2 <- aov_ez(id = "ID", 
@@ -170,6 +175,11 @@ plotEta2mixed$Parameter <- factor(plotEta2mixed$Parameter,
 #   eta2TestR2.ordered,
 #   digits = 2,
 #   output = c("text", "markdown", "html"))
+
+eta2modelTable <- plotEta2mixed[plotEta2mixed$Eta2_generalized >= eta2Thresh,]
+
+print(xtable::xtable(eta2modelTable, type = "latex"), 
+      file = paste0(plotFolder, "/ENETvsGBM/ANOVAresults/mixedANOVA_R2.tex"))
 
 ################################################################################
 # mixed ANOVA for R^2 (but only models with interactions {ENETw & GBM})
@@ -295,20 +305,44 @@ for (iModel in modVec) {
   assign(etaObjectName, tmpEta2[order(tmpEta2$Eta2_generalized, decreasing = T),])
 }
 
+summary(anovaResENETw)
+summary(anovaResENETwo)
+summary(anovaResGBM)
+
 # Datensätze zusammenführen
 eta2ENETw$model <- rep("ENETw", dim(eta2ENETw)[1])
 eta2ENETwo$model <- rep("ENETwo", dim(eta2ENETwo)[1])
 eta2GBM$model <- rep("GBM", dim(eta2GBM)[1])
 
-# check how many parameters are still in depending on threshold
 eta2Thresh <- 0.1
+##### eta2 table #####
+eta2Table <- rbind(eta2ENETw, eta2ENETwo, eta2GBM) 
+eta2Table <- tidyr::pivot_wider(eta2Table[,c("Parameter", "Eta2_generalized", "model")], 
+                                names_from = model, 
+                                values_from = Eta2_generalized)
+
+eta2Table <- subset(eta2Table, eta2Table$ENETw >= eta2Thresh | 
+                      eta2Table$ENETwo >= eta2Thresh |
+                      eta2Table$GBM >= eta2Thresh)
+
+eta2Table$sumEta2 <- apply(eta2Table[,c("ENETw", "ENETwo", "GBM")], 1, sum)
+eta2Table <- dplyr::arrange(eta2Table, desc(sumEta2))
+eta2Table <- eta2Table[,c("Parameter", "GBM", "ENETw", "ENETwo")]
+
+print(xtable::xtable(eta2Table, type = "latex"), 
+      file = paste0(plotFolder, "/ENETvsGBM/ANOVAresults/betweenANOVA_R2.tex"))
+
+##### plot eta2 #####
+# check how many parameters are still in depending on threshold
 # dim(eta2ENETw[eta2ENETw$Eta2_generalized >= eta2Thresh,])
 # dim(eta2ENETwo[eta2ENETwo$Eta2_generalized >= eta2Thresh,])
 # dim(eta2GBM[eta2GBM$Eta2_generalized >= eta2Thresh,])
 
-eta2 <- rbind(eta2ENETw[eta2ENETw$Eta2_generalized >= eta2Thresh,], 
-              eta2ENETwo[eta2ENETwo$Eta2_generalized >= eta2Thresh,],
-              eta2GBM[eta2GBM$Eta2_generalized >= eta2Thresh,])
+# eta2 <- rbind(eta2ENETw[eta2ENETw$Eta2_generalized >= eta2Thresh,], 
+#               eta2ENETwo[eta2ENETwo$Eta2_generalized >= eta2Thresh,],
+#               eta2GBM[eta2GBM$Eta2_generalized >= eta2Thresh,])
+
+eta2 <- rbind(eta2ENETw, eta2ENETwo, eta2GBM)
 
 # sort variables according to total eta2 across all models
 eta2Sums <- aggregate(Eta2_generalized ~ Parameter, data = eta2, sum)
@@ -321,8 +355,9 @@ eta2$model <- factor(eta2$model,
 
 # als Balkendiagramme mit Cut-Off bei gen. eta² von .1 plotten
 #   y-Achse unterschiedliche Variablen; Farben unterschiedliche Modelle
-(pEta2Model <- ggplot(eta2, aes(x = Parameter, y = Eta2_generalized,
-                                group = model, fill = model)) +
+(pEta2Model <- ggplot(eta2[eta2$Eta2_generalized >= eta2Thresh,], 
+                      aes(x = Parameter, y = Eta2_generalized,
+                          group = model, fill = model)) +
     geom_bar(stat = "identity", position = position_dodge(preserve = "single")) +
     geom_text(aes(label=round(Eta2_generalized, 2), group = model), 
               angle = 90, hjust = 1.5, vjust=0.5, 
@@ -331,13 +366,40 @@ eta2$model <- factor(eta2$model,
               color="black", size=3.5)+
     ylab("generalisiertes eta^2") +
     scale_fill_manual(values = c("#990000", "#006600", "#009999")) +
-    theme(axis.text.y = element_text(size = 20),
+    theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "grey"), 
+          panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "grey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
           axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
           strip.text.y = element_text(size = 15)))
-  
+
+
+(pEta2_stacked <- ggplot(eta2[eta2$Eta2_generalized >= eta2Thresh,], 
+                      aes(x = model, y = Eta2_generalized,
+                          group = Parameter, fill = Parameter)) +
+    geom_col(position = position_stack(reverse = TRUE)) +
+    ylab("generalisiertes eta^2") +
+  geom_text(aes(label=round(Eta2_generalized, 2), group = Parameter), 
+            angle = 0, vjust=1.75, 
+            position = position_stack(reverse = TRUE), 
+            color="black", size=3.5)+
+    scale_fill_manual(values = c('#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3',
+                                 '#fdb462','#b3de69','#fccde5','#d9d9d9','#bc80bd')) +
+    theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "grey"), 
+          panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "grey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+
+# # save images
 # ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_R2.eps"),
 #                 plot = pEta2Model,
 #                 device = cairo_ps,
@@ -350,6 +412,12 @@ eta2$model <- factor(eta2$model,
 #                 plot = pEta2Model,
 #                 width = 17.52,
 #                 height = 10.76,
+#                 units = "in")
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_R2stacked.png"),
+#                 plot = pEta2_stacked,
+#                 width = 13.63,
+#                 height = 12.07,
 #                 units = "in")
 ################################################################################
 # simuliertes R² als zusätzlicher Split
