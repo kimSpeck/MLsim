@@ -99,8 +99,12 @@ colValues <- c("green3", "darkblue", "darkmagenta")
     ylab("") +
     xlab("pTrash (decreasing) x N (increasing)") +
     ggtitle("R^2: Training vs. Test performance") +
-    theme(axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+    theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "lightgrey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.text.x = element_text(size = 15),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
@@ -236,8 +240,12 @@ colValues <- c("green3", "darkblue", "darkmagenta")
     ylab("") +
     xlab("pTrash (decreasing) x N (increasing)") +
     ggtitle("R^2: Training vs. Test performance") +
-    theme(axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+    theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "lightgrey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.text.x = element_text(size = 15),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
@@ -288,8 +296,12 @@ pR2_overview <- ggplot(performanceData[performanceData$pTrash == 50 &
   ylab("") +
   xlab("reliability of predictors") +
   ggtitle("R^2: Training vs. Test performance") +
-  theme(axis.text.y = element_text(size = 20),
-        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+  theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "lightgrey"), 
+        panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "lightgrey"),
+        panel.background = element_rect(color = "white", fill = "white"),
+        axis.text.y = element_text(size = 20),
+        # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+        axis.text.x = element_text(size = 15),
         axis.title.x = element_text(size = 20),
         axis.title.y = element_text(size = 20),
         strip.text.x = element_text(size = 15),
@@ -306,7 +318,7 @@ pR2_overview <- ggplot(performanceData[performanceData$pTrash == 50 &
 # as standard deviation of the Monte Carlo estimate
 # plot 2 Monte Carlo Errors as Error Bars  
 
-getMCE <- aggregate(Rsq_test ~ model + N + pTrash + rel + R2 + lin_inter, 
+getSE <- aggregate(Rsq_test ~ model + N + pTrash + rel + R2 + lin_inter, 
           data = rSquaredTest, sd)
 aggregate(Rsq_test ~ model + N + pTrash + rel + R2 + lin_inter, 
           data = rSquaredTest, mean)
@@ -315,7 +327,7 @@ pR2sub <- performanceData[performanceData$measure == "Rsquared" &
                             performanceData$measures == "M_test", ]
 
 pR2sub <- merge(pR2sub, getMCE, by = c("model", "N", "pTrash", "rel", "R2", "lin_inter"))
-colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'MCE'
+colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'SE'
 
 (pR2_N100 <- ggplot(pR2sub[pR2sub$pTrash == 50 &
                              pR2sub$N == 100, ],
@@ -324,7 +336,7 @@ colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'MCE'
                                    linetype = model, shape = fit)) +
    geom_point() +
    geom_line() +
-   geom_errorbar(aes(ymin = values - 2* MCE, ymax = values + 2*MCE), 
+   geom_errorbar(aes(ymin = values - 2*SE, ymax = values + 2*SE), 
                  width = 0.2, alpha = 0.4) +  
    scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
    scale_shape_manual(values = c(16, 8)) +
@@ -340,8 +352,12 @@ colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'MCE'
    ylab("test R²") +
    xlab("reliability of predictors") +
    ggtitle("R²: Training vs. Test performance {N = 100, pTrash = 50}") +
-   theme(axis.text.y = element_text(size = 20),
-         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+   theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "lightgrey"), 
+         panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "lightgrey"),
+         panel.background = element_rect(color = "white", fill = "white"),
+         axis.text.y = element_text(size = 20),
+         # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+         axis.text.x = element_text(size = 20),
          axis.title.x = element_text(size = 20),
          axis.title.y = element_text(size = 20),
          strip.text.x = element_text(size = 15),
@@ -369,8 +385,12 @@ colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'MCE'
     ylab("test R²") +
     xlab("reliability of predictors") +
     ggtitle("R²: Training vs. Test performance {N = 100, pTrash = 50}") +
-    theme(axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+    theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "lightgrey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.text.x = element_text(size = 20),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
@@ -383,7 +403,7 @@ colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'MCE'
                         linetype = model, shape = fit)) +
     geom_point() +
     geom_line() +
-    geom_errorbar(aes(ymin = values - 2*MCE, ymax = values + 2*MCE), 
+    geom_errorbar(aes(ymin = values - 2*SE, ymax = values + 2*SE), 
                   width = 0.2, alpha = 0.4) +  
     scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
     scale_shape_manual(values = c(16, 8)) +
@@ -399,27 +419,31 @@ colnames(pR2sub)[colnames(pR2sub) == 'Rsq_test'] <- 'MCE'
     ylab("test R²") +
     xlab("reliability of predictors") +
     ggtitle("R²: Training vs. Test performance {N = 1000, pTrash = 50}") +
-    theme(axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+    theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(size = 0.25, linetype = 'solid', color = "lightgrey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.text.x = element_text(size = 20),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
           strip.text.y = element_text(size = 15)))
 
 # # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N100_2MCE.png"),
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ENETvsGBM/R2_N100_2MCE.png"),
 #                 plot = pR2_N100,
 #                 width = 13.63,
 #                 height = 8.59,
 #                 units = "in")
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N100_0MCE.png"),
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ENETvsGBM/R2_N100_0MCE.png"),
 #                 plot = pR2_N100_0MCE,
 #                 width = 13.63,
 #                 height = 8.59,
 #                 units = "in")
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N1000_2MCE.png"),
+# 
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ENETvsGBM/R2_N1000_2MCE.png"),
 #                 plot = pR2_N1000,
 #                 width = 13.63,
 #                 height = 8.59,
