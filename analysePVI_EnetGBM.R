@@ -76,6 +76,7 @@ pviGBM <- rbindSingleResults(pviGBM)
 
 ################################################################################
 # evaluate frequency stats
+################################################################################
 # how often are predictors "selected" in model? 
 #   -> i.e., how often is a certain variable relevant for prediction (pvi > 1)
 #       all variables with pvi <= 1 are already removed
@@ -115,9 +116,6 @@ linENETw <- aggregate(cbind(linTP, linFP, linFP_woTInter) ~ sample + idxCondLabe
 linGBM <- aggregate(cbind(linTP, linFP, linFP_woTInter) ~ sample + idxCondLabel + model + N_pTrash, 
           data = pviGBM, sum)
 
-# predictors, trash variables and all possible interactions
-setParam$dgp$nModelPredictors
-
 # id 
 # independent observations for samples {1:100} in different simulated conditions
 #   that all have the same sample numbers
@@ -126,20 +124,13 @@ linENETwo$ID <- seq_len(dim(linENETwo)[1])
 linENETw$ID <- seq_len(dim(linENETw)[1])
 linGBM$ID <- seq_len(dim(linGBM)[1])
 
-# merge data
-linPPV <- rbind(linENETw, linENETwo, linGBM)
-
 # calculate positive predictive value from TP and FP
 #     TP / (TP + FP)
-linPPV$PPV <- linPPV$linTP / (linPPV$linTP + linPPV$linFP) 
-
 linENETwo$PPV <- linENETwo$linTP / (linENETwo$linTP + linENETwo$linFP) 
 linENETw$PPV <- linENETw$linTP / (linENETw$linTP + linENETw$linFP_woTInter) 
 linGBM$PPV <- linGBM$linTP / (linGBM$linTP + linGBM$linFP) 
 
 # separate N_pTrash
-linPPV <- idx2infoNew(linPPV)
-
 linENETwo <- idx2infoNew(linENETwo)
 linENETw <- idx2infoNew(linENETw)
 linGBM <- idx2infoNew(linGBM)
@@ -221,25 +212,24 @@ linGBM[col2fac] <- lapply(linGBM[col2fac], factor)
 #     ... different models {ENETwo, ENETw, GBM}
 #     ... different dependent variables {PPV, linTP, linFP_woTInter}
 ################################################################################
+# merge data
+linPPV <- rbind(linENETw, linENETwo, linGBM)
 str(linPPV)
-col2fac <- c("N", "pTrash", "R2", "rel", "lin_inter")
-linPPV[col2fac] <- lapply(linPPV[col2fac], factor)
 
-dvVec <- c("PPV", "linTP", "linFP_woTInter")
+dvVec <- c("PPV", "linTP", "linFP_woTInter", "balACC", "sensitivity", "specificity", "ACC")
 modVec <- c("ENETwo", "ENETw", "GBM")
 for (iModel in modVec) {
   for (iDV in dvVec) {
     # only between factor ANOVA (only within factor was model)
+    # between-sample ANOVA for every model separately
     anovaObjectName <- paste0("anovaPPV", iModel, "_", iDV)
     tmp <- aov_ez(id = "ID",
                   dv = iDV,
-                  # dv = "PPV",
-                  # dv = "linTP",
-                  # dv = "linFP_woTInter",
                   data = linPPV[linPPV$model == iModel,],
                   between = c("N" , "pTrash" , "R2" , "rel" , "lin_inter"))
     assign(anovaObjectName, tmp)
     
+    # calculate generalized eta squared as effect size measure
     tmpEta2 <- eta_squared(
       tmp, # fitted model
       partial = FALSE, # not partial!
@@ -247,12 +237,12 @@ for (iModel in modVec) {
       ci = 0.95,
       verbose = TRUE)
     
+    # sort gen. eta squared in decreasing order
     tmpEta2 <- tmpEta2[order(tmpEta2$Eta2_generalized, decreasing = T),]
     tmpEta2 <- cbind(tmpEta2,
                      model = iModel,
                      dv = iDV)
     
-    # sort generalized eta-squared results
     # which higher order interactions do we need to illustrate to report simulation results?
     etaObjectName <- paste0("eta2", iModel, "_", iDV)
     #assign(etaObjectName, tmpEta2[order(tmpEta2$Eta2_generalized, decreasing = T),]) 
@@ -260,21 +250,130 @@ for (iModel in modVec) {
   }
 }
 
-# Datensätze zusammenführen
 eta2Thresh <- 0.01
-# dim(eta2ENETw[eta2ENETw$Eta2_generalized >= eta2Thresh,])
-# dim(eta2ENETwo[eta2ENETwo$Eta2_generalized >= eta2Thresh,])
-# dim(eta2GBM[eta2GBM$Eta2_generalized >= eta2Thresh,])
 
+##### plot all models separately and join into one plot #####
+plotEta2_4eachModel <- function(data, eta2Thresh, fillVal = "grey") {
+  
+  # sort parameters by importance
+  sortIdx <- order(data$Eta2_generalized, decreasing = T)
+  data$Parameter <- factor(data$Parameter, 
+                                levels = data$Parameter[sortIdx])
+  
+  # plot generalized eta2 for every model
+  tmp <- ggplot(data[data$Eta2_generalized > eta2Thresh, ], 
+         aes(x = Parameter, y = Eta2_generalized)) +
+    geom_bar(stat = "identity", position = position_dodge(preserve = "single"),
+             fill = fillVal) +
+    geom_text(aes(label=round(Eta2_generalized, 2)), 
+              angle = 90, hjust = 1.5, vjust=0.5, 
+              #angle = 0, vjust=1.5, 
+              position = position_dodge(width = .9), 
+              color="black", size=3.5)+
+    ylab("generalisiertes eta^2") +
+    theme(axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15))
+  
+  # plotName <- paste("pEta2_", model)
+  # assign(plotName, tmp)
+  return(tmp)
+}
+
+plotEta2 <- function(dataENETw, dataENETwo, dataGBM, eta2Thresh) {
+  pEta2_ENETw <- plotEta2_4eachModel(dataENETw, eta2Thresh, "#006600") + 
+    ggtitle("ENETw") + # for the main title
+    theme(plot.title = element_text(hjust = 0.5, size = 25))
+  pEta2_ENETwo <- plotEta2_4eachModel(dataENETwo, eta2Thresh, "#009999") +
+    ggtitle("ENETwo") + # for the main title
+    theme(plot.title = element_text(hjust = 0.5, size = 25)) 
+  pEta2_GBM <- plotEta2_4eachModel(dataGBM, eta2Thresh, "#990000") +
+    ggtitle("GBM") + # for the main title
+    theme(plot.title = element_text(hjust = 0.5, size = 25))
+  
+  (tmpP <- pEta2_GBM | pEta2_ENETw | pEta2_ENETwo)
+  # plotName <- paste0("pEta2_", DV)
+  # assign(plotName, tmpP) 
+  return(tmpP)
+}
+
+# PPV
+pEta2_PPV <- plotEta2(eta2ENETw_PPV, eta2ENETwo_PPV, eta2GBM_PPV, eta2Thresh)
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_PPV_facetten.png"),
+#                 plot = pEta2_PPV,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
+
+# linTP
+pEta2_linTP <- plotEta2(eta2ENETw_linTP, eta2ENETwo_linTP, eta2GBM_linTP, eta2Thresh)
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_linTP_facetten.png"),
+#                 plot = pEta2_linTP,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
+
+# linFP_woTInter
+pEta2_linFP_woTInter <- plotEta2(eta2ENETw_linFP_woTInter, eta2ENETwo_linFP_woTInter, eta2GBM_linFP_woTInter, eta2Thresh)
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_linFP_facetten.png"),
+#                 plot = pEta2_linFP_woTInter,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
+
+# Accuracy
+pEta2_ACC <- plotEta2(eta2ENETw_ACC, eta2ENETwo_ACC, eta2GBM_ACC, eta2Thresh)
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_ACC_facetten.png"),
+#                 plot = pEta2_ACC,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
+
+# balanced Accuracy
+pEta2_balACC <- plotEta2(eta2ENETw_balACC, eta2ENETwo_balACC, eta2GBM_balACC, eta2Thresh)
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_balACC_facetten.png"),
+#                 plot = pEta2_balACC,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
+
+# sensitivity
+pEta2_sensitivity <- plotEta2(eta2ENETw_sensitivity, eta2ENETwo_sensitivity, eta2GBM_sensitivity, eta2Thresh)
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_sensitivity_facetten.png"),
+#                 plot = pEta2_sensitivity,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
+
+# specificity
+pEta2_specificity <- plotEta2(eta2ENETw_specificity, eta2ENETwo_specificity, eta2GBM_specificity, eta2Thresh)
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_specificity_facetten.png"),
+#                 plot = pEta2_specificity,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
+
+##### plot all models in one graphic #####
+# Datensätze zusammenführen
 eta2_PPV <- rbind(eta2ENETw_PPV[eta2ENETw_PPV$Eta2_generalized >= eta2Thresh,], 
-              eta2ENETwo_PPV[eta2ENETwo_PPV$Eta2_generalized >= eta2Thresh,],
-              eta2GBM_PPV[eta2GBM_PPV$Eta2_generalized >= eta2Thresh,])
+                  eta2ENETwo_PPV[eta2ENETwo_PPV$Eta2_generalized >= eta2Thresh,],
+                  eta2GBM_PPV[eta2GBM_PPV$Eta2_generalized >= eta2Thresh,])
 
 # sort variables according to total eta2 across all models
 eta2Sums <- aggregate(Eta2_generalized ~ Parameter, data = eta2_PPV, sum)
 sortIdx <- order(eta2Sums$Eta2_generalized, decreasing = T)
 eta2_PPV$Parameter <- factor(eta2_PPV$Parameter, 
-                         levels = eta2Sums$Parameter[sortIdx])
+                             levels = eta2Sums$Parameter[sortIdx])
 
 eta2_PPV$model <- factor(eta2_PPV$model, 
                          levels = c("GBM", "ENETw", "ENETwo")) # obvious order of models
@@ -282,7 +381,7 @@ eta2_PPV$model <- factor(eta2_PPV$model,
 # als Balkendiagramme mit Cut-Off bei gen. eta² von .1 plotten
 #   y-Achse unterschiedliche Variablen; Farben unterschiedliche Modelle
 (pEta2Model_PPV <- ggplot(eta2_PPV, aes(x = Parameter, y = Eta2_generalized,
-                                group = model, fill = model)) +
+                                        group = model, fill = model)) +
     geom_bar(stat = "identity", position = position_dodge(preserve = "single")) +
     geom_text(aes(label=round(Eta2_generalized, 2), group = model), 
               angle = 90, hjust = 1.5, vjust=0.5, 
@@ -318,91 +417,14 @@ eta2_PPV$model <- factor(eta2_PPV$model,
 #                 height = 10.76,
 #                 units = "in")
 
+# remove saved plots
+rm(pEta2_ACC, pEta2_balACC, pEta2_PPV, pEta2_linFP_woTInter, pEta2_linTP, pEta2_sensitivity, pEta2_specificity)
+# remove ANOVA result data
+rm(list = c(ls(pat="^anova")))
+# remove eta2 data
+rm(list = c(ls(pat="^eta2")))
 
-plotEta2_4eachModel <- function(data, eta2Thresh, fillVal = "grey") {
-  
-  # sort parameters by importance
-  sortIdx <- order(data$Eta2_generalized, decreasing = T)
-  data$Parameter <- factor(data$Parameter, 
-                                levels = data$Parameter[sortIdx])
-  
-  # plot generalized eta2 for every model
-  tmp <- ggplot(data[data$Eta2_generalized > eta2Thresh, ], 
-         aes(x = Parameter, y = Eta2_generalized)) +
-    geom_bar(stat = "identity", position = position_dodge(preserve = "single"),
-             fill = fillVal) +
-    geom_text(aes(label=round(Eta2_generalized, 2)), 
-              angle = 90, hjust = 1.5, vjust=0.5, 
-              #angle = 0, vjust=1.5, 
-              position = position_dodge(width = .9), 
-              color="black", size=3.5)+
-    ylab("generalisiertes eta^2") +
-    theme(axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15))
-  
-  # plotName <- paste("pEta2_", model)
-  # assign(plotName, tmp)
-  return(tmp)
-}
-
-pEta2_ENETw <- plotEta2_4eachModel(eta2ENETw_PPV, eta2Thresh, "#006600") + 
-  ggtitle("ENETw") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-pEta2_ENETwo <- plotEta2_4eachModel(eta2ENETwo_PPV, eta2Thresh, "#009999") +
-  ggtitle("ENETwo") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-pEta2_GBM <- plotEta2_4eachModel(eta2GBM_PPV, eta2Thresh, "#990000") +
-  ggtitle("GBM") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-(pEta2_PVI <- pEta2_GBM | pEta2_ENETw | pEta2_ENETwo)
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_PVI_facetten.png"),
-#                 plot = pEta2_PVI,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-
-pEta2_ENETw <- plotEta2_4eachModel(eta2ENETw_linTP, eta2Thresh, "#006600") + 
-  ggtitle("ENETw") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-pEta2_ENETwo <- plotEta2_4eachModel(eta2ENETwo_linTP, eta2Thresh, "#009999") +
-  ggtitle("ENETwo") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-pEta2_GBM <- plotEta2_4eachModel(eta2GBM_linTP, eta2Thresh, "#990000") +
-  ggtitle("GBM") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-(pEta2_linTP <- pEta2_GBM | pEta2_ENETw | pEta2_ENETwo)
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_linTP_facetten.png"),
-#                 plot = pEta2_linTP,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-
-pEta2_ENETw <- plotEta2_4eachModel(eta2ENETw_linFP_woTInter, eta2Thresh, "#006600") + 
-  ggtitle("ENETw") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-pEta2_ENETwo <- plotEta2_4eachModel(eta2ENETwo_linFP_woTInter, eta2Thresh, "#009999") +
-  ggtitle("ENETwo") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-pEta2_GBM <- plotEta2_4eachModel(eta2GBM_linFP_woTInter, eta2Thresh, "#990000") +
-  ggtitle("GBM") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-(pEta2_linFP_woTInter <- pEta2_GBM | pEta2_ENETw | pEta2_ENETwo)
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_linFP_facetten.png"),
-#                 plot = pEta2_PVI,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-
+gc()
 ################################################################################
 # plot specificity, sensitivity and (balanced) accuracy 
 ################################################################################
@@ -415,7 +437,11 @@ pEta2_GBM <- plotEta2_4eachModel(eta2GBM_linFP_woTInter, eta2Thresh, "#990000") 
 #   ... sensitivity
 #   ... balanced accuracy
 
-plotDiags <- aggregate(cbind(linTP, linFP_woTInter, PPV, ACC,
+names(linENETwo)[names(linENETwo) == 'linFP_woTInter'] <- 'linFPwo'
+names(linENETw)[names(linENETw) == 'linFP_woTInter'] <- 'linFPwo'
+names(linGBM)[names(linGBM) == 'linFP_woTInter'] <- 'linFPwo'
+
+plotDiags <- aggregate(cbind(linTP, linFPwo, PPV, ACC,
                              specificity, sensitivity, balACC) ~ 
                           model + N + pTrash + rel + R2 + lin_inter, 
                         data = rbind(linENETwo, linENETw, linGBM), 
@@ -424,141 +450,163 @@ plotDiags <- aggregate(cbind(linTP, linFP_woTInter, PPV, ACC,
                                            quantile(x, 0.025),
                                            quantile(x, 0.975))})
 
-get(plotDiags)
-for (iCol in paste0("df",1:3)){
-  d=get(i)
-  colnames(d)[10]=i
-  assign(i,d)
-}
-
-# names(plotDiags) <- "M_balACC"
-# 
-# plotBalACC$M <- plotBalACC[,"balACC"][,1]
-# plotBalACC$SE <- plotBalACC[,"balACC"][,2]
-# plotBalACC$balACC <- NULL
+# turn matrices inside data frame into columns
+plotDiags <- do.call(data.frame, plotDiags)
+colnames(plotDiags) <- stringr::str_replace_all(colnames(plotDiags), "\\.1", "_M")
+colnames(plotDiags) <- stringr::str_replace_all(colnames(plotDiags), "\\.2", "_SE")
+colnames(plotDiags) <- stringr::str_replace_all(colnames(plotDiags), "\\.3", "_q025")
+colnames(plotDiags) <- stringr::str_replace_all(colnames(plotDiags), "\\.4", "_q975")
 
 plotDiags$N <- factor(plotDiags$N, levels = c(100, 300, 1000))
 plotDiags$model <- factor(plotDiags$model, 
                         levels = c("ENETw", "ENETwo", "GBM"))
 
+plotDiags <- tidyr::pivot_longer(plotDiags, 
+                          cols = !c(model, N, pTrash, rel, R2, lin_inter),
+                          names_to = c("DV", "measure"), 
+                          names_sep = "_",
+                          values_to = "values")
 
-ggplot(plotDiags[plotDiags$pTrash == 50 &
-                   , ],
-       aes(x = rel, y = M, 
-           group = interaction(R2, model), colour = R2,
-           linetype = model)) +
-  geom_point() +
-  geom_line() +
-  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
-  # scale_shape_manual(values = c(16, 8)) +
-  geom_errorbar(aes(ymin = M - 2*SE, ymax = M + 2*SE), 
-                width = 0.2, alpha = 0.4) +  
-  scale_color_manual(values = colValues) +
-  geom_hline(aes(yintercept = 1)) +
-  facet_grid(N~ lin_inter, labeller = label_both) +
-  ylab("PPV") +
-  xlab("reliability of predictors") +
-  ggtitle("PPV: TP / (TP + FP)") +
-  theme(axis.text.y = element_text(size = 20),
-        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-        axis.title.x = element_text(size = 20),
-        axis.title.y = element_text(size = 20),
-        strip.text.x = element_text(size = 15),
-        strip.text.y = element_text(size = 15))
+plotDiags <- tidyr::pivot_wider(plotDiags,
+                                 names_from = measure, 
+                                 values_from = values)
+
+# generic plot function does not work
+# as indicated by ANOVA results, different manipulations affected different kind of measures
 
 ################################################################################
 # plot sensitivity and specificity
 ################################################################################
-plotSensitivity <- aggregate(sensitivity ~ model + N + pTrash + rel + R2 + lin_inter, 
-                        data = rbind(linENETwo, linENETw, linGBM), 
-                        function(x) {cbind(mean(x), sd(x))})
-
-plotSensitivity$M <- plotSensitivity[,"sensitivity"][,1]
-plotSensitivity$SE <- plotSensitivity[,"sensitivity"][,2]
-plotSensitivity$sensitivity <- NULL
-
-str(plotSensitivity)
-plotSensitivity$N <- factor(plotSensitivity$N, levels = c(100, 300, 1000))
-plotSensitivity$model <- factor(plotSensitivity$model, 
-                           levels = c("ENETw", "ENETwo", "GBM"))
-
-
-ggplot(plotSensitivity[plotSensitivity$pTrash == 10, ],
-       aes(x = rel, y = M, 
+# sensitivity
+# as indicated by the between model ANOVA, reliability does not affect sensitivity
+#   in any of the models, thus, reliability is not included in the model!
+# the plotted data depicts conditions with rel = 1 
+(pSensitivity <- ggplot(plotDiags[plotDiags$DV == "sensitivity" &
+                   plotDiags$rel == 1,],
+       aes(x = N, y = M, 
            group = interaction(R2, model), colour = R2,
-           linetype = model)) +
-  geom_point() +
-  geom_line() +
+           linetype = model, shape = model)) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  geom_line(position = position_dodge(width = 0.5)) +
   scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
-  # scale_shape_manual(values = c(16, 8)) +
-  geom_errorbar(aes(ymin = M - 2*SE, ymax = M + 2*SE), 
-                width = 0.2, alpha = 0.4) +  
+  scale_shape_manual(values = c(16, 1, 8)) +
+  geom_errorbar(aes(ymin = q025, ymax = q975), 
+                width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
   scale_color_manual(values = colValues) +
-  geom_hline(aes(yintercept = 1)) +
-  facet_grid(N~ lin_inter, labeller = label_both) +
-  ylab("PPV") +
-  xlab("reliability of predictors") +
-  ggtitle("PPV: TP / (TP + FP)") +
+  facet_grid(pTrash ~ lin_inter, labeller = label_both) +
+  ylab("sensitivity") +
+  xlab("N") +
+  ggtitle("sensitivity: TP / (TP + FN)") +
+  theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
+        panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+        panel.background = element_rect(color = "white", fill = "white"),
+        axis.text.y = element_text(size = 20),
+        axis.text.x = element_text(size = 20),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15)))
+
+# # save plot as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/Sensitivity.png"),
+#                 plot = pSensitivity,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+
+# specificity
+# pTrash is most important variable for specificity
+# as indicated by the between model ANOVA, reliability does not affect specificity
+#   in any of the models, thus, reliability is not included in the model!
+# pTrash, R2, N, lin_inter
+(pSpecificity <- ggplot(plotDiags[plotDiags$DV == "specificity" &
+                   plotDiags$rel == 1,],
+       aes(x = pTrash, y = M, 
+           group = interaction(R2, model), colour = R2,
+           linetype = model, shape = model)) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  geom_line(position = position_dodge(width = 0.5)) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  scale_shape_manual(values = c(16, 1, 8)) +
+  geom_errorbar(aes(ymin = q025, ymax = q975), 
+                width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
+  scale_color_manual(values = colValues) +
+  facet_grid(N ~ lin_inter, labeller = label_both) +
+  ylab("specificity") +
+  xlab("N") +
+  ggtitle("specificity: TN / (TN + FP)") +
   theme(axis.text.y = element_text(size = 20),
         axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
         axis.title.x = element_text(size = 20),
         axis.title.y = element_text(size = 20),
         strip.text.x = element_text(size = 15),
-        strip.text.y = element_text(size = 15))
+        strip.text.y = element_text(size = 15)))
 
-plotSpecificity <- aggregate(specificity ~ model + N + pTrash + rel + R2 + lin_inter, 
-                             data = rbind(linENETwo, linENETw, linGBM), 
-                             function(x) {cbind(mean(x), sd(x))})
+# # save plot as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/Specificity.png"),
+#                 plot = pSpecificity,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
 
-plotSpecificity$M <- plotSpecificity[,"sensitivity"][,1]
-plotSpecificity$SE <- plotSpecificity[,"speci"][,2]
-plotSpecificity$sensitivity <- NULL
+################################################################################
+# plot (balanced) accuracy
+################################################################################
+(pBalACC <- ggplot(plotDiags[plotDiags$DV == "balACC" &
+                                    plotDiags$rel == 1,],
+                        aes(x = N, y = M, 
+                            group = interaction(R2, model), colour = R2,
+                            linetype = model, shape = model)) +
+   geom_point(position = position_dodge(width = 0.5)) +
+   geom_line(position = position_dodge(width = 0.5)) +
+   scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+   scale_shape_manual(values = c(16, 1, 8)) +
+   geom_errorbar(aes(ymin = q025, ymax = q975), 
+                 width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
+   scale_color_manual(values = colValues) +
+   facet_grid(pTrash ~ lin_inter, labeller = label_both) +
+   ylab("sensitivity") +
+   xlab("N") +
+   ggtitle("sensitivity: TP / (TP + FN)") +
+   theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
+         panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+         panel.background = element_rect(color = "white", fill = "white"),
+         axis.text.y = element_text(size = 20),
+         axis.text.x = element_text(size = 20),
+         axis.title.x = element_text(size = 20),
+         axis.title.y = element_text(size = 20),
+         strip.text.x = element_text(size = 15),
+         strip.text.y = element_text(size = 15)))
 
-str(plotSensitivity)
-plotSensitivity$N <- factor(plotSensitivity$N, levels = c(100, 300, 1000))
-plotSensitivity$model <- factor(plotSensitivity$model, 
-                                levels = c("ENETw", "ENETwo", "GBM"))
-
-
-ggplot(plotSpeci[plotSensitivity$pTrash == 10, ],
-       aes(x = rel, y = M, 
-           group = interaction(R2, model), colour = R2,
-           linetype = model)) +
-  geom_point() +
-  geom_line() +
-  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
-  # scale_shape_manual(values = c(16, 8)) +
-  geom_errorbar(aes(ymin = M - 2*SE, ymax = M + 2*SE), 
-                width = 0.2, alpha = 0.4) +  
-  scale_color_manual(values = colValues) +
-  geom_hline(aes(yintercept = 1)) +
-  facet_grid(N~ lin_inter, labeller = label_both) +
-  ylab("PPV") +
-  xlab("reliability of predictors") +
-  ggtitle("PPV: TP / (TP + FP)") +
-  theme(axis.text.y = element_text(size = 20),
-        axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-        axis.title.x = element_text(size = 20),
-        axis.title.y = element_text(size = 20),
-        strip.text.x = element_text(size = 15),
-        strip.text.y = element_text(size = 15))
-
+(pACC <- ggplot(plotDiags[plotDiags$DV == "ACC" &
+                                    plotDiags$rel == 1,],
+                        aes(x = N, y = M, 
+                            group = interaction(R2, model), colour = R2,
+                            linetype = model, shape = model)) +
+    geom_point(position = position_dodge(width = 0.5)) +
+    geom_line(position = position_dodge(width = 0.5)) +
+    scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+    scale_shape_manual(values = c(16, 1, 8)) +
+    geom_errorbar(aes(ymin = q025, ymax = q975), 
+                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
+    scale_color_manual(values = colValues) +
+    facet_grid(pTrash ~ lin_inter, labeller = label_both) +
+    ylab("sensitivity") +
+    xlab("N") +
+    ggtitle("sensitivity: TP / (TP + FN)") +
+    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
+          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 20),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
 
 ################################################################################
 # plot PVI
 ################################################################################
-plotPPV <- aggregate(PPV ~ model + N + pTrash + rel + R2 + lin_inter, 
-                     data = rbind(linENETwo, linENETw, linGBM), 
-                     function(x) {cbind(mean(x), sd(x))})
-
-plotPPV$M_PPV <- plotPPV[,"PPV"][,1]
-plotPPV$MCE_PPV <- plotPPV[,"PPV"][,2]
-plotPPV$PPV <- NULL
-
-str(plotPPV)
-plotPPV$N <- factor(plotPPV$N, levels = c(100, 300, 1000))
-plotPPV$model <- factor(plotPPV$model, 
-                        levels = c("ENETw", "ENETwo", "GBM"))
 
 # show ppv separately for ENETs and GBM 
 # -> dadurch, dass PPV sowieso durch andere Faktoren beeinflusst wird in GBM und ENETs,
@@ -567,21 +615,20 @@ plotPPV$model <- factor(plotPPV$model,
 # ... as can be seen in ANOVA: the relevant simulated conditions for performance 
 #     in terms of PPV are really different for models 
 
-
-
 ##### ENETs #####
 # R2, lin_inter, N
 # p Trash mactht hier quasi keinen Unterschied
-(plotPPV_overview <- ggplot(plotPPV[plotPPV$pTrash == 50 &
-                                      plotPPV$model != "GBM", ],
-                            aes(x = rel, y = M_PPV, 
+(plotPPV_overview <- ggplot(plotDiags[plotDiags$DV == "PPV" &
+                                        plotDiags$pTrash == 50 &
+                                        plotDiags$model != "GBM", ],
+                            aes(x = rel, y = M, 
                                 group = interaction(R2, model), colour = R2,
                                 linetype = model)) +
    geom_point() +
    geom_line() +
    scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
    # scale_shape_manual(values = c(16, 8)) +
-   geom_errorbar(aes(ymin = M_PPV - 2*MCE_PPV, ymax = M_PPV + 2*MCE_PPV), 
+   geom_errorbar(aes(ymin = M - 2*SE, ymax = M + 2*SE), 
                  width = 0.2, alpha = 0.4) +  
    scale_color_manual(values = colValues) +
    geom_hline(aes(yintercept = 1)) +
