@@ -2,7 +2,13 @@
 source("setParameters.R")
 source("analysisTools.R")
 
+# plot H-statistic
 library(ggplot2)
+library(patchwork)
+
+# calculate ANOVA
+library(afex) # für aov_ez()
+library(effectsize) # für Berechnung von Effektstärken; generalisiertes eta²
 
 # plot utils
 colValues <- c("green3", "darkblue", "darkmagenta")
@@ -146,9 +152,10 @@ any(interSub$interaction == Inf)
 idxInf <- which(interSub$interaction == Inf)
 interSub[idxInf,]
 
-# replace h-stats values with Inf by 0
+# replace h-stats values with Inf by 0 (this affects 4 values)
 interSub[idxInf,"interaction"] <- 0
 
+# aggregate H-statistic effects
 hStats <- aggregate(interaction ~ idxCondLabel + N_pTrash + simEffect, 
                     data = interSub, function(x) {
                       cbind(M = mean(x),
@@ -164,43 +171,48 @@ colnames(hStats) <- stringr::str_replace_all(colnames(hStats), "\\.3", "_q025")
 colnames(hStats) <- stringr::str_replace_all(colnames(hStats), "\\.4", "_q975")
 colnames(hStats) <- stringr::str_replace_all(colnames(hStats), "^interaction_", "")
 
+
+################################################################################
+# plot h-Statistic effects
+################################################################################
 str(hStats)
 col2fac <- c("N", "pTrash", "rel", "simEffect", "R2", "lin_inter")
 hStats[col2fac] <- lapply(hStats[col2fac], factor) 
 
 hStats$N <- factor(hStats$N, levels = c(100, 300, 1000))
 
-(hStats_Overview <- ggplot(hStats, aes(x = N, y = M, 
-           group = interaction(R2, simEffect), colour = R2,
-           linetype = simEffect, shape = simEffect)) +
-  geom_point(position = position_dodge(width = 0.5)) +
-  geom_line(position = position_dodge(width = 0.5)) +
-  scale_linetype_manual(values = c("dashed", "solid")) +
-  scale_shape_manual(values = c(16, 1, 8)) +
-  geom_errorbar(aes(ymin = q025, ymax = q975), 
-                width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
-  scale_color_manual(values = colValues) +
-  facet_grid(rel + pTrash ~ lin_inter, labeller = label_both) +
-  ylab("sensitivity") +
-  xlab("N") +
-  ggtitle("sensitivity: TP / (TP + FN)") +
-  theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-        panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
-        panel.background = element_rect(color = "white", fill = "white"),
-        axis.text.y = element_text(size = 20),
-        axis.text.x = element_text(size = 20),
-        axis.title.x = element_text(size = 20),
-        axis.title.y = element_text(size = 20),
-        strip.text.x = element_text(size = 15),
-        strip.text.y = element_text(size = 15)))
-
-
+# (hStats_Overview <- ggplot(hStats, aes(x = N, y = M, 
+#            group = interaction(R2, simEffect), colour = R2,
+#            linetype = simEffect, shape = simEffect)) +
+#   geom_point(position = position_dodge(width = 0.5)) +
+#   geom_line(position = position_dodge(width = 0.5)) +
+#   scale_linetype_manual(values = c("dashed", "solid")) +
+#   scale_shape_manual(values = c(16, 1, 8)) +
+#   geom_errorbar(aes(ymin = q025, ymax = q975), 
+#                 width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
+#   scale_color_manual(values = colValues) +
+#   facet_grid(rel + pTrash ~ lin_inter, labeller = label_both) +
+#   ylab("sensitivity") +
+#   xlab("N") +
+#   ggtitle("sensitivity: TP / (TP + FN)") +
+#   theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
+#         panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+#         panel.background = element_rect(color = "white", fill = "white"),
+#         axis.text.y = element_text(size = 20),
+#         axis.text.x = element_text(size = 20),
+#         axis.title.x = element_text(size = 20),
+#         axis.title.y = element_text(size = 20),
+#         strip.text.x = element_text(size = 15),
+#         strip.text.y = element_text(size = 15)))
+# 
+# # save overview plot (with both trash variable conditions)
 # ggplot2::ggsave(filename = paste0(plotFolder, "/hStatsInter_Overview.png"),
 #                 plot = hStats_Overview,
 #                 width = 13.08,
 #                 height = 12.18,
 #                 units = "in")
 
+# result notes
 # pTrash does not make any difference
 #     in general h-Stats numbers are smaller for large pTrash numbers but difference 
 #     between interactions with and without effect do not really change
@@ -214,17 +226,17 @@ hStats$N <- factor(hStats$N, levels = c(100, 300, 1000))
                            aes(x = N, y = M, 
                                group = interaction(R2, simEffect), colour = R2,
                                linetype = simEffect, shape = simEffect)) +
-    geom_point(position = position_dodge(width = 0.5)) +
-    geom_line(position = position_dodge(width = 0.5)) +
+    geom_point(position = position_dodge(width = 0.5), size = 2.2) +
+    geom_line(position = position_dodge(width = 0.5), alpha = 0.2) +
     scale_linetype_manual(values = c("dashed", "solid")) +
     scale_shape_manual(values = c(16, 1, 8)) +
     geom_errorbar(aes(ymin = q025, ymax = q975), 
                   width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
     scale_color_manual(values = colValues) +
     facet_grid(rel ~ lin_inter, labeller = label_both) +
-    ylab("sensitivity") +
+    ylab("H-statistic") +
     xlab("N") +
-    ggtitle("sensitivity: TP / (TP + FN)") +
+    #ggtitle("sensitivity: TP / (TP + FN)") +
     theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
           panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
           panel.background = element_rect(color = "white", fill = "white"),
@@ -240,3 +252,153 @@ hStats$N <- factor(hStats$N, levels = c(100, 300, 1000))
 #                 width = 13.08,
 #                 height = 12.18,
 #                 units = "in")
+
+######
+# plot subset to display all relevant results 
+(hStats_pTrash10rel1 <- ggplot(hStats[hStats$pTrash == 10 &
+                                    hStats$rel == 1, ], 
+                           aes(x = N, y = M, 
+                               group = interaction(R2, simEffect), colour = R2,
+                               linetype = simEffect, shape = simEffect)) +
+    geom_point(position = position_dodge(width = 0.5), size = 2.2) +
+    geom_line(position = position_dodge(width = 0.5), alpha = 0.2) +
+    scale_linetype_manual(values = c("dashed", "solid")) +
+    scale_shape_manual(values = c(16, 1, 8)) +
+    geom_errorbar(aes(ymin = q025, ymax = q975), 
+                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
+    scale_color_manual(values = colValues) +
+    facet_grid(rel ~ lin_inter, labeller = label_both) +
+    ylab("H-statistic") +
+    xlab("N") +
+    #ggtitle("sensitivity: TP / (TP + FN)") +
+    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
+          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 20),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+(hStats_pTrash10rel06 <- ggplot(hStats[hStats$pTrash == 10 &
+                                        hStats$rel == 0.6 & 
+                                        hStats$lin_inter == "0.2_0.8", ], 
+                               aes(x = N, y = M, 
+                                   group = interaction(R2, simEffect), colour = R2,
+                                   linetype = simEffect, shape = simEffect)) +
+    geom_point(position = position_dodge(width = 0.5), size = 2.2) +
+    geom_line(position = position_dodge(width = 0.5), alpha = 0.2) +
+    scale_linetype_manual(values = c("dashed", "solid")) +
+    scale_shape_manual(values = c(16, 1, 8)) +
+    guides(shape = "none", linetype = "none", colour = "none") +
+    geom_errorbar(aes(ymin = q025, ymax = q975), 
+                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
+    scale_color_manual(values = colValues) +
+    facet_grid(rel ~ lin_inter, labeller = label_both) +
+    ylim(0, 0.5) +
+    ylab("H-statistic") +
+    xlab("N") +
+    #ggtitle("sensitivity: TP / (TP + FN)") +
+    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
+          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          axis.text.x = element_text(size = 20),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+# patch subplots 
+(phStatsSub <- hStats_pTrash10rel06 + 
+  hStats_pTrash10rel1 + 
+  plot_layout(ncol = 2, widths = c(1, 3)))
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/hStatsInterSubset_pTrash10.png"),
+#                 plot = phStatsSub,
+#                 width = 17.89,
+#                 height = 5.88,
+#                 units = "in")
+
+################################################################################
+# between ANOVA for H-statistic
+################################################################################
+# calculate mean H-statistic within each sample for interactions with and without 
+#     simulated effects
+
+aovhStatsData <- aggregate(interaction ~ idxCondLabel + N_pTrash + sample + simEffect, 
+                           data = interSub, mean)
+
+aovhStatsData <- idx2infoNew(aovhStatsData)
+
+# split, apply, combine to add IDs for between sample conditions
+hStats_list <- split(aovhStatsData, f = aovhStatsData$simEffect)
+
+hStats_out <- lapply(hStats_list, function(iList) {
+  iList <- cbind(iList, ID = seq_len(dim(iList)[1]))   
+})
+
+aovhStatsData <- do.call(rbind, hStats_out)
+
+colnames(aovhStatsData)
+col2fac <- c("N", "pTrash", "rel", "simEffect", "R2", "lin_inter", "sample", "ID")
+aovhStatsData[col2fac] <- lapply(aovhStatsData[col2fac], factor) 
+
+# mixed ANOVA with ...
+# ... id = sample (independent samples between simulated conditions)
+# ... dv = {H-statistic}
+# ... between: 3 x 2 x 3 x 3 x 3
+#   N (3) {100, 300, 1000}
+#   pTrash (2) {10, 50}
+#   rel (3) {0.6, 0.8, 1}
+#   R2 (3) {0.2, 0.5, 0.8}
+#   lin_inter (3) {0.2_0.8, 0.5_0.5, 0.8_0.2}
+# ... within: 
+#   simEffect {interaction with effect vs. without effect}
+
+aovHstats <- aov_ez(id = "ID",
+                    dv = "interaction",
+                    data = aovhStatsData,
+                    between = c("N" , "pTrash" , "R2" , "rel" , "lin_inter"),
+                    within = "simEffect")
+
+# summary(aovHstats)
+
+hStatsEta2 <- eta_squared(
+  aovHstats, # fitted model
+  partial = FALSE, # not partial!
+  generalized = TRUE, # generalized eta squared
+  ci = 0.95,
+  verbose = TRUE)
+
+hStatsEta2[order(hStatsEta2$Eta2_generalized, decreasing = T),]
+
+hStatsEta2Table <- hStatsEta2[order(hStatsEta2$Eta2_generalized, decreasing = T),]
+
+print(xtable::xtable(hStatsEta2Table, type = "latex"), 
+      file = paste0(plotFolder, "/ENETvsGBM/ANOVAresults/mixedANOVA_hStatistic.tex"))
+
+# between ANOVA for difference in H-Statistic between interactions with and without 
+aovhStatsDiff <- tidyr::pivot_wider(aovhStatsData, names_from = simEffect, values_from = interaction)
+aovhStatsDiff$diffH <- aovhStatsDiff$"1" - aovhStatsDiff$"0"
+
+aovHdiffstats <- aov_ez(id = "ID",
+                        dv = "diffH",
+                        data = aovhStatsDiff,
+                        between = c("N" , "pTrash" , "R2" , "rel" , "lin_inter"))
+
+hDiffStatsEta2 <- eta_squared(
+  aovHdiffstats, # fitted model
+  partial = FALSE, # not partial!
+  generalized = TRUE, # generalized eta squared
+  ci = 0.95,
+  verbose = TRUE)
+
+hDiffStatsEta2[order(hDiffStatsEta2$Eta2_generalized, decreasing = T),]
+
+hDiffStatsEta2Table <- hDiffStatsEta2[order(hDiffStatsEta2$Eta2_generalized, decreasing = T),]
+
+print(xtable::xtable(hDiffStatsEta2Table, type = "latex"), 
+      file = paste0(plotFolder, "/ENETvsGBM/ANOVAresults/mixedANOVA_hDiffStatistic.tex"))
+
