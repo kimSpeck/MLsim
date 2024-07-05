@@ -1,0 +1,302 @@
+---
+title: "overview result variables"
+author: "Kim-Laura Speck"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    toc: yes
+    number_sections: no
+  html_document:
+    toc: yes
+    number_sections: no
+editor_options: 
+  chunk_output_type: console
+---
+
+# Basic structure (of results)
+This document provides an overview over all result variables from models fitted to the data.
+
+```{r}
+# general collection of parameter values
+source("setParameters.R") # import parameter values
+
+# all result files in this folder
+resFolder <- paste0("results/finalResults")
+
+# there are separate result files depending on ...
+# ... N = number of observations in the training data
+# ... pTrash = number of "trash" predictors (without association to the outcome)
+# .. reliability = amount of measurement error in the predictors (i.e., reliability)
+# separation of these result files due to different data sets (raw data)
+length(setParam$dgp$N) * length(setParam$dgp$pTrash) * length(setParam$dgp$reliability)
+
+condGrid <- expand.grid(N = setParam$dgp$N,
+                           pTrash = setParam$dgp$pTrash,
+                           reliability = setParam$dgp$reliability)
+
+(condN_pTrash <- paste0("N", condGrid$N, 
+                       "_pTrash", condGrid$pTrash,
+                       "_rel", condGrid$reliability))
+
+# thus, for each model there are 18 different data sets 
+# model x N x pTrash x rel = 3 * 18
+modelVec = c("ENETw", "ENETwo", "GBM") 
+
+# additionally, there are different conditions withon each data set (results and raw data)
+# every simulated combination of R^2 and the distribution of linear and interaction effect strength
+# results are within the same results file due to identical raw data that these results are based on
+#     ... reason: predictor matrices are identical; only y is different for these simulated conditions
+length(setParam$dgp$Rsquared) * length(setParam$dgp$percentLinear)
+setParam$dgp$condLabel 
+# this is what idxCondLabel in every results matrix refers to
+```
+
+# GBM
+```{r}
+# GBM
+dataGBM <- readRDS(paste0(resFolder, "/resultsModelGBM_N100_pTrash10_rel0.6.rds"))
+names(dataGBM)
+```
+
+## performTrainStats
+
+average model performance on train data (M, SD, SE)
+
+- Root Mean Squared Error (RMSE)
+- explained variance (R2)
+- Mean Absolute Error (MAE) 
+
+... for model training
+
+```{r}
+head(dataGBM[["performTrainStats"]])
+dim(dataGBM[["performTrainStats"]])
+
+unique(rownames(dataGBM[["performTrainStats"]]))
+length(unique(rownames(dataGBM[["performTrainStats"]]))) * length(setParam$dgp$condLabels)
+```
+
+## performTestStats
+
+average model performance on test data (M, SD, SE)
+
+- Root Mean Squared Error (RMSE)
+- explained variance (R2)
+- Mean Absolute Error (MAE) 
+
+... for model testing
+
+```{r}
+head(dataGBM[["performTestStats"]])
+dim(dataGBM[["performTestStats"]])
+unique(rownames(dataGBM[["performTestStats"]]))
+length(unique(rownames(dataGBM[["performTestStats"]]))) * length(setParam$dgp$condLabels)
+```
+
+## performPerSample
+
+test and train model performance for every sample seperately
+
+```{r}
+head(dataGBM[["performPerSample"]])
+dim(dataGBM[["performPerSample"]])
+length(setParam$dgp$condLabels) * setParam$dgp$nTrain
+```
+
+## pvi
+
+permutation variable importance from the iml package
+
+Molnar C, Bischl B, Casalicchio G (2018). “iml: An R package for Interpretable Machine Learning.” _JOSS_, *3*(26), 786.
+  https://doi.org/10.21105/joss.00786.
+
+- model agnostic statistic  
+- calculated with the FeatureImp-function
+- the factor by which the model's prediction error increases when the feature is shuffled
+- high values signify high importance of the predictor
+- importance values of 1 signifies irrelevance of the predictor for prediction
+
+
+```{r}
+head(dataGBM[["pvi"]])
+dim(dataGBM[["pvi"]])
+
+# dimensions depend on number of trash predictors
+(setParam$dgp$pTrash[1] + length(setParam$dgp$linEffects)) * 
+  length(setParam$dgp$condLabels) * setParam$dgp$nTrain
+
+# pviRank = feature
+# pviValue = importance
+```
+
+## interStrength
+
+H-statistic to quantify/evaluate predictive value of interactions
+
+Friedman, J. H., & Popescu, B. E. (2008). Predictive learning via rule ensembles. Section 8.1
+
+- model agnostic statistic
+- only for variables with simulated main effects otherwise interaction strength is overestimated
+- see also Greenwell et al. (2018) and Henninger et al. (2023) 
+- does feature interact with any other feature?
+
+  + The interaction strength between two features is the proportion of the variance of the 2-dimensional partial dependence function that is not explained by the sum of the two 1-dimensional partial dependence functions.
+  + intereaction strength between 0 (no interaction) and 1 (all of variation of the predicted outcome depends on a given interaction) 
+
+    * pd(ij) = interaction partial dependence of variables i and j
+    * pd(i) = partial dependence of variable i
+    * pd(j) = partial dependence of variable j
+    * upper = sum(pd(ij) - pd(i) - pd(j))
+    * lower = variance(pd(ij))
+    * rho = upper / lower
+  
+  + partial dependence of the interaction relative to partial dependence of the main effects; thus, for variables without simulated effects the overall interaction strength might be as high as for variables with actually simulated interactions only because these variables do have main effects as well (see also Greenwell et al. (2018) and Henninger et al. (2023))
+  + across variables comparison of overall interaction strength is meaningsless
+
+```{r}
+head(dataGBM[["interStrength"]])
+dim(dataGBM[["interStrength"]])
+```
+
+## selectionPerSample
+
+save cross-validated tuning parameters from each sample
+
+```{r}
+head(dataGBM[["selectionPerSample"]])
+dim(dataGBM[["selectionPerSample"]])
+```
+
+# ENET
+
+We fitted elastic net regression with and without every possible interaction term. 
+The results structure is exactly the same for both result sets. 
+
+```{r}
+## ENETw
+dataENETw <- readRDS(paste0(resFolder, "/resultsModelENETw_N100_pTrash10_rel0.6.rds"))
+
+## ENETw0
+dataENETwo <- readRDS(paste0(resFolder, "/resultsModelENETwo_N100_pTrash10_rel0.6.rds"))
+
+names(dataENETw)
+names(dataENETwo)
+```
+
+## performTrainStats
+
+average model performance on train data (M, SD, SE)
+
+- Root Mean Squared Error (RMSE)
+- explained variance (R2)
+- Mean Absolute Error (MAE) 
+
+... for model training
+
+```{r}
+head(dataENETw[["performTrainStats"]])
+dim(dataENETw[["performTrainStats"]])
+```
+
+## performTestStats
+
+average model performance on test data (M, SD, SE)
+
+- Root Mean Squared Error (RMSE)
+- explained variance (R2)
+- Mean Absolute Error (MAE) 
+
+... for model testing
+
+```{r}
+head(dataENETw[["performTestStats"]])
+dim(dataENETw[["performTestStats"]])
+```
+
+## performPerSample
+
+test and train model performance for every sample seperately
+
+```{r}
+head(dataENETw[["performPerSample"]])
+dim(dataENETw[["performPerSample"]])
+```
+
+## pvi
+
+permutation variable importance from the iml package
+
+Molnar C, Bischl B, Casalicchio G (2018). “iml: An R package for Interpretable Machine Learning.” _JOSS_, *3*(26), 786.
+  https://doi.org/10.21105/joss.00786.
+
+- model agnostic statistic  
+- calculated with the FeatureImp-function
+- the factor by which the model's prediction error increases when the feature is shuffled
+- high values signify high importance of the predictor
+- importance values of 1 signifies irrelevance of the predictor for prediction
+
+```{r}
+head(dataENETw[["pvi"]])
+dim(dataENETw[["pvi"]])
+```
+
+## estBeta
+
+average estimated coefficients (M, SD, SE)
+
+- for all variables in the model (including trash variables)
+- additionally for all possible interactions (including trash variables)
+- variables which are not selected by ENET were removed from mean calculation: coefficients that are exactly zero (i.e., not selected) are replaced by "NA"
+
+```{r}
+head(dataENETw[["estBeta"]])
+dim(dataENETw[["estBeta"]])
+length(setParam$dgp$condLabels) * 
+  (setParam$dgp$nModelPredictors[1] + # all interactions
+     length(setParam$dgp$linEffects) + setParam$dgp$pTrash[1]) # linear predictors and trash variables
+```
+
+## estBetaFull
+
+estimated coefficients
+
+- variables which are not selected by ENET were removed: coefficients that are exactly zero (i.e., not selected) are replaced by "NA"
+
+```{r}
+dataENETw[["estBetaFull"]][1:6, 1:6]
+dim(dataENETw[["estBetaFull"]])
+
+# conditions x {variables, interactions} in rows 
+# samples in columns
+length(setParam$dgp$condLabels) * 
+  (setParam$dgp$nModelPredictors[1] + # all interactions
+     length(setParam$dgp$linEffects) + setParam$dgp$pTrash[1]) # linear predictors and trash variables
+```
+
+## varSelection      
+
+- How frequently are linear predictors or interactions kept in the model?
+
+  + frequency of variable selection 
+  + relative frequency 
+
+```{r}
+head(dataENETw[["varSelection"]])
+dim(dataENETw[["varSelection"]])
+# conditions x {variables, interactions} in rows 
+```
+
+## selectionPerSample
+
+- **nLin**: how many of the linear effects are recovered?
+- **nInter**: how many of the interaction effects are recovered?
+- **all.T1F0**: every simulated effect selected in model?
+- **nOthers**: only simulated effects selected (i.e., every other predictor is not selected!)
+- final ENET tuning parameters (**alpha** & **lambda**) for every sample
+
+```{r}
+head(dataENETw[["selectionPerSample"]])
+dim(dataENETw[["selectionPerSample"]])
+# rows: every sample in every condition
+```
+
