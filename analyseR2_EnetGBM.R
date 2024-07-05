@@ -309,6 +309,27 @@ summary(anovaResENETw)
 summary(anovaResENETwo)
 summary(anovaResGBM)
 
+# post tests für model: welches Model zeigt den größten Overfit? 
+#   most overfit in GBM > ENET - mit > ENET - ohne
+# averaged over the levels of: N, pTrash, R2, rel, lin_inter
+(postR2_linInter_GBM <- emmeans(anovaResGBM, specs = "lin_inter"))
+pairs(postR2_linInter_GBM, adjust="holm")
+(ppostR2_linInter_GBM <- plot(postR2_linInter_GBM, comparisons = TRUE))
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/mixedANOVA_overfit_postN.png"),
+#                 plot = pPostOverfitN,
+#                 width = 865,
+#                 height = 410,
+#                 units = "px")
+
+(postR2_linInter_ENETwo <- emmeans(anovaResENETwo, specs = "lin_inter"))
+pairs(postR2_linInter_ENETwo, adjust="holm")
+(ppostR2_linInter_ENETwo <- plot(postR2_linInter_ENETwo, comparisons = TRUE))
+
+(postR2_linInter_ENETw <- emmeans(anovaResENETw, specs = "lin_inter"))
+pairs(postR2_linInter_ENETw, adjust="holm")
+(ppostR2_linInter_ENETw <- plot(postR2_linInter_ENETw, comparisons = TRUE))
+
 # Datensätze zusammenführen
 eta2ENETw$model <- rep("ENETw", dim(eta2ENETw)[1])
 eta2ENETwo$model <- rep("ENETwo", dim(eta2ENETwo)[1])
