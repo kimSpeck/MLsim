@@ -190,10 +190,63 @@ names(interStrength) <- paste0("N", subGrid$N,
 
 interStrengthFile <- paste0(depMeasures, "/interStrength_", "GBM", ".rda")
 save(interStrength, file = interStrengthFile)
+
+################################################################################
+# extract beta coefficients (for ENET)
+################################################################################
+# extract beta coefficients for both ENET with and without interactions
+modelVecSub <- c("ENETw", "ENETwo")
+for (iModel in modelVecSub) {
+  subGrid <- condGrid[which(condGrid$model == iModel),]
+  estBeta <- vector(mode = "list", length = nrow(subGrid))
+  for (iSim in seq_len(nrow(subGrid))) {
+    resFileName <- paste0(resFolder, "/", "resultsModel", iModel, 
+                          "_N", subGrid[iSim, "N"], 
+                          "_pTrash", subGrid[iSim, "pTrash"], 
+                          "_rel", subGrid[iSim, "reliability"], ".rds")
+    
+    print(resFileName)
+    tmp <- readRDS(resFileName)[["estBetaFull"]]
+    
+    if (iModel == "ENETwo") {
+      idxCondLabels <- rep(seq_along(setParam$dgp$condLabels), 
+          each = length(setParam$dgp$linEffects) + subGrid[iSim, "pTrash"])  
+    } else if (iModel == "ENETw") {
+      tmpP = length(setParam$dgp$linEffects) + subGrid[iSim, "pTrash"]
+      nrInter = choose(tmpP, setParam$dgp$interDepth)
+      idxCondLabels <- rep(seq_along(setParam$dgp$condLabels), 
+                           each = tmpP + nrInter)
+    }
+    
+    
+    tmp <- cbind(tmp, 
+                 idxCondLabel = idxCondLabels,
+                 # add model variable (within factor in mixed ANOVA)
+                 model = rep(iModel, dim(tmp)[1]),
+                 # add N_pTrash_rel label
+                 N_pTrash = rep(paste0("N", subGrid[iSim, "N"], 
+                                       "_pTrash", subGrid[iSim, "pTrash"], 
+                                       "_rel", subGrid[iSim, "reliability"]), 
+                                dim(tmp)[1]))
+  
+    estBeta[[iSim]] <- tmp
+  }
+  
+  names(estBeta) <- paste0("N", subGrid$N, 
+                           "_pTrash", subGrid$pTrash,
+                           "_rel", subGrid$reliability)
+  
+  estBetaFile <- paste0(depMeasures, "/estBetaSample_", iModel, ".rda")
+  save(estBeta, file = estBetaFile)
+  print("done")
+  gc()
+}
+
 ################################################################################
 # full data to one rda file
 ################################################################################
 # # this creates huge rda files that would take a lot of time to read in
+# # therefore this version of data management does not work for the final sample
 # # read in data
 # for (iModel in modelVec) {
 #   subGrid <- condGrid[which(condGrid$model == iModel),]
