@@ -59,18 +59,11 @@ pviGBM <- rbindSingleResults(pviGBM)
 ################################################################################
 # evaluate frequency stats
 ################################################################################
-# two variants ... 
-#   ... .a only out of main effects vs. 
-#   ... .b out of main effects and interactions without simulated effect
-# -> shouldn't make a difference as specificity incorporates both, FP and TN therefore 
-#     neutralizing the number of interactions without simualted effect that are not counted?
-
 # how often are predictors "selected" in model? 
 #   -> i.e., how often is a certain variable relevant for prediction (pvi > 1)
 #       all variables with pvi <= 1 are already removed
 # ! pvi for ENETw includes interactions
 #   otherwise {ENETwo & GBM} pvi does not inlcude interactions
-# -> think about this in calculating false positives {FP.a vs. FP.b} and true negatives {TN.a vs. TN.b}!
 
 # 1. calculate number of true positives for each sample
 # how many (frequently do) variables **with** simulated linear effects (setParam$dgp$linEffects) 
@@ -86,12 +79,8 @@ pviGBM$linTP <- ifelse(pviGBM$pviRank %in% setParam$dgp$linEffects, 1, 0)
 #     affect (pvi > 1) the prediction? 
 #     -> = false positive (linear)
 # ENETwo and GBM without interactions in PVI, therefore only one version of FP necessary
-pviENETwo$linFP.a <- ifelse(pviENETwo$pviRank %in% setParam$dgp$linEffects, 0, 1)
-pviGBM$linFP.a <- ifelse(pviGBM$pviRank %in% setParam$dgp$linEffects, 0, 1)
-
-# copy version a as version b would be identical
-pviENETwo$linFP.b <- pviENETwo$linFP.a 
-pviGBM$linFP.b <- pviGBM$linFP.a
+pviENETwo$linFP <- ifelse(pviENETwo$pviRank %in% setParam$dgp$linEffects, 0, 1)
+pviGBM$linFP <- ifelse(pviGBM$pviRank %in% setParam$dgp$linEffects, 0, 1)
 
 # ENETw with interactions in PVI, therefore test if exclusion of interactions does 
 #     make a difference
@@ -107,22 +96,15 @@ allInterVars <- unique(pviENETw$pviRank)[grep("\\.", unique(pviENETw$pviRank))]
 #   ... a variable with a simulated main effect or an interaction **with- or without** simulated effects receives a 0
 #   ... a variable without a simulated main effect and is not an interaction receives 1
 # -> false positives (linear) with any interactions excluded
-pviENETw$linFP.a <- ifelse(pviENETw$pviRank %in% setParam$dgp$linEffects |
+pviENETw$linFP <- ifelse(pviENETw$pviRank %in% setParam$dgp$linEffects |
                              pviENETw$pviRank %in% allInterVars, 0, 1)
 
-# every PVI > 1 that is ...
-#   ... a variable with a simulated main effect or an interaction **with** simulated effects receives a 0
-#   ... a variable without a simulated main effect and is not an interaction **with** simulated effects receives 1
-# -> false positives (linear) with true interactions excluded
-pviENETw$linFP.b <- ifelse(pviENETw$pviRank %in% setParam$dgp$linEffects |
-                                    pviENETw$pviRank %in% interEffectsDot, 0, 1)
-
 # aggregate number of true positives and false negatives within each sample
-linENETwo <- aggregate(cbind(linTP, linFP.a, linFP.b) ~ sample + idxCondLabel + model + N_pTrash, 
+linENETwo <- aggregate(cbind(linTP, linFP) ~ sample + idxCondLabel + model + N_pTrash, 
           data = pviENETwo, sum)
-linENETw <- aggregate(cbind(linTP, linFP.a, linFP.b) ~ sample + idxCondLabel + model + N_pTrash, 
+linENETw <- aggregate(cbind(linTP, linFP) ~ sample + idxCondLabel + model + N_pTrash, 
           data = pviENETw, sum)
-linGBM <- aggregate(cbind(linTP, linFP.a, linFP.b) ~ sample + idxCondLabel + model + N_pTrash, 
+linGBM <- aggregate(cbind(linTP, linFP) ~ sample + idxCondLabel + model + N_pTrash, 
           data = pviGBM, sum)
 
 # id 
@@ -136,13 +118,9 @@ linGBM$ID <- seq_len(dim(linGBM)[1])
 # 3. calculate positive predictive value (TP / (TP + FP)) for every sample
 # calculate positive predictive value from TP and FP
 #     TP / (TP + FP)
-linENETwo$PPV.a <- linENETwo$linTP / (linENETwo$linTP + linENETwo$linFP.a) 
-linENETw$PPV.a <- linENETw$linTP / (linENETw$linTP + linENETw$linFP.a) 
-linGBM$PPV.a <- linGBM$linTP / (linGBM$linTP + linGBM$linFP.a) 
-
-linENETwo$PPV.b <- linENETwo$linTP / (linENETwo$linTP + linENETwo$linFP.b) 
-linENETw$PPV.b <- linENETw$linTP / (linENETw$linTP + linENETw$linFP.b) 
-linGBM$PPV.b <- linGBM$linTP / (linGBM$linTP + linGBM$linFP.b) 
+linENETwo$PPV <- linENETwo$linTP / (linENETwo$linTP + linENETwo$linFP) 
+linENETw$PPV <- linENETw$linTP / (linENETw$linTP + linENETw$linFP) 
+linGBM$PPV <- linGBM$linTP / (linGBM$linTP + linGBM$linFP) 
 
 # separate N_pTrash
 linENETwo <- idx2infoNew(linENETwo)
@@ -168,27 +146,14 @@ linGBM <- idx2infoNew(linGBM)
 #   ... linTN = trash variable (or interaction effect) that is correctly not extracted
 
 # ENETwo and GBM without interactions in PVI, therefore only one version of FP necessary
-linENETwo$linTN.a <- as.numeric(linENETwo$pTrash) - linENETwo$linFP.a
-linGBM$linTN.a <- as.numeric(linGBM$pTrash) - linGBM$linFP.a
-
-linENETwo$linTN.b <- linENETwo$linTN.a
-linGBM$linTN.b <- linGBM$linTN.a
-
+linENETwo$linTN <- as.numeric(linENETwo$pTrash) - linENETwo$linFP
+linGBM$linTN <- as.numeric(linGBM$pTrash) - linGBM$linFP
 
 # all possible variables without simulated main effects - false positive main effects 
 #    i.e., ignore interactions all together 
-# .a as this only counts main effects as true negative options
-linENETw$linTN.a <- as.numeric(linENETw$pTrash) - # all possible interactions
-  linENETw$linFP.a
-
-
-# all possible variables without simulated main effects + all possible interactions -
-#     true interactions with simulated effect - false positive main effects
-# .b as this counts interactions as true negative options and pTrash variables without simulated effects
-linENETw$linTN.b <- as.numeric(linENETw$pTrash) + # variables without simulated main effects
-  choose(as.numeric(linENETw$pTrash) + length(setParam$dgp$linEffects), setParam$dgp$interDepth) - # all possible interactions
-  length(setParam$dgp$interEffects) - # true interactions
-  linENETw$linFP.b
+#   as this only counts main effects as true negative options
+linENETw$linTN <- as.numeric(linENETw$pTrash) - # all possible interactions
+  linENETw$linFP
 
 #   ... linFN = linear effect that is not extracted
 linENETwo$linFN <- length(setParam$dgp$linEffects) - linENETwo$linTP
@@ -203,21 +168,13 @@ linENETw$linFN <- length(setParam$dgp$linEffects) - linENETw$linTP
 # }
 # linENETwo <- getAccuracy(linENETwo)
 # linGBM <- getAccuracy(linGBM)
-linENETwo$ACC.a <- (linENETwo$linTP + linENETwo$linTN.a) / (linENETwo$linTP + linENETwo$linTN.a + 
-                                                          linENETwo$linFP.a + linENETwo$linFN)
-linGBM$ACC.a <- (linGBM$linTP + linGBM$linTN.a) / (linGBM$linTP + linGBM$linTN.a + 
-                                                 linGBM$linFP.a + linGBM$linFN)
+linENETwo$ACC <- (linENETwo$linTP + linENETwo$linTN) / (linENETwo$linTP + linENETwo$linTN + 
+                                                          linENETwo$linFP + linENETwo$linFN)
+linGBM$ACC <- (linGBM$linTP + linGBM$linTN) / (linGBM$linTP + linGBM$linTN + 
+                                                 linGBM$linFP + linGBM$linFN)
 
-linENETw$ACC.a <- (linENETw$linTP + linENETw$linTN.a) / (linENETw$linTP + linENETw$linTN.a + 
-                                                          linENETw$linFP.a + linENETw$linFN)
-
-linENETwo$ACC.b <- (linENETwo$linTP + linENETwo$linTN.b) / (linENETwo$linTP + linENETwo$linTN.b + 
-                                                              linENETwo$linFP.b + linENETwo$linFN)
-linGBM$ACC.b <- (linGBM$linTP + linGBM$linTN.b) / (linGBM$linTP + linGBM$linTN.b + 
-                                                     linGBM$linFP.b + linGBM$linFN)
-
-linENETw$ACC.b <- (linENETw$linTP + linENETw$linTN.b) / (linENETw$linTP + linENETw$linTN.b + 
-                                                           linENETw$linFP.b + linENETw$linFN)
+linENETw$ACC <- (linENETw$linTP + linENETw$linTN) / (linENETw$linTP + linENETw$linTN + 
+                                                          linENETw$linFP + linENETw$linFN)
 
 #   ... sensitivity = TP / (TP + FN)
 linENETwo$sensitivity <- linENETwo$linTP / (linENETwo$linTP + linENETwo$linFN)
@@ -226,22 +183,14 @@ linGBM$sensitivity <- linGBM$linTP / (linGBM$linTP + linGBM$linFN)
 linENETw$sensitivity <- linENETw$linTP / (linENETw$linTP + linENETw$linFN)
 
 #   ... specificity = TN / (TN + FP)
-linENETwo$specificity.a <- linENETwo$linTN.a / (linENETwo$linTN.a + linENETwo$linFP.a)
-linGBM$specificity.a <- linGBM$linTN.a / (linGBM$linTN.a + linGBM$linFP.a)
-linENETw$specificity.a <- linENETw$linTN.a / (linENETw$linTN.a + linENETw$linFP.a)
-
-linENETwo$specificity.b <- linENETwo$linTN.b / (linENETwo$linTN.b + linENETwo$linFP.b)
-linGBM$specificity.b <- linGBM$linTN.b / (linGBM$linTN.b + linGBM$linFP.b)
-linENETw$specificity.b <- linENETw$linTN.b / (linENETw$linTN.b + linENETw$linFP.b)
+linENETwo$specificity <- linENETwo$linTN / (linENETwo$linTN + linENETwo$linFP)
+linGBM$specificity <- linGBM$linTN / (linGBM$linTN + linGBM$linFP)
+linENETw$specificity <- linENETw$linTN / (linENETw$linTN + linENETw$linFP)
 
 #   ... balanced accuracy = (sensitivity + specificity) / 2 
-linENETwo$balACC.a <- (linENETwo$specificity.a + linENETwo$sensitivity) / 2
-linGBM$balACC.a <- (linGBM$specificity.a + linGBM$sensitivity) / 2
-linENETw$balACC.a <- (linENETw$specificity.a + linENETw$sensitivity) / 2
-
-linENETwo$balACC.b <- (linENETwo$specificity.b + linENETwo$sensitivity) / 2
-linGBM$balACC.b <- (linGBM$specificity.b + linGBM$sensitivity) / 2
-linENETw$balACC.b <- (linENETw$specificity.b + linENETw$sensitivity) / 2
+linENETwo$balACC <- (linENETwo$specificity + linENETwo$sensitivity) / 2
+linGBM$balACC <- (linGBM$specificity + linGBM$sensitivity) / 2
+linENETw$balACC <- (linENETw$specificity + linENETw$sensitivity) / 2
 
 # change variables to factors
 col2fac <- c("N", "pTrash" , "R2" , "rel" , "lin_inter", "model")
@@ -250,8 +199,7 @@ linENETw[col2fac] <- lapply(linENETw[col2fac], factor)
 linGBM[col2fac] <- lapply(linGBM[col2fac], factor)
 
 # # check
-# range(linENETw$specificity.a)
-# range(linENETw$specificity.b)
+# range(linENETw$specificity)
 ################################################################################
 # run ANOVAs for ...
 #     ... different models {ENETwo, ENETw, GBM}
@@ -272,17 +220,12 @@ linGBM[col2fac] <- lapply(linGBM[col2fac], factor)
 linPPV <- rbind(linENETw, linENETwo, linGBM)
 str(linPPV)
 
-dvVec <- c("linTP", "linFP.a", "linFP.b", "PPV.a", "PPV.b", "ACC.a", "ACC.b", 
-           "sensitivity", "specificity.a", "specificity.b", "balACC.a", "balACC.b")
+dvVec <- c("linTP", "linFP", "PPV", "ACC", 
+           "sensitivity", "specificity", "balACC")
 modVec <- c("ENETwo", "ENETw", "GBM")
 # modVec <- "GBM"
 for (iModel in modVec) {
   for (iDV in dvVec) {
-    # skip iDV with .b if iModel != ENETw (in these models, .a == .b)
-    if (iModel != "ENETw" & grepl("\\.b", iDV)) {
-      next # skip iteration of the innermost for loop
-    }
-    
     # only between factor ANOVA (only within factor was model)
     # between-sample ANOVA for every model separately
     anovaObjectName <- paste0("anova", iModel, "_", iDV)
@@ -368,37 +311,19 @@ pEta2_sensitivity <- plotEta2_4eachModel(eta2ENETw_sensitivity, eta2Thresh, "#00
   ggtitle("sensitivity") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-# check version .a vs. .b for ENETw interactions 
-# the order of effects does not change meaningfully for specificity in both versions
-# in general, the role of pTrash is more dominant in version b as interactions are 
-#   left in the model as false positives... this is not surprising
-pEta2_ACC.a <- plotEta2_4eachModel(eta2ENETw_ACC.a, eta2Thresh, "#006600") + 
-  ggtitle("ACC.a") + # for the main title
+pEta2_ACC <- plotEta2_4eachModel(eta2ENETw_ACC, eta2Thresh, "#006600") + 
+  ggtitle("ACC") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pEta2_ACC.b <- plotEta2_4eachModel(eta2ENETw_ACC.b, eta2Thresh, "#006600") + 
-  ggtitle("ACC.b") + # for the main title
+pEta2_balACC <- plotEta2_4eachModel(eta2ENETw_balACC, eta2Thresh, "#006600") + 
+  ggtitle("balACC") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pEta2_balACC.a <- plotEta2_4eachModel(eta2ENETw_balACC.a, eta2Thresh, "#006600") + 
-  ggtitle("balACC.a") + # for the main title
+pEta2_specificity <- plotEta2_4eachModel(eta2ENETw_specificity, eta2Thresh, "#006600") + 
+  ggtitle("specificity") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pEta2_balACC.b <- plotEta2_4eachModel(eta2ENETw_balACC.b, eta2Thresh, "#006600") + 
-  ggtitle("balACC.b") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-pEta2_specificity.a <- plotEta2_4eachModel(eta2ENETw_specificity.a, eta2Thresh, "#006600") + 
-  ggtitle("specificity.a") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-pEta2_specificity.b <- plotEta2_4eachModel(eta2ENETw_specificity.b, eta2Thresh, "#006600") + 
-  ggtitle("specificity.b") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-(pCheck_part1 <- pEta2_specificity.a + pEta2_specificity.b + 
-  pEta2_balACC.a + pEta2_balACC.b + 
-  pEta2_ACC.a + pEta2_ACC.b +
+(pCheck_part1 <- pEta2_specificity + pEta2_balACC + pEta2_ACC +
   plot_layout(ncol = 2))
 
 # # save plot as files
@@ -412,29 +337,15 @@ pEta2_TP <- plotEta2_4eachModel(eta2ENETw_linTP, eta2Thresh, "#006600") +
   ggtitle("TP") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pEta2_FP.a <- plotEta2_4eachModel(eta2ENETw_linFP.a, eta2Thresh, "#006600") + 
-  ggtitle("FP.a") + # for the main title
+pEta2_FP <- plotEta2_4eachModel(eta2ENETw_linFP, eta2Thresh, "#006600") + 
+  ggtitle("FP") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pEta2_FP.b <- plotEta2_4eachModel(eta2ENETw_linFP.b, eta2Thresh, "#006600") + 
-  ggtitle("FP.b") + # for the main title
+pEta2_PPV <- plotEta2_4eachModel(eta2ENETw_PPV, eta2Thresh, "#006600") + 
+  ggtitle("PPV") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pEta2_PPV.a <- plotEta2_4eachModel(eta2ENETw_PPV.a, eta2Thresh, "#006600") + 
-  ggtitle("PPV.a") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-pEta2_PPV.b <- plotEta2_4eachModel(eta2ENETw_PPV.b, eta2Thresh, "#006600") + 
-  ggtitle("PPV.b") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-# TP and sensitivity are basically the same measure here... they do not differ 
-# TP / (TP + FN) 
-# in FP.b: pTrash again more dominant
-# in PPV.b: no super meaningful differences
-(pCheck_part2 <- pEta2_TP + pEta2_sensitivity + 
-  pEta2_FP.a + pEta2_FP.b + 
-  pEta2_PPV.a + pEta2_PPV.b +
+(pCheck_part2 <- pEta2_TP + pEta2_sensitivity + pEta2_FP + pEta2_PPV + 
   plot_layout(ncol = 2))
 
 # # save plot as files
@@ -454,54 +365,35 @@ pEta2_sensitivity <- plotEta2(eta2ENETw_sensitivity, eta2ENETwo_sensitivity, eta
 #                 units = "in")
 
 # specificity
-pEta2_specificity.a <- plotEta2(eta2ENETw_specificity.a, eta2ENETwo_specificity.a, eta2GBM_specificity.a, eta2Thresh)
-pEta2_specificity.b <- plotEta2(eta2ENETw_specificity.b, eta2ENETwo_specificity.a, eta2GBM_specificity.a, eta2Thresh)
+pEta2_specificity <- plotEta2(eta2ENETw_specificity, eta2ENETwo_specificity, eta2GBM_specificity, eta2Thresh)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainSpecificityA.png"),
-#                 plot = pEta2_specificity.a,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainSpecificityB.png"),
-#                 plot = pEta2_specificity.b,
+
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainSpecificity.png"),
+#                 plot = pEta2_specificity,
 #                 width = 17.52,
 #                 height = 10.76,
 #                 units = "in")
 
 # balanced Accuracy
 # more differences between variations of calculating FP and TN
-pEta2_balACC.a <- plotEta2(eta2ENETw_balACC.a, eta2ENETwo_balACC.a, eta2GBM_balACC.a, eta2Thresh)
-pEta2_balACC.b <- plotEta2(eta2ENETw_balACC.b, eta2ENETwo_balACC.a, eta2GBM_balACC.a, eta2Thresh)
+pEta2_balACC <- plotEta2(eta2ENETw_balACC, eta2ENETwo_balACC, eta2GBM_balACC, eta2Thresh)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainBalACCA.png"),
-#                 plot = pEta2_balACC.a,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainBalACCB.png"),
-#                 plot = pEta2_balACC.b,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainBalACC.png"),
+#                 plot = pEta2_balACC,
 #                 width = 17.52,
 #                 height = 10.76,
 #                 units = "in")
 
 
 # PPV
-pEta2_PPV.a <- plotEta2(eta2ENETw_PPV.a, eta2ENETwo_PPV.a, eta2GBM_PPV.a, eta2Thresh)
-pEta2_PPV.b <- plotEta2(eta2ENETw_PPV.b, eta2ENETwo_PPV.a, eta2GBM_PPV.a, eta2Thresh)
+pEta2_PPV <- plotEta2(eta2ENETw_PPV, eta2ENETwo_PPV, eta2GBM_PPV, eta2Thresh)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainPPVA.png"),
-#                 plot = pEta2_PPV.a,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainPPV.png"),
+#                 plot = pEta2_PPV,
 #                 width = 17.52,
 #                 height = 10.76,
 #                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainPPVB.png"),
-#                 plot = pEta2_PPV.b,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
+#
 
 # linTP
 pEta2_linTP <- plotEta2(eta2ENETw_linTP, eta2ENETwo_linTP, eta2GBM_linTP, eta2Thresh)
@@ -513,33 +405,20 @@ pEta2_linTP <- plotEta2(eta2ENETw_linTP, eta2ENETwo_linTP, eta2GBM_linTP, eta2Th
 #                 units = "in")
 
 # linFP_woTInter
-pEta2_linFP.a <- plotEta2(eta2ENETw_linFP.a, eta2ENETwo_linFP.a, eta2GBM_linFP.a, eta2Thresh)
-pEta2_linFP.b <- plotEta2(eta2ENETw_linFP.b, eta2ENETwo_linFP.a, eta2GBM_linFP.a, eta2Thresh)
+pEta2_linFP <- plotEta2(eta2ENETw_linFP, eta2ENETwo_linFP, eta2GBM_linFP, eta2Thresh)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainFPA.png"),
-#                 plot = pEta2_linFP.a,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainFP.png"),
+#                 plot = pEta2_linFP,
 #                 width = 17.52,
 #                 height = 10.76,
 #                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainFPB.png"),
-#                 plot = pEta2_linFP.b,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
+
 
 # Accuracy
-pEta2_ACC.a <- plotEta2(eta2ENETw_ACC.a, eta2ENETwo_ACC.a, eta2GBM_ACC.a, eta2Thresh)
-pEta2_ACC.b <- plotEta2(eta2ENETw_ACC.b, eta2ENETwo_ACC.a, eta2GBM_ACC.a, eta2Thresh)
+pEta2_ACC <- plotEta2(eta2ENETw_ACC, eta2ENETwo_ACC, eta2GBM_ACC, eta2Thresh)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainACCA.png"),
-#                 plot = pEta2_ACC.a,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainACCB.png"),
-#                 plot = pEta2_ACC.b,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainACC.png"),
+#                 plot = pEta2_ACC,
 #                 width = 17.52,
 #                 height = 10.76,
 #                 units = "in")
@@ -624,9 +503,8 @@ load(paste0(resFolder, "/relFrequencyMeasures.rda"))
 
 
 colnames(linENETw)
-plotDiags <- aggregate(cbind(linTP, linFP.a, linFP.b, PPV.a, PPV.b, ACC.a, ACC.b,
-                             specificity.a, specificity.b, sensitivity, balACC.a, balACC.b,
-                             linTN.a, linTN.b, linFN) ~ 
+plotDiags <- aggregate(cbind(linTP, linFP, PPV, ACC, specificity, sensitivity, 
+                             balACC, linTN, linFN) ~ 
                           model + N + pTrash + rel + R2 + lin_inter, 
                         data = rbind(linENETwo, linENETw, linGBM), 
                         function(x) {cbind(mean(x), 
@@ -753,7 +631,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 #                 height = 6.68,
 #                 units = "in")
 
-(pSpecificityENETw_R2facette_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityENETw_R2facette_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                                                plotDiags$model == "ENETw" &
                                                plotDiags$rel == 0.8,],
                                    aes(x = N, y = M, 
@@ -796,7 +674,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 #                 height = 6.68,
 #                 units = "in")
 
-(pSpecificityGBM_R2facette_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityGBM_R2facette_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                                              plotDiags$model == "GBM" & 
                                              plotDiags$rel == 0.8,],
                                  aes(x = N, y = M, 
@@ -1056,7 +934,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 # as indicated by the between model ANOVA, reliability does not affect specificity
 #   in any of the models, thus, reliability is not included in the model!
 # pTrash, R2, N, lin_inter
-(pSpecificityRel1 <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityRel1 <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                    plotDiags$rel == 1,],
        aes(x = N, y = M, 
            group = interaction(R2, model), colour = R2,
@@ -1089,7 +967,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 #                 height = 12.18,
 #                 units = "in")
 
-(pSpecificityRel1pTrash50 <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityRel1pTrash50 <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                                         plotDiags$rel == 1 &
                                           plotDiags$pTrash == 50,],
                             aes(x = N, y = M, 
@@ -1125,7 +1003,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 
 # sensitivity plot only for ENETw with every reliability condition to compare to
 #   the same plot layout for interaction effect evaluation based on pvi values
-(pSpecificityENETw <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityENETw <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                                          plotDiags$model == "ENETw",],
                              aes(x = N, y = M, 
                                  group = interaction(R2, rel), colour = R2,
@@ -1158,7 +1036,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 #                 height = 12.18,
 #                 units = "in")
 
-(pSpecificityENETw_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityENETw_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                                          plotDiags$model == "ENETw" &
                                          plotDiags$rel == 0.8,],
                              aes(x = N, y = M, 
@@ -1192,7 +1070,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 #                 height = 6.68,
 #                 units = "in")
 
-(pSpecificityGBM <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityGBM <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                                          plotDiags$model == "GBM",],
                              aes(x = N, y = M, 
                                  group = interaction(R2, rel), colour = R2,
@@ -1226,7 +1104,7 @@ plotDiags$lin_inter <- factor(plotDiags$lin_inter,
 #                 units = "in")
 
 
-(pSpecificityGBM_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity.a" &
+(pSpecificityGBM_rel08 <- ggplot(plotDiags[plotDiags$DV == "specificity" &
                                        plotDiags$model == "GBM" & 
                                        plotDiags$rel == 0.8,],
                            aes(x = N, y = M, 
