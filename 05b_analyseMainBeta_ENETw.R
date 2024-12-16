@@ -73,67 +73,43 @@ interLabels <- stringr::str_replace_all(setParam$dgp$interEffects, "\\:", "\\.")
 # every beta coefficient != 0 that is ...
 #   ... a main effect with simulated effects or is an interaction of any kind receives 0
 #   ... a main effect without simulated effects and is not an interaction of any kind receives 1
-estBetaSampleENETw$mainFP.a <- ifelse(estBetaSampleENETw$var %in% setParam$dgp$linEffects |
+estBetaSampleENETw$mainFP <- ifelse(estBetaSampleENETw$var %in% setParam$dgp$linEffects |
                                          estBetaSampleENETw$var %in% allInterVars, 0, 1)
 
-# every beta coefficient != 0 that is ...
-#   ... an interaction with simulated effects or is a main effect with simulated effect receives 0
-#   ... an interaction without simulated effects and is not a main effect with simualted effect receives 1
-estBetaSampleENETw$mainFP.b <- ifelse(estBetaSampleENETw$var %in% setParam$dgp$linEffects |
-                                        estBetaSampleENETw$var %in% interLabels, 0, 1)
-
 # sum up number of true positives and false negatives within each sample
-estBetaENETw <- aggregate(cbind(mainTP, mainFP.a, mainFP.b) ~ sample + idxCondLabel + model + N_pTrash, 
+estBetaENETw <- aggregate(cbind(mainTP, mainFP) ~ sample + idxCondLabel + model + N_pTrash, 
                           data = estBetaSampleENETw, sum)
 rm(estBetaSampleENETw)
 gc()
 
 # 3. calculate positive predictive value (TP / (TP + FP)) for every sample
-estBetaENETw$mainPPV.a <- estBetaENETw$mainTP / (estBetaENETw$mainTP + estBetaENETw$mainFP.a) 
-estBetaENETw$mainPPV.b <- estBetaENETw$mainTP / (estBetaENETw$mainTP + estBetaENETw$mainFP.b)
+estBetaENETw$mainPPV <- estBetaENETw$mainTP / (estBetaENETw$mainTP + estBetaENETw$mainFP) 
 
 estBetaENETw <- idx2infoNew(estBetaENETw)
-
-# two variants ... 
-#   ... .a only out of main effects vs. 
-#   ... .b out of main predictors and interactions without effect)
 
 # 2a. add measures... 
 #   ... mainTN =  main effects without simulated effect and which are not extracted 
 
 # all possible main effects (without effect) - false positive main effects
-# .a as this only counts main effects as true negative options
-estBetaENETw$mainTN.a <- as.numeric(as.character(estBetaENETw$pTrash)) - estBetaENETw$mainFP.a
-
-# linear predictors without effect + all possible interactions - true interactions (with simulated effects) - false positive main effects
-# .b as this counts interactions as true negative options and pTrash variables without simulated effects
-# (linear predictors with simulated effects are ignored alltogether here)
-estBetaENETw$mainTN.b <- choose(as.numeric(estBetaENETw$pTrash) + length(setParam$dgp$linEffects),
-                                 setParam$dgp$interDepth) +
-  as.numeric(estBetaENETw$pTrash) -
-  length(setParam$dgp$interEffects) - estBetaENETw$mainFP.b
+# as this only counts main effects as true negative options
+estBetaENETw$mainTN <- as.numeric(as.character(estBetaENETw$pTrash)) - estBetaENETw$mainFP
 
 #   ... interFN = simulated main effect that is not extracted
 estBetaENETw$mainFN <- length(setParam$dgp$linEffects) - estBetaENETw$mainTP
 
 # 2b. add measures...
 #   ... accuracy = (TP + TN) / (TP + TN + FP + FN)
-estBetaENETw$mainACC.a <- (estBetaENETw$mainTP + estBetaENETw$mainTN.a) / 
-  (estBetaENETw$mainTP + estBetaENETw$mainTN.a + estBetaENETw$mainFP.a + estBetaENETw$mainFN)
-
-estBetaENETw$mainACC.b <- (estBetaENETw$mainTP + estBetaENETw$mainTN.b) /
-  (estBetaENETw$mainTP + estBetaENETw$mainTN.b + estBetaENETw$mainFP.b + estBetaENETw$mainFN)
+estBetaENETw$mainACC <- (estBetaENETw$mainTP + estBetaENETw$mainTN) / 
+  (estBetaENETw$mainTP + estBetaENETw$mainTN + estBetaENETw$mainFP + estBetaENETw$mainFN)
 
 #   ... sensitivity = TP / (TP + FN)
 estBetaENETw$mainSensitivity <- estBetaENETw$mainTP / (estBetaENETw$mainTP + estBetaENETw$mainFN)
 
 #   ... specificity = TN / (TN + FP)
-estBetaENETw$mainSpecificity.a <- estBetaENETw$mainTN.a / (estBetaENETw$mainTN.a + estBetaENETw$mainFP.a)
-estBetaENETw$mainSpecificity.b <- estBetaENETw$mainTN.b / (estBetaENETw$mainTN.b + estBetaENETw$mainFP.b)
+estBetaENETw$mainSpecificity <- estBetaENETw$mainTN / (estBetaENETw$mainTN + estBetaENETw$mainFP)
 
 #   ... balanced accuracy = (sensitivity + specificity) / 2 
-estBetaENETw$mainBalACC.a <- (estBetaENETw$mainSpecificity.a + estBetaENETw$mainSensitivity) / 2
-estBetaENETw$mainBalACC.b <- (estBetaENETw$mainSpecificity.b + estBetaENETw$mainSensitivity) / 2
+estBetaENETw$mainBalACC <- (estBetaENETw$mainSpecificity + estBetaENETw$mainSensitivity) / 2
 
 # change variables to factors
 col2fac <- c("N", "pTrash" , "R2" , "rel" , "lin_inter")
@@ -145,18 +121,15 @@ str(estBetaENETw)
 
 ################################################################################
 # run ANOVAs for ...
-#     ... different dependent variables {interTP, interFP.a, ...}
+#     ... different dependent variables {interTP, interFP, ...}
 ################################################################################
 # there are only between-sample factors for the ANOVA
 # generate ID along data set
 estBetaENETw$ID <- seq_len(dim(estBetaENETw)[1])
 
-dvVec <- c("mainTP", "mainFP.a", "mainFP.b", "mainPPV.a", "mainPPV.b",
-           "mainACC.a", "mainACC.b", "mainSensitivity",
-           "mainSpecificity.a", "mainSpecificity.b", "mainBalACC.a", "mainBalACC.b")
-# dvVec <- c("mainTP", "mainFP.a", "mainFP.b", "mainPPV.a", 
-#            "mainACC.a", "mainSensitivity", 
-#            "mainSpecificity.a", "mainBalACC.a")
+dvVec <- c("mainTP", "mainFP", "mainPPV", 
+           "mainACC", "mainSensitivity",
+           "mainSpecificity", "mainBalACC")
 for (iDV in dvVec) {
   # only between-sample ANOVA
   anovaObjectName <- paste0("anova", iDV)
@@ -215,65 +188,41 @@ plotEta2_4eachModel <- function(data, eta2Thresh, fillVal = "grey") {
   return(tmp)
 }
 
-# there seems to be no difference between ...
-# ... specificity.a and specificity.b 
-# ... balACC.a and balACC.b 
-# ... ACC.a and ACC.b 
-# therefore remove all b-versions 
 pSensitivity <- plotEta2_4eachModel(eta2mainSensitivity, eta2Thresh, "#006600") + 
   ggtitle("Sensitivity") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pSpecificity.a <- plotEta2_4eachModel(eta2mainSpecificity.a, eta2Thresh, "#006600") + 
+pSpecificity <- plotEta2_4eachModel(eta2mainSpecificity, eta2Thresh, "#006600") + 
   ggtitle("Specificity") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pSpecificity.b <- plotEta2_4eachModel(eta2mainSpecificity.b, eta2Thresh, "#006600") +
-  ggtitle("Specificity.b") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pBalACC.a <- plotEta2_4eachModel(eta2mainBalACC.a, eta2Thresh, "#006600") + 
+pBalACC <- plotEta2_4eachModel(eta2mainBalACC, eta2Thresh, "#006600") + 
   ggtitle("BalACC") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pBalACC.b <- plotEta2_4eachModel(eta2mainBalACC.b, eta2Thresh, "#006600") +
-  ggtitle("BalACC.b") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-pACC.a <- plotEta2_4eachModel(eta2mainACC.a, eta2Thresh, "#006600") + 
+pACC <- plotEta2_4eachModel(eta2mainACC, eta2Thresh, "#006600") + 
   ggtitle("ACC") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pACC.b <- plotEta2_4eachModel(eta2mainACC.b, eta2Thresh, "#006600") +
-  ggtitle("ACC.b") + # for the main title
-  theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-pSensitivity + pSpecificity.a + pSpecificity.b + pBalACC.a + pBalACC.b + pACC.a + pACC.b
+pSensitivity + pSpecificity + pBalACC + pACC
 
 pTP <- plotEta2_4eachModel(eta2interTP, eta2Thresh, "#006600") + 
   ggtitle("TP") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pFP.a <- plotEta2_4eachModel(eta2interFP.a, eta2Thresh, "#006600") + 
+pFP <- plotEta2_4eachModel(eta2interFP, eta2Thresh, "#006600") + 
   ggtitle("FP") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-# pFP.b <- plotEta2_4eachModel(eta2interFP.b, eta2Thresh, "#006600") + 
-#   ggtitle("FP.b") + # for the main title
-#   theme(plot.title = element_text(hjust = 0.5, size = 25))
-
-pPPV.a <- plotEta2_4eachModel(eta2interPPV.a, eta2Thresh, "#006600") + 
+pPPV <- plotEta2_4eachModel(eta2interPPV, eta2Thresh, "#006600") + 
   ggtitle("PPV") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-# pPPV.b <- plotEta2_4eachModel(eta2interPPV.b, eta2Thresh, "#006600") + 
-#   ggtitle("PPV.b") + # for the main title
-#   theme(plot.title = element_text(hjust = 0.5, size = 25))
+# pTP + pFP + pPPV 
 
-# pTP + pFP.a + pFP.b + pPPV.a + pPPV.b
-
-pbetaInter <- pSensitivity + pSpecificity.a + pBalACC.a + 
-  pTP + pFP.a + pPPV.a + plot_layout(ncol = 3)
+pbetaInter <- pSensitivity + pSpecificity + pBalACC + 
+  pTP + pFP + pPPV + plot_layout(ncol = 3)
 
 # ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_betaInterMeasures.png"),
 #                 plot = pbetaInter,
@@ -292,8 +241,6 @@ pbetaInter <- pSensitivity + pSpecificity.a + pBalACC.a +
 #   ... specificity
 #   ... sensitivity
 #   ... balanced accuracy
-
-colnames(estBetaENETw) <- stringr::str_replace_all(colnames(estBetaENETw), "\\.a", "")
 
 plotInterBeta <- aggregate(cbind(interTP, interFP, interPPV, interACC,
                                  interSpecificity, interSensitivity, interBalACC) ~ 
