@@ -154,86 +154,6 @@ eta2modelTable <- plotEta2mixed[plotEta2mixed$Eta2_generalized >= eta2Thresh,]
 print(xtable::xtable(eta2modelTable, type = "latex"), 
       file = paste0(plotFolder, "/ANOVAresults/mixedANOVA_R2_thresh", eta2Thresh, ".tex"))
 
-################################################################################
-# mixed ANOVA for R^2 (but only models with interactions {ENETw & GBM})
-################################################################################
-## ohne ENET - ohne
-anovaTestR2sub <- aov_ez(id = "ID", 
-                      dv = "Rsq_test",
-                      data = rSquaredTest[rSquaredTest$model != "ENETwo",], 
-                      between = c("N" , "pTrash" , "R2" , "rel" , "lin_inter"),
-                      within = "model")
-# summary(anovaTestR2)
-# nice(anovaTestR2)
-
-eta2TestR2sub <- eta_squared(
-  anovaTestR2sub, # fitted model
-  partial = FALSE, # not partial!
-  generalized = TRUE, # generalized eta squared
-  ci = 0.95,
-  verbose = TRUE)
-
-# sort generalized eta-squared results 
-# which higher order interactions do we need to illustrate to report simulation results?
-(eta2TestR2sub.ordered <- eta2TestR2sub[order(eta2TestR2sub$Eta2_generalized, decreasing = T),])
-
-plotEta2mixedSub <- eta2TestR2sub.ordered[eta2TestR2sub.ordered$Eta2_generalized > eta2Thresh,]
-
-sortIdx <- order(plotEta2mixedSub$Eta2_generalized, decreasing = T)
-plotEta2mixedSub$Parameter <- factor(plotEta2mixedSub$Parameter, 
-                                  levels = plotEta2mixedSub$Parameter[sortIdx])
-
-# plot generalized eta^2 for mixed ANOVA with test R^2 as dependent variable and 
-# ... model as within factor
-# ... N, pTrash, rel, R2 and lin_inter as between factors
-# comparison in test R2 between models with and without option to extract interaction effects is not fair
-# -> next: plot generalized eta^2 for only ENETw and GBM which both can take interaction effects into account
-(pEta2mixedSub <- ggplot(plotEta2mixedSub, aes(x = Parameter, y = Eta2_generalized)) +
-  geom_bar(stat = "identity", position = position_dodge(preserve = "single")) +
-  geom_text(aes(label=round(Eta2_generalized, 2)), 
-            #angle = 90, hjust = 1.5, vjust=0.5, 
-            angle = 0, vjust=1.5, 
-            color="black", size=3.5)+
-  ylab("generalisiertes eta^2") +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.2, hjust=0.1)))
-
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_sub_R2_thresh", eta2Thresh, ".png"),
-                plot = pEta2mixedSub,
-                width = 17.52,
-                height = 10.76,
-                units = "in")
-
-# compare mixed ANOVA results with and without ENETwo as level in within factor 
-plotEta2mixedSub$algo <- rep("sub", dim(plotEta2mixedSub)[1]) 
-plotEta2mixed$algo <- rep("full", dim(plotEta2mixed)[1]) 
-
-plotEta2mixedCompare <- rbind(plotEta2mixedSub, plotEta2mixed)
-plotEta2mixedCompare$algo <- factor(plotEta2mixedCompare$algo,
-                                    levels = c("full", "sub"))
-
-eta2Sums <- aggregate(Eta2_generalized ~ Parameter,
-                      data = plotEta2mixedCompare, sum)
-sortIdx <- order(eta2Sums$Eta2_generalized, decreasing = T)
-plotEta2mixedCompare$Parameter <- factor(plotEta2mixedCompare$Parameter, 
-                                        levels = eta2Sums$Parameter[sortIdx])
-
-(pEta2mixedCompare <- ggplot(plotEta2mixedCompare, aes(x = Parameter, y = Eta2_generalized,
-                 group = algo, fill = algo)) +
-  geom_bar(stat = "identity", position = position_dodge(preserve = "single")) +
-  geom_text(aes(label=round(Eta2_generalized, 2), group = algo), 
-            angle = 90, hjust = 1.5, vjust=0.5, 
-            #angle = 0, vjust=1.5, 
-            position = position_dodge(width = .9), 
-            color="black", size=3.5)+
-  ylab("generalisiertes eta^2") +
-  scale_fill_manual(values = c("#990000", "#006600")))
-
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_compare_R2_thresh", eta2Thresh, ".png"),
-                plot = pEta2mixedCompare,
-                width = 17.52,
-                height = 10.76,
-                units = "in")
-
 # save(rSquaredTest,
 #      file = "results/finalResults/dependentMeasures/rSquaredData_eachSample.rda")
 ################################################################################
@@ -386,27 +306,6 @@ eta2$model <- factor(eta2$model,
 #                 units = "in")
 # 
 # ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_R2stacked.png"),
-#                 plot = pEta2_stacked,
-#                 width = 13.63,
-#                 height = 12.07,
-#                 units = "in")
-
-# # save images
-# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_R2relational.eps"),
-#                 plot = pEta2Model,
-#                 device = cairo_ps,
-#                 dpi = 300,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_R2relational.png"),
-#                 plot = pEta2Model,
-#                 width = 17.52,
-#                 height = 10.76,
-#                 units = "in")
-# 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/betweenANOVA_R2stackedrelational.png"),
 #                 plot = pEta2_stacked,
 #                 width = 13.63,
 #                 height = 12.07,
