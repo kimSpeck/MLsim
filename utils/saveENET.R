@@ -11,7 +11,6 @@ saveENET <- function(estRes, iCond, setParam, resList) {
   # selected variables (how often are predictors selected in model)
   selectedVars <- do.call(cbind, lapply(estRes, function(X) X[["selectedVars"]]))
   
-  # AV: Wie oft bleiben Terme (lineare Praediktoren/Interaktionen) im Modell?
   nSelection <- apply(selectedVars, MARGIN = 1, sum) # frequency of variable selection 
   percSelection <- nSelection / ncol(selectedVars) * 100 # relative frequency 
   resList[["varSelection"]] <- cbind(nSelection = nSelection, 

@@ -1,4 +1,3 @@
-# ToDo: implement function to vary correlations and include correlation function to process
 createFolder <- function(folderPath) {
   if (!file.exists(folderPath)){
     dir.create(folderPath)
@@ -137,8 +136,6 @@ evalPerformance <- function(pred, obs) {
   # https://github.com/topepo/caret/blob/5f4bd2069bf486ae92240979f9d65b5c138ca8d4/pkg/caret/R/postResample.R#L126C3-L144C49
   # adjusted caret package function to return 0 instead of NA if there are no 
   #     predictors chosen in elastic net or lasso regression
-  # to do: only do calculation if obs != factor && obs == numeric; otherwise we did 
-  #         classification and need an pseudo R²?
   ## input:
   # pred    - [vector] outcome as predicted based on model 
   # obs     - [vector] observed outcome 
@@ -246,12 +243,3 @@ predEnet <- function(model, newdata)  {
   results <- predict(model, as.matrix(newdata))
   return(results)
 }
-
-# # evaluate GBM (for xgboost fit models)
-# predGBM.xgboost <- function(model, newdata)  {
-#   # data format that works with xgboost models
-#   newData_x = xgb.DMatrix(data.matrix(newdata), missing = NA)
-#   results <- predict(model, newData_x)
-#   # results <- predict(model, newdata)
-#   return(results)
-# }

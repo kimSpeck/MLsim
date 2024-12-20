@@ -7,19 +7,15 @@ setParam$dgp$nTrain <- 1000
 setParam$dgp$nTest <- 1
 setParam$dgp$nSamples <- setParam$dgp$nTrain + setParam$dgp$nTest
 
-# setParam$dgp$N <- c(100, 300, 1000, 10000) # number of observations
 setParam$dgp$N <- c(100, 300, 1000) # number of observations
 
 # !if 50% of training sample size is used as test sample, test sample sizes vary across N observation conditions
 #   as a result, the empirical SE of Rsquared changes according to N 
 #   -> fix test sample size 
 setParam$dgp$testN <- 1000            # fixed test sample size across all N conditions 
-# setParam$dgp$testNpc <- 0.5
 
 setParam$dgp$p <- 4                   # number of latent variables
-# setParam$dgp$pTrash <- c(10, 50, 100) # number of "trash" predictors (original idea)
-setParam$dgp$pTrash <- c(10, 50) # number of "trash" predictors (smaller set due
-# to computation effort; combinatorical explosion with interactions)
+setParam$dgp$pTrash <- c(10, 50) # number of "trash" predictors 
 
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
 setParam$dgp$poly <- c(0) # degree of polynomials (so far: no polynomials)
@@ -47,8 +43,7 @@ if (!all(setParam$dgp$percentLinear+
          setParam$dgp$percentPoly == 1)) stop("Proportion of different kinds of effects do not sum up to 1! Check values!")
 
 ##### R squared #####
-# setParam$dgp$Rsquared <- c(.10, .30, .50, .80) # original idea
-setParam$dgp$Rsquared <- c(.20, .50, .80) # smaller due to runtime considerations
+setParam$dgp$Rsquared <- c(.20, .50, .80) 
 
 # beta coefficients brute forced based on correlation matrix of predictors
 #     via gibbs sampling procedure using optim to derive beta coefficients
@@ -94,10 +89,8 @@ setParam$dgp$Reffects <- 0.4 # correlation between predictors with simulated eff
 # average correlations of trash-predictors and their SD 
 setParam$dgp$meanR <- 0
 setParam$dgp$sdR <- 0.05 # 0.1 leads to non-PSM correlation matrix
-# setParam$dgp$sdR <- 0.2 # original value
 
 # use this correlation matrix in data simulation! 
-# set seed
 set.seed(42)
 
 # randomly choose correlation matrix for biggest set of predictors (max(pTrash))
@@ -167,7 +160,6 @@ setParam$fit$nfolds <- 10
 # "lambda.1se" = the largest lambda at which the MSE is within one SE of the smallest MSE (default).
 # here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
 #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
-# setParam$fit$lambdaCrit <- c("1se", "min") # min or 1se
 setParam$fit$lambdaCrit <- c("1se") # 1se
 # -> despite the more conservative criterion (lambda.1se instead of lambda.min) all
 #     predictors are found often but too much trash is extracted to find the exact model
@@ -179,18 +171,6 @@ for (iCrit in setParam$fit$lambdaCrit) {
 
 ##### GBM #####
 # hyperparameter tuning grid for gbm 
-# max_depth vielleicht größer wählen? je größer die "interaction depth", desto mehr 
-#   splitting points & desto smoother ist "Ebene" im mehrdimensionalen Raum 
-#   oder durch mehr Bäume? über ensemble Methode regeln?
-#   -> Je größer tree depth, desto smoother die "Ebene" im mehrdimensionalen Raum?
-# setParam$fit$tuneGrid <- expand.grid(
-#   max_depth = c(1,2,3), # tree depth (= interaction.depth in gbm)
-#   min_child_weight = c(5,10), # end node size (= n.minobsinnode in gbm)
-#   nTrees = c(50,100,150), # max number of trees (= n.trees in gbm)
-#   eta = seq(.051, .201, .05), # shrinkage/learning rate (= shrinkage in gbm)
-#   optimalTrees = NA,
-#   minRMSE = NA)
-
 setParam$fit$tuneGrid <- expand.grid(
   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
   n.minobsinnode = c(5, 10),    # end node size (= min_child_weight in xgboost)

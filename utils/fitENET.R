@@ -72,7 +72,7 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   tunedParams <- sapply(setParam$fit$lambdaCrit, function(iCrit) {
     
     idxCrit <- row.names(tuneParam) == iCrit
-    # ! to do: if there are multiple optima: which optimum should we choose?
+    # ! if there are multiple optima: which optimum should we choose?
     # in the case of a tie the tied variable with lowest index is selected.
     idxOptim <- which(tuneParam[idxCrit,"MSE"] == min(tuneParam[idxCrit,"MSE"]))[1]
     
