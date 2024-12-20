@@ -1,16 +1,21 @@
 # analyse variable selection for interactions
 # compare results from coefficients to PVI results for ENET with interactions (ENETw)
-
-# confusion matrix: extracted in ENET {yes, no} vs. PVI > 1 {yes, no}
 library(afex) # für aov_ez()
 library(effectsize) # für Berechnung von Effektstärken; generalisiertes eta²
 library(patchwork)
 
 # plot results
 library(ggplot2)
+library(ggh4x)
 
 source("utils/setParameters.R")
 source("utils/analysisTools.R")
+
+# plot utils
+colValuesR2 <- c('#db4a07', '#850c0c', '#3c1518')
+colValuesInter <- c('#050440', '#181ff2', '#0eb2e8')
+colValuesLin <- c('#0eb2e8', '#181ff2', '#050440')
+
 
 plotFolder <- "plots"
 if (!file.exists(plotFolder)){
@@ -121,6 +126,7 @@ str(estBetaENETw)
 # ! pvi for ENETw includes interactions
 #   otherwise {ENETwo & GBM} pvi does not inlcude interactions
 
+save(estBetaENETw, file = "interENETMeasuresBeta.rda")
 ################################################################################
 # run ANOVAs for ...
 #     ... different dependent variables {interTP, interFP.a, ...}
@@ -242,8 +248,7 @@ pbetaInter <- pSensitivity + pSpecificity + pBalACC +
 #   ... specificity
 #   ... sensitivity
 #   ... balanced accuracy
-
-colnames(estBetaENETw) <- stringr::str_replace_all(colnames(estBetaENETw), "\\.a", "")
+load(paste0(resFolder, "/interENETMeasuresBeta.rda"))
 
 plotInterBeta <- aggregate(cbind(interTP, interFP, interPPV, interACC,
                                  interSpecificity, interSensitivity, interBalACC) ~ 
@@ -272,70 +277,72 @@ plotInterBeta <- tidyr::pivot_wider(plotInterBeta,
                                     names_from = measure, 
                                     values_from = values)
 
-colValues <- c("green3", "darkblue", "darkmagenta")
+plotInterBeta$lin_inter <- factor(plotInterBeta$lin_inter, 
+                                  levels = c("0.2_0.8", "0.5_0.5", "0.8_0.2"),
+                                  labels = c("20:80", "50:50", "80:20"))
 
-
-(pInterSensitivity <- ggplot(plotInterBeta[plotInterBeta$DV == "interSensitivity",],
-                             aes(x = N, y = M, 
-                                 group = interaction(R2, rel), colour = R2,
-                                 linetype = rel, shape = rel)) +
-    geom_point(position = position_dodge(width = 0.5)) +
-    geom_line(position = position_dodge(width = 0.5)) +
-    scale_linetype_manual(values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(values = c(16, 1, 8)) +
-    geom_errorbar(aes(ymin = q025, ymax = q975), 
-                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
-    scale_color_manual(values = colValues) +
-    facet_grid(pTrash ~ lin_inter, labeller = label_both) +
-    ylab("sensitivity") +
+plotSensSpec <- function(data, DV, rel, 
+                         quantiles = F, guides = T, 
+                         title = "", yTitle = "") {
+  pTmp <- ggplot(data[data$DV == DV &
+                        data$rel == rel,],
+                 aes(x = N, y = M, 
+                     group = interaction(lin_inter, pTrash), colour = lin_inter,
+                     linetype = lin_inter, shape = pTrash)) +
+    geom_point(size = 3) +
+    geom_line(linewidth = 0.75) +
+    scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
+    scale_shape_manual(name = "Noise", values = c(16, 17)) +
+    scale_color_manual(name = "Lin:Inter", values = colValuesInter) +
+    facet_grid2(~ R2,
+                strip = strip_themed(
+                  background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
+                                      element_rect(fill = alpha(colValuesR2[2], 0.4)),
+                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
+    ylim(c(0, 1)) +
+    ylab(yTitle) +
     xlab("N") +
-    ggtitle("sensitivity: TP / (TP + FN)") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+    ggtitle(title) +
+    theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
           panel.background = element_rect(color = "white", fill = "white"),
+          plot.title = element_text(size = 30, face = "bold"),
           axis.text.y = element_text(size = 20),
           axis.text.x = element_text(size = 20),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
+          strip.text.y = element_text(size = 15),
+          legend.position = c(.85, .15), 
+          legend.title = element_text(size = 25),
+          legend.text = element_text(size = 20),
+          legend.box = "horizontal")
+  if (quantiles == T) {
+    pTmp <- pTmp + geom_errorbar(aes(ymin = q025, ymax = q975), 
+                                 width = 0.2, alpha = 0.4, 
+                                 position = position_dodge(width = 0.5)) 
+  }
+  if (guides == F) {
+    pTmp <- pTmp + guides(color = "none", shape = "none", linetype = "none")
+  }
+  pTmp
+}
+
+(pSensitivityENETw_beta <- plotSensSpec(plotInterBeta, DV = "interSensitivity", rel = 0.8,
+                                        quantiles = F, yTitle = "Sensitivity", title = "A"))
 
 # # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSensitivity_betaCoef.png"),
-#                 plot = pInterSensitivity,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSensitivity_betaENETwR2facette_rel08.png"),
+#                 plot = pSensitivityENETw_beta,
 #                 width = 13.08,
-#                 height = 12.18,
+#                 height = 6.68,
 #                 units = "in")
 
-
-(pInterSpecificity <- ggplot(plotInterBeta[plotInterBeta$DV == "interSpecificity",],
-                             aes(x = N, y = M, 
-                                 group = interaction(R2, rel), colour = R2,
-                                 linetype = rel, shape = rel)) +
-    geom_point(position = position_dodge(width = 0.5)) +
-    geom_line(position = position_dodge(width = 0.5)) +
-    scale_linetype_manual(values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(values = c(16, 1, 8)) +
-    geom_errorbar(aes(ymin = q025, ymax = q975), 
-                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
-    scale_color_manual(values = colValues) +
-    facet_grid(pTrash ~ lin_inter, labeller = label_both) +
-    ylab("specificity") +
-    xlab("N") +
-    ggtitle("specificity: TN / (TN + FP)") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 20),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
+(pSpecificityENETw_beta <- plotSensSpec(plotInterBeta, DV = "interSpecificity", rel = 0.8,
+                                        guides = F, quantiles = F, yTitle = "Specificity", title = "B"))
 # # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSpecificity_betaCoef.png"),
-#                 plot = pInterSpecificity,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSpecificity_betaENETwR2facette_rel08.png"),
+#                 plot = pSpecificityENETw_beta,
 #                 width = 13.08,
-#                 height = 12.18,
+#                 height = 6.68,
 #                 units = "in")

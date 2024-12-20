@@ -1,17 +1,21 @@
 # analyse variable selection for interactions
 # compare results from coefficients to PVI results for ENET with interactions (ENETw)
-
-# confusion matrix: extracted in ENET {yes, no} vs. PVI > 1 {yes, no}
-
 library(afex) # für aov_ez()
 library(effectsize) # für Berechnung von Effektstärken; generalisiertes eta²
 library(patchwork)
 
 # plot results
 library(ggplot2)
+library(ggh4x)
 
-source("setParameters.R")
-source("analysisTools.R")
+# plot utils
+colValuesR2 <- c('#db4a07', '#850c0c', '#3c1518')
+colValuesInter <- c('#050440', '#181ff2', '#0eb2e8')
+colValuesLin <- c('#0eb2e8', '#181ff2', '#050440')
+
+
+source("utils/setParameters.R")
+source("utils/analysisTools.R")
 
 plotFolder <- "plots"
 if (!file.exists(plotFolder)){
@@ -63,13 +67,9 @@ estBetaSampleENETw$mainTP <- ifelse(estBetaSampleENETw$var %in% setParam$dgp$lin
 
 # 2. calculate number of false positives for each sample ()
 ## extract false positive linear/main effects
-## it does not matter if main trash predictors are subtracted or not 
-##    -> number either 10 or 50 but with more main trash predictors even more interactions 
-##        do arrive and therefore this does not make any difference for the results
-##    -> maybe easier to report would be false positive out of every interaction?
-##        instead of false positive out of every interaction and main effects without simulated effects
 allInterVars <- stringr::str_subset(estBetaSampleENETw$var, "\\.")
 interLabels <- stringr::str_replace_all(setParam$dgp$interEffects, "\\:", "\\.") 
+
 # every beta coefficient != 0 that is ...
 #   ... a main effect with simulated effects or is an interaction of any kind receives 0
 #   ... a main effect without simulated effects and is not an interaction of any kind receives 1
@@ -94,7 +94,7 @@ estBetaENETw <- idx2infoNew(estBetaENETw)
 # as this only counts main effects as true negative options
 estBetaENETw$mainTN <- as.numeric(as.character(estBetaENETw$pTrash)) - estBetaENETw$mainFP
 
-#   ... interFN = simulated main effect that is not extracted
+#   ... mainFN = simulated main effect that is not extracted
 estBetaENETw$mainFN <- length(setParam$dgp$linEffects) - estBetaENETw$mainTP
 
 # 2b. add measures...
@@ -119,6 +119,7 @@ str(estBetaENETw)
 # ! pvi for ENETw includes interactions
 #   otherwise {ENETwo & GBM} pvi does not inlcude interactions
 
+# save(estBetaENETw, file = "relFrequencyMeasuresBeta.rda")
 ################################################################################
 # run ANOVAs for ...
 #     ... different dependent variables {interTP, interFP, ...}
@@ -207,15 +208,15 @@ pACC <- plotEta2_4eachModel(eta2mainACC, eta2Thresh, "#006600") +
 
 pSensitivity + pSpecificity + pBalACC + pACC
 
-pTP <- plotEta2_4eachModel(eta2interTP, eta2Thresh, "#006600") + 
+pTP <- plotEta2_4eachModel(eta2mainTP, eta2Thresh, "#006600") + 
   ggtitle("TP") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pFP <- plotEta2_4eachModel(eta2interFP, eta2Thresh, "#006600") + 
+pFP <- plotEta2_4eachModel(eta2mainFP, eta2Thresh, "#006600") + 
   ggtitle("FP") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
-pPPV <- plotEta2_4eachModel(eta2interPPV, eta2Thresh, "#006600") + 
+pPPV <- plotEta2_4eachModel(eta2mainPPV, eta2Thresh, "#006600") + 
   ggtitle("PPV") + # for the main title
   theme(plot.title = element_text(hjust = 0.5, size = 25))
 
@@ -224,7 +225,7 @@ pPPV <- plotEta2_4eachModel(eta2interPPV, eta2Thresh, "#006600") +
 pbetaInter <- pSensitivity + pSpecificity + pBalACC + 
   pTP + pFP + pPPV + plot_layout(ncol = 3)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_betaInterMeasures.png"),
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_betaMainMeasures.png"),
 #                 plot = pbetaInter,
 #                 width = 17.52,
 #                 height = 10.76,
@@ -242,8 +243,10 @@ pbetaInter <- pSensitivity + pSpecificity + pBalACC +
 #   ... sensitivity
 #   ... balanced accuracy
 
-plotInterBeta <- aggregate(cbind(interTP, interFP, interPPV, interACC,
-                                 interSpecificity, interSensitivity, interBalACC) ~ 
+load(paste0(resFolder, "/relFrequencyMeasuresBeta.rda"))
+
+plotMainBeta <- aggregate(cbind(mainTP, mainFP, mainPPV, mainACC,
+                                mainSpecificity, mainSensitivity, mainBalACC) ~ 
                              model + N + pTrash + rel + R2 + lin_inter, 
                            data = estBetaENETw, 
                            function(x) {cbind(mean(x), 
@@ -251,120 +254,93 @@ plotInterBeta <- aggregate(cbind(interTP, interFP, interPPV, interACC,
                                               quantile(x, 0.025),
                                               quantile(x, 0.975))})
 
-plotInterBeta <- do.call(data.frame, plotInterBeta)
-colnames(plotInterBeta) <- stringr::str_replace_all(colnames(plotInterBeta), "\\.1", "_M")
-colnames(plotInterBeta) <- stringr::str_replace_all(colnames(plotInterBeta), "\\.2", "_SE")
-colnames(plotInterBeta) <- stringr::str_replace_all(colnames(plotInterBeta), "\\.3", "_q025")
-colnames(plotInterBeta) <- stringr::str_replace_all(colnames(plotInterBeta), "\\.4", "_q975")
+plotMainBeta <- do.call(data.frame, plotMainBeta)
+colnames(plotMainBeta) <- stringr::str_replace_all(colnames(plotMainBeta), "\\.1", "_M")
+colnames(plotMainBeta) <- stringr::str_replace_all(colnames(plotMainBeta), "\\.2", "_SE")
+colnames(plotMainBeta) <- stringr::str_replace_all(colnames(plotMainBeta), "\\.3", "_q025")
+colnames(plotMainBeta) <- stringr::str_replace_all(colnames(plotMainBeta), "\\.4", "_q975")
 
-plotInterBeta$N <- factor(plotInterBeta$N, levels = c(100, 300, 1000))
+plotMainBeta$N <- factor(plotMainBeta$N, levels = c(100, 300, 1000))
 
-plotInterBeta <- tidyr::pivot_longer(plotInterBeta, 
+plotMainBeta <- tidyr::pivot_longer(plotMainBeta, 
                                      cols = !c(model, N, pTrash, rel, R2, lin_inter),
                                      names_to = c("DV", "measure"), 
                                      names_sep = "_",
                                      values_to = "values")
 
-plotInterBeta <- tidyr::pivot_wider(plotInterBeta,
+plotMainBeta <- tidyr::pivot_wider(plotMainBeta,
                                     names_from = measure, 
                                     values_from = values)
 
-colValues <- c("green3", "darkblue", "darkmagenta")
+plotMainBeta$lin_inter <- factor(plotMainBeta$lin_inter, 
+                              levels = c("0.2_0.8", "0.5_0.5", "0.8_0.2"),
+                              labels = c("20:80", "50:50", "80:20"))
 
-
-(pInterSensitivity <- ggplot(plotInterBeta[plotInterBeta$DV == "interSensitivity",],
-                             aes(x = N, y = M, 
-                                 group = interaction(R2, rel), colour = R2,
-                                 linetype = rel, shape = rel)) +
-    geom_point(position = position_dodge(width = 0.5)) +
-    geom_line(position = position_dodge(width = 0.5)) +
-    scale_linetype_manual(values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(values = c(16, 1, 8)) +
-    geom_errorbar(aes(ymin = q025, ymax = q975), 
-                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
-    scale_color_manual(values = colValues) +
-    facet_grid(pTrash ~ lin_inter, labeller = label_both) +
-    ylab("sensitivity") +
+plotSensSpec <- function(data, DV, model, rel, 
+                         quantiles = F, guides = T, 
+                         title = "", yTitle = "") {
+  pTmp <- ggplot(data[data$DV == DV &
+                        data$model == model &
+                        data$rel == rel,],
+                 aes(x = N, y = M, 
+                     group = interaction(lin_inter, pTrash), colour = lin_inter,
+                     linetype = lin_inter, shape = pTrash)) +
+    geom_point(size = 3) +
+    geom_line(linewidth = 0.75) +
+    scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
+    scale_shape_manual(name = "Noise", values = c(16, 17)) +
+    scale_color_manual(name = "Lin:Inter", values = colValuesLin) +
+    facet_grid2(~ R2,
+                strip = strip_themed(
+                  background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
+                                      element_rect(fill = alpha(colValuesR2[2], 0.4)),
+                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
+    ylim(c(0, 1)) +
+    ylab(yTitle) +
     xlab("N") +
-    ggtitle("sensitivity: TP / (TP + FN)") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
+    ggtitle(title) +
+    theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
           panel.background = element_rect(color = "white", fill = "white"),
+          plot.title = element_text(size = 30, face = "bold"),
           axis.text.y = element_text(size = 20),
           axis.text.x = element_text(size = 20),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
+          strip.text.y = element_text(size = 15),
+          legend.position = c(.85, .15), 
+          legend.title = element_text(size = 25),
+          legend.text = element_text(size = 20),
+          legend.box = "horizontal")
+  if (quantiles == T) {
+    pTmp <- pTmp + geom_errorbar(aes(ymin = q025, ymax = q975), 
+                                 width = 0.2, alpha = 0.4, 
+                                 position = position_dodge(width = 0.5)) 
+  }
+  if (guides == F) {
+    pTmp <- pTmp + guides(color = "none", shape = "none", linetype = "none")
+  }
+  pTmp
+}
+
+(pSensitivityENETw_beta <- plotSensSpec(plotMainBeta, DV = "mainSensitivity", 
+                                        model = "ENETw", rel = 0.8,
+                                        quantiles = F, yTitle = "Sensitivity", title = "A"))
 
 # # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSensitivity_betaCoef.png"),
-#                 plot = pInterSensitivity,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/mainSensitivity_betaENETwR2facette_rel08.png"),
+#                 plot = pSensitivityENETw_beta,
 #                 width = 13.08,
-#                 height = 12.18,
+#                 height = 6.68,
 #                 units = "in")
 
-
-(pInterSpecificity <- ggplot(plotInterBeta[plotInterBeta$DV == "interSpecificity",],
-                             aes(x = N, y = M, 
-                                 group = interaction(R2, rel), colour = R2,
-                                 linetype = rel, shape = rel)) +
-    geom_point(position = position_dodge(width = 0.5)) +
-    geom_line(position = position_dodge(width = 0.5)) +
-    scale_linetype_manual(values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(values = c(16, 1, 8)) +
-    geom_errorbar(aes(ymin = q025, ymax = q975), 
-                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
-    scale_color_manual(values = colValues) +
-    facet_grid(pTrash ~ lin_inter, labeller = label_both) +
-    ylab("specificity") +
-    xlab("N") +
-    ggtitle("specificity: TN / (TN + FP)") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 20),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
+(pSpecificityENETw_beta <- plotSensSpec(plotMainBeta, DV = "mainSpecificity", 
+                                        model = "ENETw", rel = 0.8,
+                                        guides = F, quantiles = F, yTitle = "Specificity", title = "B"))
 # # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSpecificity_betaCoef.png"),
-#                 plot = pInterSpecificity,
+# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/mainSpecificity_betaENETwR2facette_rel08.png"),
+#                 plot = pSpecificityENETw_beta,
 #                 width = 13.08,
-#                 height = 12.18,
-#                 units = "in")
-
-(pInterBalACC <- ggplot(plotInterBeta[plotInterBeta$DV == "interBalACC",],
-                        aes(x = N, y = M, 
-                            group = interaction(R2, rel), colour = R2,
-                            linetype = rel, shape = rel)) +
-    geom_point(position = position_dodge(width = 0.5)) +
-    geom_line(position = position_dodge(width = 0.5)) +
-    scale_linetype_manual(values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(values = c(16, 1, 8)) +
-    geom_errorbar(aes(ymin = q025, ymax = q975), 
-                  width = 0.2, alpha = 0.4, position = position_dodge(width = 0.5)) +  
-    scale_color_manual(values = colValues) +
-    facet_grid(pTrash ~ lin_inter, labeller = label_both) +
-    ylab("balanced accuracy") +
-    xlab("N") +
-    ggtitle("balanced accuracy: (sensitivity + specificity) / 2") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 20),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
-# # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interBalAcc_betaCoef.png"),
-#                 plot = pInterBalACC,
-#                 width = 13.08,
-#                 height = 12.18,
+#                 height = 6.68,
 #                 units = "in")
