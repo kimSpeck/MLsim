@@ -40,7 +40,7 @@ project/\
   │   └── [simulated data files; this data is not provided due to memory limitations]\
   ├── checkSimulation/ # Folder containing files for initial sanity checks of the simulation\
   ├── 01_simulateData.R # Script to simulate raw data\
-  ├── 02_fitData.R # Script to fit models and save results\ 
+  ├── 02_fitData.R # Script to fit models and save results\
   ├── 03_joinData.R # Script to merge data across conditions\
   ├── 04a_analyseR2_EnetGBM.R # Analyzes R² results\
   ├── 04b_prepareR2_EnetGBM.R # \
@@ -99,36 +99,39 @@ project/\
 4. **04[a-c]_[.]_ENETGBM.R** and following files:
    - **Purpose**: Analyzes \(R^2\) results to determine the effect of experimental manipulations.
    - **Process**:
-     - Performs ANOVA to assess model performance. (`04a_analyseR2_ENETGBM.R`)
-     - Prepares data for visualizations. (`04b_prepareR2_EnetGBM.R`)
-     - Creates result plors. (`04c_plotR2_EnetGBM.R`)
+     - Performs ANOVA to assess model performance and plots results of the generalized $\eta^2$. (`04a_analyseR2_ENETGBM.R`)
+     - Prepares data for visualizations (creates `rSquaredData_stats.rda`) and generates an initial overview plot for $R^2$ (+ overfit). (`04b_prepareR2_EnetGBM.R`)
+     - Creates result plots. (`04c_plotR2_EnetGBM.R`)
      
 5. **05[a-c]_analyse[.]_[.].R**:
    - **Purpose**: Detects and analyzes linear effects.
    - **Process**:
-     - Runs ANOVA for each condition and dependent variable.
-     - Generates data for plots.
+     - Prepares data for visualizations (creates `relFrequencyMeasures.rda`) and performs ANOVA for sensitivity and specificity. (`05a_analyseMainPVI_EnetGBM.R`)
+     - Creates result plots. (`05b_plotMainPVI_EnetGBM.R`)
 
-6. **analyze_interaction_effects.R**:
-   - **Purpose**: Detects and analyzes interaction effects.
+6. **06[a-d]_[.].R**:
+   - **Purpose**: Analyzes and plots interaction effects.
    - **Process**:
-     - Similar to `analyze_linear_effects.R`, but focuses on interaction terms.
-     - Creates visual summaries of results.
+     - Prepares ENET data for visualizations (creates `interENETinterMeasures.rda`) and performs ANOVA for sensitivity and specificity. (`06a_analyseInterPVI_ENETw.R`)
+     - Creates result plots for the ENETinter. (`06b_plotInterPVI_ENETw.R`)
+     - Prepares GBM data for visualizations (creates `hStatsPlottingData.rda`) and performs ANOVA for the H-statistic. (`06c_analyseInterStrength_GBM.R`)
+     - Creates result plots for the H-statistic of the GBM. (`06d_plotInterStrength_GBM.R`)
 
 ---
 
 ### Utility Files
 
 - Located in the `utils/` folder.
-- Functions to facilitate:
-  - Simulation and parameter setup.
-  - Efficient storage and retrieval of simulation parameters.
+- Files and functions to facilitate...
+  - ... overviewing simulation conditions and parameter setup (`setParameters.R`).
+  - ... simulation of the data and analysis of the results (`simTools.R`, `analysisTools.R`)
+  - ... model fitting (`fitENET.R`, `fitGBM.R`, `saveENET.R`, `saveGBM.R`)
 
 ---
 
 ### Data Folder
 
-- The `data/` folder contains raw simulated data produced by `simulate_data.R`.
+- The `data/` folder contains raw simulated data produced by `01_simulateData.R`.
 
 ---
 
@@ -151,19 +154,19 @@ project/\
 ## Usage
 
 Follow the script order for reproducibility:
-1. Simulate data using `simulate_data.R`.
-2. Fit models with `fit_data.R`.
+1. Simulate data using `01_simulateData.R`.
+2. Fit models with `02_fitData.R`.
 3. Merge and analyze data:
-   - Run `join_data.R`.
-   - Use the `analyze_*` scripts to explore specific aspects of the results.
+   - Run `03_joinData.R`.
+   - Use the {04, 05, 06} scripts to replicate the results.
 
 ---
 
 ## Contact Information
 
 If you have any questions or encounter issues, please contact:
-- **Name**: [Your Name]
-- **Email**: [Your Email Address]
-- **Affiliation**: [Your Institution]
+- **Name**: Kim-Laura Speck
+- **Email**: kim.speck@uni-kassel.de
+- **Affiliation**: Universität Kassel
 
 ---
