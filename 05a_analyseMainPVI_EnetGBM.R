@@ -354,7 +354,7 @@ pEta2_PPV <- plotEta2_4eachModel(eta2ENETw_PPV, eta2Thresh, "#006600") +
 # sensitivity
 pEta2_sensitivity <- plotEta2(eta2ENETw_sensitivity, eta2ENETwo_sensitivity, eta2GBM_sensitivity, eta2Thresh)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainSensitivity.png"),
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_pviMainSensitivity.png"),
 #                 plot = pEta2_sensitivity,
 #                 width = 17.52,
 #                 height = 10.76,
@@ -363,7 +363,7 @@ pEta2_sensitivity <- plotEta2(eta2ENETw_sensitivity, eta2ENETwo_sensitivity, eta
 # specificity
 pEta2_specificity <- plotEta2(eta2ENETw_specificity, eta2ENETwo_specificity, eta2GBM_specificity, eta2Thresh)
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectMains/betweenANOVA_pviMainSpecificity.png"),
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_pviMainSpecificity.png"),
 #                 plot = pEta2_specificity,
 #                 width = 17.52,
 #                 height = 10.76,
