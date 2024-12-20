@@ -31,7 +31,6 @@ reliability <- setParam$bruteForceB$reliability
 
 P <- setParam$dgp$p + pTrash # total number of variables
 
-# to do: remove function and use rmvnorm directly now?!
 X <- createPredictors(N = N, P = P, 
                       corMat = setParam$dgp$predictorCorMat[seq_len(P), seq_len(P)])
 
