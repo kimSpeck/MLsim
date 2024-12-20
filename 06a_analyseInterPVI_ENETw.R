@@ -51,8 +51,6 @@ pviENETw$interTP <- ifelse(pviENETw$pviRank %in% interLabels, 1, 0)
 ## it does not matter if main trash predictors are subtracted or not 
 ##    -> number either 10 or 50 but with more main trash predictors even more interactions 
 ##        do arrive and therefore this does not make any difference for the results
-##    -> maybe easier to report would be false positive out of every interaction?
-##        instead of false positive out of every interaction and main effects without simulated effects
 allLinVars <- paste0("Var", seq_len(max(setParam$dgp$pTrash)))
 # every beta coefficient != 0 that is ...
 #   ... an interaction with simulated effects or is a main effect receives 0
@@ -102,6 +100,9 @@ str(interENETw)
 
 # average sensitivity across all simulated conditions (for interaction effects in the ENETinter)
 mean(interENETw$interSensitivity)
+
+# # save data for sensitivity and specificity result plots
+# save(interENETw, file = paste0(resFolder, "/interENETinterMeasures.rda"))
 ################################################################################
 # run ANOVAs for ...
 #     ... different dependent variables {interTP, interFP, ...}
@@ -214,130 +215,3 @@ pPviInter <- pSensitivity + pSpecificity + pBalACC +
 
 # results for pvi and beta are exactly the same
 
-################################################################################
-# plot specificity, sensitivity and (balanced) accuracy 
-################################################################################
-# calculate M, SE, 2.5% Quantile, 97.5% Quantile for dependent measures:
-#   ... linear TP effects
-#   ... linear FP effects
-#   ... positive predictive value
-#   ... accuracy
-#   ... specificity
-#   ... sensitivity
-#   ... balanced accuracy
-
-plotInterPVI <- aggregate(cbind(interTP, interFP, interPPV, interACC,
-                                 interSpecificity, interSensitivity, interBalACC) ~ 
-                             model + N + pTrash + rel + R2 + lin_inter, 
-                           data = interENETw, 
-                           function(x) {cbind(mean(x), 
-                                              sd(x),
-                                              quantile(x, 0.025),
-                                              quantile(x, 0.975))})
-
-plotInterPVI <- do.call(data.frame, plotInterPVI)
-colnames(plotInterPVI) <- stringr::str_replace_all(colnames(plotInterPVI), "\\.1", "_M")
-colnames(plotInterPVI) <- stringr::str_replace_all(colnames(plotInterPVI), "\\.2", "_SE")
-colnames(plotInterPVI) <- stringr::str_replace_all(colnames(plotInterPVI), "\\.3", "_q025")
-colnames(plotInterPVI) <- stringr::str_replace_all(colnames(plotInterPVI), "\\.4", "_q975")
-
-plotInterPVI$N <- factor(plotInterPVI$N, levels = c(100, 300, 1000))
-
-plotInterPVI <- tidyr::pivot_longer(plotInterPVI, 
-                                     cols = !c(model, N, pTrash, rel, R2, lin_inter),
-                                     names_to = c("DV", "measure"), 
-                                     names_sep = "_",
-                                     values_to = "values")
-
-plotInterPVI <- tidyr::pivot_wider(plotInterPVI,
-                                    names_from = measure, 
-                                    values_from = values)
-
-################################################################################
-# finale plots 
-################################################################################
-
-plotInterPVI$lin_inter <- factor(plotInterPVI$lin_inter, 
-                                 levels = c("0.2_0.8", "0.5_0.5", "0.8_0.2"),
-                                 labels = c("20:80", "50:50", "80:20"))
-
-(pInterSensitivity_pviR2facette_rel08 <- ggplot(plotInterPVI[plotInterPVI$DV == "interSensitivity" & 
-                                                               plotInterPVI$rel == 0.8,],
-                                                aes(x = N, y = M, 
-                                                    group = interaction(lin_inter, pTrash), colour = lin_inter,
-                                                    linetype = lin_inter, shape = pTrash)) +
-    geom_point(size = 3) +
-    geom_line(linewidth = 0.75) +
-    scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(name = "Noise", values = c(16, 17)) +
-    scale_color_manual(name = "Lin:Inter", values = colValuesInter) +
-    facet_grid2(~ R2,
-                strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
-    ylim(c(0, 1)) +
-    ylab("Sensitivity") +
-    xlab("N") +
-    ggtitle("A") +
-    theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          plot.title = element_text(size = 30, face = "bold"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 20),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15), 
-          legend.position = c(.85, .15), 
-          legend.title = element_text(size = 25),
-          legend.text = element_text(size = 20),
-          legend.box = "horizontal"))
-
-# # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSensitivity_pviR2facette_rel08.png"),
-#                 plot = pInterSensitivity_pviR2facette_rel08,
-#                 width = 13.08,
-#                 height = 6.68,
-#                 units = "in")
-
-(pInterSpecificity_pviR2facette_rel08 <- ggplot(plotInterPVI[plotInterPVI$DV == "interSpecificity" &
-                                                               plotInterPVI$rel == 0.8,],
-                                                aes(x = N, y = M, 
-                                                    group = interaction(lin_inter, pTrash), colour = lin_inter,
-                                                    linetype = lin_inter, shape = pTrash)) +
-    geom_point(size = 3) +
-    geom_line(linewidth = 0.75) +
-    scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(name = "Noise", values = c(16, 17)) +
-    scale_color_manual(name = "Lin:Inter", values = colValuesInter) +
-    ylim(c(0, 1)) +
-    facet_grid2(~ R2,
-                strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
-    ylab("Specificity") +
-    xlab("N") +
-    ggtitle("B") +
-    guides(color = "none", 
-           shape = "none",
-           linetype = "none") +
-    theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          plot.title = element_text(size = 30, face = "bold"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 20),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
-# # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/interSpecificity_pviR2facette_rel08.png"),
-#                 plot = pInterSpecificity_pviR2facette_rel08,
-#                 width = 13.08,
-#                 height = 6.68,
-#                 units = "in")
