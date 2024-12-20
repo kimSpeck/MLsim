@@ -38,8 +38,6 @@ assign("interStrength", loadRData(paste0(resFolder, "/", dataList)))
 #     only keep feature = {Var1:Var2, Var1:Var3, Var1:Var4,
 #                           Var2:Var3, Var2:Var4, Var3:Var4}
 #     ! any order of interacting variables is possible
-# to do: is Var1:Var2 == Var2:Var1 for identical samples?
-#     each interaction is estimated twice for each sample!
 # 3. sort these interactions for interactions with simulated effect vs. interactions
 #     without simulated interaction effect
 # 4. incorporate information of whether both linear effects were extracted based 
@@ -68,9 +66,6 @@ countInters <- aggregate(feature ~ idxCondLabel + sample + var + N_pTrash,
                          data = interSub, length)
 
 # there are samples for which measures for interactions are missing
-# to do: maybe if variables were not selected in GBM? 
-#         if linear predictor was not extracted in GBM, interactions with this variable
-#         cannot be calculated?
 # write in data frame if variable was added by completion strategy
 dim(countInters[countInters$feature != 3, ])[1]
 nrMissing <- sum(3 - countInters[countInters$feature != 3, "feature"])
@@ -228,16 +223,6 @@ ggplot2::ggsave(filename = paste0(plotFolder, "/detectInteractions/hStatsInter_O
                 width = 13.08,
                 height = 12.18,
                 units = "in")
-
-# result notes
-# pTrash does not make any difference
-#     in general h-Stats numbers are smaller for large pTrash numbers but difference 
-#     between interactions with and without effect do not really change
-# große Stichprobengröße erforderlich, um Interaktionen mit Effekt überhaupt von 
-#   Interaktionen ohne Effekt trennen zu können
-# mit mehr R^2 für die Interaktionen ist Trennung auf Basis der H-Statistik ebenfalls besser
-# mit höherer Reliabilität ist die Trennung von simulierten Interaktionen von Interaktionen ohne
-#   echten Effekt besser
 
 (hStats_pTrash10 <- ggplot(hStats[hStats$pTrash == 10, ], 
                            aes(x = N, y = M, 
