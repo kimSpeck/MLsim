@@ -132,11 +132,11 @@ plotEta2mixed$Parameter <- factor(plotEta2mixed$Parameter,
   ylab("generalisiertes eta^2") +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.2, hjust=0.1)))
 
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_R2_thresh", eta2Thresh, ".png"),
-                plot = pEta2mixedFull,
-                width = 17.52,
-                height = 10.76,
-                units = "in")
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_R2_thresh", eta2Thresh, ".png"),
+#                 plot = pEta2mixedFull,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
 
 eta2modelTable <- plotEta2mixed[plotEta2mixed$Eta2_generalized >= eta2Thresh,]
 
