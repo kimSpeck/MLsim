@@ -52,9 +52,9 @@ hStats$lin_inter <- factor(hStats$lin_inter,
     ylab("H-statistic") +
     facet_grid2(rel ~ lin_inter,
                 strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesLin[3], 0.4)),
+                  background_x = list(element_rect(fill = alpha(colValuesLin[1], 0.4)),
                                       element_rect(fill = alpha(colValuesLin[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesLin[1], 0.4))))) + 
+                                      element_rect(fill = alpha(colValuesLin[3], 0.4))))) + 
     xlab("N") +
     theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
           panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
@@ -87,7 +87,7 @@ hStats$lin_inter <- factor(hStats$lin_inter,
     scale_color_manual(values = colValuesR2) +
     facet_grid2(rel ~ lin_inter,
                 strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesLin[1], 0.4))))) + 
+                  background_x = list(element_rect(fill = alpha(colValuesLin[3], 0.4))))) + 
     ylim(0, 0.25) +
     ylab("H-statistic") +
     xlab("N") +
@@ -137,9 +137,9 @@ hStatsDiff$Hdiff <- hStatsDiff$'1' - hStatsDiff$'0'
     ylab("H-statistic difference") +
     facet_grid2(~ lin_inter,
                 strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesLin[3], 0.4)),
+                  background_x = list(element_rect(fill = alpha(colValuesLin[1], 0.4)),
                                       element_rect(fill = alpha(colValuesLin[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesLin[1], 0.4))))) + 
+                                      element_rect(fill = alpha(colValuesLin[3], 0.4))))) + 
     xlab("N") +
     theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
           panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
