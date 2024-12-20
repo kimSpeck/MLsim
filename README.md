@@ -25,7 +25,7 @@ Machine Learning (ML) models have brought valuable methodological innovations to
 project/\
   ├── utils/ # Utility functions for simulation and analysis\
   │ └── [utility scripts, e.g., anaylsisTools.R, fitENET.R, setParameters.R]\
-  ├── supplement/ # code for supplementary analyses, etc.\
+  ├── supplement/ # code and plots for supplementary analyses, etc.\
   ├── results/ # Folder for fitted models and dependent measure files\
   │ ├── finalResults/ # Contains model results in .rds files\
   │   ├── dependentMeasures/ # Subfiles for dependent measures\
@@ -46,9 +46,11 @@ project/\
   ├── 04b_prepareR2_EnetGBM.R # \
   ├── 04c_plotR2_EnetGBM.R # \
   ├── 05a_analyseMainPVI_EnetGBM.R # analyzes linear effects based on the PVI values\
-  ├── 05b_analyseMainBeta_ENETw.R # \
-  ├── 06a_analyseInterPVI_ENETw.R # \
-  ├── 06b_analyseInterStrength_GBM.R # Detects and analyzes interaction effects\
+  ├── 05b_plotMainPVI_EnetGBM.R\
+  ├── 06a_analyseInterPVI_ENETw.R\
+  ├── 06b_plotInterPVI_ENETw.R\
+  ├── 06c_analyseInterStrength_GBM.R\
+  ├── 06d_plotInterStrength_GBM.R\
   ├── MLsim.Rproj # R project\
   └── README.md # Documentation (this file)\
 ---
