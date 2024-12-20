@@ -9,8 +9,8 @@
 #     thus, maybe switch to between ANOVA for each model
 
 # load parameters and helper functions 
-source("setParameters.R")
-source("analysisTools.R")
+source("utils/setParameters.R")
+source("utils/analysisTools.R")
 
 # ANOVA
 library(afex) # für aov_ez()
@@ -501,6 +501,8 @@ gc()
 #save(linENETw, linENETwo, linGBM, file = paste0(resFolder, "/relFrequencyMeasures.rda"))
 load(paste0(resFolder, "/relFrequencyMeasures.rda"))
 
+# average sensitivity across all simulated conditions (for linear effects in the ENETinter)
+mean(linENETw$sensitivity)
 
 colnames(linENETw)
 plotDiags <- aggregate(cbind(linTP, linFP, PPV, ACC, specificity, sensitivity, 
