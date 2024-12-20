@@ -1,13 +1,17 @@
+# load packages for plotting
 library(ggplot2)
 library(ggh4x)
 
+# get parameter values and utility functions 
 source("utils/setParameters.R")
 source("utils/analysisTools.R")
 
+# plotting colors across final paper plots
 colValuesR2 <- c('#db4a07', '#850c0c', '#3c1518')
 colValuesInter <- c('#050440', '#181ff2', '#0eb2e8')
 colValuesLin <- c('#0eb2e8', '#181ff2', '#050440')
 
+# path to plot folder
 plotFolder <- "plots"
 if (!file.exists(plotFolder)){
   dir.create(plotFolder)
@@ -24,6 +28,7 @@ condN_pTrash <- paste0("N", condGrid$N,
 
 resFolder <- "results/finalResults/dependentMeasures"
 
+# read in data
 listDir <- dir(resFolder)
 dataList <- listDir[stringr::str_detect(listDir, "^performT")]
 models <- stringr::str_extract(dataList, "_[:alpha:]*.rda$")
@@ -35,7 +40,7 @@ for (iData in seq_len(length(dataList))) {
 }
 
 ################################################################################
-# plot train and test performance
+# (overview) plot train and test performance
 ################################################################################
 # change list of  matrices to data.frame
 pTest_GBM <- rbindSingleResults(pTest_GBM)
@@ -85,14 +90,14 @@ performanceSub <- tidyr::pivot_longer(performanceSub, c(M_test, overfit),
     geom_line() +
     scale_linetype_manual(values = c("dashed", "dotted", "solid")) +
     # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-    scale_color_manual(values = colValues) +
+    scale_color_manual(values = colValuesR2) +
     geom_hline(aes(yintercept = 0)) +
     facet_grid(measures + rel ~ lin_inter, labeller = label_both) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "green3",
+    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
                alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "darkblue",
+    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
                alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "darkmagenta",
+    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
                alpha = 0.4) +
     ylab("") +
     xlab("pTrash (decreasing) x N (increasing)") +
@@ -182,7 +187,7 @@ colnames(performanceSubENET)
 performanceData <- rbind(performanceSub, performanceSubENET)
 # performanceData$fitInter <- plyr::mapvalues(performanceData$fitInter, 
 #                                             from=c(0,1,2), 
-#                                             to=c("ENET - ohne","ENET - mit","GBM"))
+#                                             to=c("ENET - lin","ENET - inter","GBM"))
 
 unique(performanceData$fitInter)
 performanceData$fit <- ifelse(performanceData$fitInter != 2, "enet", "gbm")
