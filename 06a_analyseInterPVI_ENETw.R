@@ -73,7 +73,7 @@ interENETw <- idx2infoNew(interENETw)
 #   ... interTN =  interactions without simulated effect and which are not extracted 
 
 # all possible interactions - true interactions (with simulated effects) - false positive interactions
-# .a as this only counts interactions as true negative options
+# as this only counts interactions as true negative options
 interENETw$interTN <- choose(as.numeric(interENETw$pTrash) + length(setParam$dgp$linEffects), 
                                  setParam$dgp$interDepth) - 
   length(setParam$dgp$interEffects) - interENETw$interFP
@@ -100,9 +100,11 @@ col2fac <- c("N", "pTrash" , "R2" , "rel" , "lin_inter")
 interENETw[col2fac] <- lapply(interENETw[col2fac], factor)
 str(interENETw)
 
+# average sensitivity across all simulated conditions (for interaction effects in the ENETinter)
+mean(interENETw$interSensitivity)
 ################################################################################
 # run ANOVAs for ...
-#     ... different dependent variables {interTP, interFP.a, ...}
+#     ... different dependent variables {interTP, interFP, ...}
 ################################################################################
 # there are only between-sample factors for the ANOVA
 # generate ID along data set
@@ -223,8 +225,6 @@ pPviInter <- pSensitivity + pSpecificity + pBalACC +
 #   ... specificity
 #   ... sensitivity
 #   ... balanced accuracy
-
-colnames(interENETw) <- stringr::str_replace_all(colnames(interENETw), "\\.a", "")
 
 plotInterPVI <- aggregate(cbind(interTP, interFP, interPPV, interACC,
                                  interSpecificity, interSensitivity, interBalACC) ~ 
