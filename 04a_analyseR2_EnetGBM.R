@@ -89,7 +89,6 @@ rSquaredTest[chr2num] <- lapply(rSquaredTest[chr2num], as.numeric)
 # outcome: generalized eta2 (Olejnik and Algina 2003)
 
 # ANOVA: 
-## mit ENET - ohne
 anovaTestR2 <- aov_ez(id = "ID", 
                   dv = "Rsq_test",
                   data = rSquaredTest, 
@@ -139,16 +138,6 @@ ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_R2_thres
                 height = 10.76,
                 units = "in")
 
-
-# pEta2TestR2.ordered <- print_html(
-#   eta2TestR2.ordered[eta2TestR2.ordered$Eta2_generalized >= 0.01,],
-#   digits = 2)
-
-# pEtaFormat <- format(
-#   eta2TestR2.ordered,
-#   digits = 2,
-#   output = c("text", "markdown", "html"))
-
 eta2modelTable <- plotEta2mixed[plotEta2mixed$Eta2_generalized >= eta2Thresh,]
 
 print(xtable::xtable(eta2modelTable, type = "latex"), 
@@ -156,6 +145,7 @@ print(xtable::xtable(eta2modelTable, type = "latex"),
 
 # save(rSquaredTest,
 #      file = "results/finalResults/dependentMeasures/rSquaredData_eachSample.rda")
+
 ################################################################################
 # calculate ANOVA for each model separately
 ################################################################################
@@ -187,28 +177,7 @@ summary(anovaResENETw)
 summary(anovaResENETwo)
 summary(anovaResGBM)
 
-# post tests für model: welches Model zeigt den größten Overfit? 
-#   most overfit in GBM > ENET - mit > ENET - ohne
-# averaged over the levels of: N, pTrash, R2, rel, lin_inter
-(postR2_linInter_GBM <- emmeans(anovaResGBM, specs = "lin_inter"))
-pairs(postR2_linInter_GBM, adjust="holm")
-(ppostR2_linInter_GBM <- plot(postR2_linInter_GBM, comparisons = TRUE))
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/mixedANOVA_overfit_postN.png"),
-#                 plot = pPostOverfitN,
-#                 width = 865,
-#                 height = 410,
-#                 units = "px")
-
-
-(postR2_linInter_ENETwo <- emmeans(anovaResENETwo, specs = "lin_inter"))
-pairs(postR2_linInter_ENETwo, adjust="holm")
-(ppostR2_linInter_ENETwo <- plot(postR2_linInter_ENETwo, comparisons = TRUE))
-(postR2_linInter_ENETw <- emmeans(anovaResENETw, specs = "lin_inter"))
-pairs(postR2_linInter_ENETw, adjust="holm")
-(ppostR2_linInter_ENETw <- plot(postR2_linInter_ENETw, comparisons = TRUE))
-
-# Datensätze zusammenführen
+# merge datasets
 eta2ENETw$model <- rep("ENETw", dim(eta2ENETw)[1])
 eta2ENETwo$model <- rep("ENETwo", dim(eta2ENETwo)[1])
 eta2GBM$model <- rep("GBM", dim(eta2GBM)[1])
@@ -253,8 +222,7 @@ eta2$Parameter <- factor(eta2$Parameter,
 eta2$model <- factor(eta2$model, 
                      levels = c("GBM", "ENETw", "ENETwo")) # obvious order of models
 
-# als Balkendiagramme mit Cut-Off bei gen. eta² von .1 plotten
-#   y-Achse unterschiedliche Variablen; Farben unterschiedliche Modelle
+# as barplot with cut-off: gen. eta² = .1 
 (pEta2Model <- ggplot(eta2[eta2$Eta2_generalized >= eta2Thresh,], 
                       aes(x = Parameter, y = Eta2_generalized,
                           group = model, fill = model)) +
