@@ -177,10 +177,6 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   gc()
   
   # save in nested loop across all N x pTrash conditions 
-  #   -> does this fill up wm leading the algorithm to slow down or does it only 
-  #       become slower due to larger number of predictors in later conditions?
-  #       sieht eigentlich nicht danach aus, wenn man Zeiten in log file und wm load betrachtet
-  # iCondRes 
   
   # save separate each N x pTrash condition in rds files  
   #   -> pro: skip fitted condGrid conditions if algorithm does not run till the end... 
