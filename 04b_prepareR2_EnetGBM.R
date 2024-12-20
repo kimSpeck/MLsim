@@ -40,7 +40,7 @@ for (iData in seq_len(length(dataList))) {
 }
 
 ################################################################################
-# (overview) plot train and test performance
+# (overview) plot train and test performance (GBM)
 ################################################################################
 # change list of  matrices to data.frame
 pTest_GBM <- rbindSingleResults(pTest_GBM)
@@ -101,7 +101,7 @@ performanceSub <- tidyr::pivot_longer(performanceSub, c(M_test, overfit),
                alpha = 0.4) +
     ylab("") +
     xlab("pTrash (decreasing) x N (increasing)") +
-    ggtitle("R^2: Training vs. Test performance") +
+    ggtitle("R^2: Training vs. Test performance (GBM)") +
     theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
           panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
           panel.background = element_rect(color = "white", fill = "white"),
@@ -196,3 +196,46 @@ unique(performanceData$model)
 
 # save(performanceData, file = "results/finalResults/dependentMeasures/rSquaredData_stats.rda")
 
+################################################################################
+# (overview) plot train and test performance (GBM + ENET)
+################################################################################
+# plot performance measures for train and test data
+
+(pPerformTrainVStest <- ggplot(performanceData,
+                               aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+                                   group = interaction(R2, model, fit), colour = R2,
+                                   linetype = model, shape = fit)) +
+   geom_point() +
+   geom_line() +
+   scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+   scale_shape_manual(values = c(16, 8)) +
+   # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+   scale_color_manual(values = colValuesR2) +
+   geom_hline(aes(yintercept = 0)) +
+   facet_grid(measures + rel ~ lin_inter, labeller = label_both) +
+   geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
+              alpha = 0.4) +
+   geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
+              alpha = 0.4) +
+   geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
+              alpha = 0.4) +
+   ylab("") +
+   xlab("pTrash (decreasing) x N (increasing)") +
+   ggtitle("R^2: Training vs. Test performance") +
+   theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
+         panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
+         panel.background = element_rect(color = "white", fill = "white"),
+         axis.text.y = element_text(size = 20),
+         # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+         axis.text.x = element_text(size = 15),
+         axis.title.x = element_text(size = 20),
+         axis.title.y = element_text(size = 20),
+         strip.text.x = element_text(size = 15),
+         strip.text.y = element_text(size = 15)))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest_ENTvsGBM.png"),
+#                 plot = pPerformTrainVStest,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
