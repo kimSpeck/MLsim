@@ -29,8 +29,8 @@ for (iData in seq_len(dim(gridFull)[1])) {
   for (iList in names(data)) {
     fileName <- paste0(dataFolder, "/inter", sampleFolder, paste0("/sample_", iList, ".rda"))  
     
-    tmp <- data[[iList]]
-    save(tmp, file = fileName)
+    dataList <- data[[iList]]
+    save(dataList, file = fileName)
   }
   
 }
