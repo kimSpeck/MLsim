@@ -33,28 +33,19 @@ fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   tunedMtry <- model$finalModel$mtry
   tunedSplitrule <- model$finalModel$splitrule
   tunedMinNodeSize <- model$finalModel$min.node.size
+  
+  # R² across all test sets in the CV procedure (for the final hyperparameters)
+  performCVtest <- model$results[rownames(model$results) == rownames(model$bestTune), 
+                                 c("RMSE", "Rsquared", "MAE")]
 
   # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model training
   # performance test for train data
-  # here!!! Warum ist das nicht identisch?! 
   # each observation is predicted using all trees, rather than only out-of-bag trees
   predTrain <- predict(model, Xtrain) 
-  predTrainOOB <- model[["finalModel"]][["predictions"]] # the OOB predictions
-  R2_oob <- 1 - (sum((ytrain-predTrainOOB)^2)/sum((ytrain-mean(ytrain))^2))
-  cor(ytrain, predTrainOOB)**2
-  
-  # “pseudo” R² computed from the out-of-bag (OOB) predictions (not the raw in-sample fit)
-  model$finalModel$r.squared
-  model$results$Rsquared
-  
-  # manual R² computed on the entire training set (“in-sample” measure)
-  rmse <- sqrt(mean((ytrain - predTrain)**2))
-  R2 <- 1 - (sum((ytrain-predTrain)^2)/sum((ytrain-mean(ytrain))^2))
-  mae <- mean(abs(ytrain - predTrain))
-  
   performTrain <- evalPerformance(predTrain, ytrain)
   # performTrain <- matrix(performTrain, ncol = length(performTrain), nrow = 1)
   # colnames(performTrain) <- c("RMSE", "Rsquared", "MAE")
+  
   
   # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model testing
   # test data
@@ -62,17 +53,14 @@ fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   pred <- predict(model, Xtest)  
   performTest <- evalPerformance(pred, ytest)
   
-  rmse <- sqrt(mean((ytest - pred)**2))
-  R2 <- 1 - sum((ytest-pred)^2)/sum((ytest-mean(ytest))^2)
-  mae <- mean(abs(ytest - pred))
-  
   # save dependent variables for each sample (in a list)
   return(list(
-    performTrain = performTrain, # train performance
+    performTrain = performTrain, # train performance (full train sample)
     performTest = performTest, # test performance
+    performCVtest = performCVtest, # within CV test performance
     # oob predictions and R2
-    oobPredictions = model[["finalModel"]][["predictions"]],
-    oobR2 = model$finalModel$r.squared,
+    oobPredictions = model[["finalModel"]][["predictions"]], # the OOB predictions
+    oobR2 = model$finalModel$r.squared, # oob R²
     # tuning parameters (RF)
     tunedMtry = tunedMtry, 
     tunedSplitrule = tunedSplitrule,

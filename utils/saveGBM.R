@@ -1,4 +1,5 @@
 saveGBM <- function(estRes, iCond, setParam, resList){
+  # in general: concatenate outcome from different conditions!
   ## H-Statistic
   if (setParam$fit$explanation & setParam$fit$InterStrength) {
     resList[["interStrength"]] <- do.call(rbind, lapply(seq_len(length(estRes)), function(iSample) {
@@ -10,6 +11,12 @@ saveGBM <- function(estRes, iCond, setParam, resList){
     resList[["interStrength"]] <- NA
   }
   
+  # R² across all test sets in the CV procedure (for the final hyperparameters)
+  performCVtestMat <- do.call(rbind, lapply(estRes, function(X) X[["performCVtest"]])) # each sample
+  colnames(performCVtestMat) <- c("RMSE_CVtest", "Rsq_CVtest", "MAE_CVtest")
+  # aggregated performance measures (M, SD, SE)
+  resList[["performCVtestStats"]] <- cbind(getStats(performCVtestMat, 2, setParam$dgp$nSamples),
+                                         idxCondLabel = iCond)
   
   # tuning parameters (GBM)
   tunedShrinkage <- unname(do.call(c, lapply(estRes, 

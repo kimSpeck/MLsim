@@ -1,4 +1,16 @@
 fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) {
+  # # test it
+  # Xtrain <- data[["1"]][["X_int"]]
+  # Xtest <- data[["test1"]][["X_int"]]
+  # ytrain <- data[[1]][["yMat"]][,"R20.8lin_inter0.5_0.5"]
+  # ytest <- data[["test1"]][["yMat"]][,"R20.8lin_inter0.5_0.5"]
+  # 
+  # # train data
+  # idx_rmInter.train <- stringr::str_detect(colnames(Xtrain), ":")
+  # Xtrain <- Xtrain[,colnames(Xtrain)[!idx_rmInter.train]]
+  # # test data
+  # idx_rmInter.test <- stringr::str_detect(colnames(Xtest), ":")
+  # Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter.test]]
   
   # combine predictors with outcome
   trainData <- cbind(Xtrain, ytrain)
@@ -22,14 +34,14 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) 
   tunedMin_child_weight <- model$finalModel$n.minobsinnode
   tunedNrounds <- model$finalModel$n.trees
   
+  # R² across all test sets in the CV procedure (for the final hyperparameters)
+  performCVtest <- model$results[rownames(model$results) == rownames(model$bestTune), 
+                                 c("RMSE", "Rsquared", "MAE")]
+  
   # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model training
   # performance test for train data
   predTrain <- predict(model, Xtrain)
   performTrain <- evalPerformance(predTrain, ytrain)
-  
-  # here!!!
-  1 - sum((ytrain-predTrain)^2)/sum((ytrain-mean(ytrain))^2)
-  
   # performTrain <- matrix(performTrain, ncol = length(performTrain), nrow = 1)
   # colnames(performTrain) <- c("RMSE", "Rsquared", "MAE")
   
@@ -38,9 +50,6 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) 
   # performance test for test data
   pred <- predict(model, Xtest)  
   performTest <- evalPerformance(pred, ytest)
-  
-  # here!!!
-  1 - sum((ytest-pred)^2)/sum((ytest-mean(ytest))^2)
   
   if (setParam$fit$explanation) {
     # multiple dependent measures from the iml package
@@ -78,8 +87,9 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) 
   
   # save dependent variables for each sample (in a list)
   return(list(
-    performTrain = performTrain, # train performance
-    performTest = performTest, # test performance
+    performTrain = performTrain, # train performance (full train sample)
+    performTest = performTest, # (holdout) test performance
+    performCVtest = performCVtest, # within CV test performance
     # model agnostic measures
     pvi = cbind(pviRank, pviValue), # permutation variable importance
     # h-statistic two-way interactions
