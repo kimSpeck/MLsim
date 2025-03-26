@@ -7,6 +7,11 @@ setParam$dgp$nTrain <- 1000
 setParam$dgp$nTest <- 1
 setParam$dgp$nSamples <- setParam$dgp$nTrain + setParam$dgp$nTest
 
+# this is only a technical argument which determines if data is saved in ...
+#   ... either one big rda file which heavily stresses RAM in parallelisation
+#   ... or in rda files for every individual sample (singleSamples = T) 
+setParam$dgp$singleSamples <- TRUE
+
 setParam$dgp$N <- c(100, 300, 1000) # number of observations
 
 # !if 50% of training sample size is used as test sample, test sample sizes vary across N observation conditions
@@ -132,7 +137,8 @@ setParam$dgp$reliability <- c(0.6, 0.8, 1)
 # always create the full set of conditions including sample seeds and remove conditions 
 #   -> ensure reproducibility
 # iterate through these combinations of data conditions
-setParam$fit$condGrid <- expand.grid(model = c("ENETwo", "ENETw", "GBM"),
+setParam$fit$condGrid <- expand.grid(data = c("inter", "nonlinear"),
+                                     model = c("ENETwo", "ENETw", "GBM"),
                                      N = setParam$dgp$N, 
                                      pTrash = setParam$dgp$pTrash,
                                      reliability = setParam$dgp$reliability)
@@ -141,6 +147,10 @@ setParam$fit$condGrid <- expand.grid(model = c("ENETwo", "ENETw", "GBM"),
 set.seed(7849380)
 seedNum <- sample(1:999999, dim(setParam$fit$condGrid)[1], replace = FALSE) 
 setParam$fit$condGrid$sampleSeed <- seedNum[1:dim(setParam$fit$condGrid)[1]]
+
+##### Hyperparameter Tuning #####
+setParam$fit$nfolds <- 10
+setParam$fit$explanation <- FALSE
 
 ##### ENET #####
 # parameter for gbm or model fitting more general
@@ -153,7 +163,6 @@ setParam$fit$lambda <- 10^seq(-1, 1, length = 100)
 #  con: less control over lambda grid to be searched      
 setParam$fit$warmStart <- TRUE  # thus, lambda parameter are not used
 setParam$fit$alpha <- seq(0, 1, length.out = 20) # alpha with at least 20 steps
-setParam$fit$nfolds <- 10
 
 # the code can handle setParam$fit$lambdaCrit = {"1se", "min"} or every subset
 # "lambda.min" = the lambda at which the smallest MSE is achieved.
@@ -171,23 +180,43 @@ for (iCrit in setParam$fit$lambdaCrit) {
 
 ##### GBM #####
 # hyperparameter tuning grid for gbm 
-setParam$fit$tuneGrid <- expand.grid(
+setParam$fit$tuneGrid_GBM <- expand.grid(
   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
-  n.minobsinnode = c(5, 10),    # end node size (= min_child_weight in xgboost)
-  n.trees = c(50,100,150),      # max number of trees (= nTrees in xgboost)
-  shrinkage = seq(.051, .201, .05)) # shrinkage/learning rate (= eta in xgboost)
+  n.minobsinnode = c(5, 10, 20),    # end node size (= min_child_weight in xgboost)
+  n.trees = seq(20, 1000, 30),      # max number of trees (= nTrees in xgboost)
+  shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
 
 # number of samples observations to calculate partial dependencies and h-statistic based on pds
 setParam$fit$nInterStrength <- 50
-setParam$fit$InterStrength <- TRUE
-
+setParam$fit$InterStrength <- FALSE
+if (setParam$fit$InterStrength & !setParam$fit$explanation) {
+  warning("Are you sure you want to calculate interaction strength of the GBM but skip other explanation metrics?")
+}
 # number of threads in xgb.cv (implicit parallelization)
 setParam$fit$nThread <- 1
 
+##### Random Forest #####
+setParam$fit$tuneGrid_RF <- expand.grid(
+  mtry = c(2, 6, 10, 14), # random predictors @ each node
+  splitrule = c("variance", "extratrees"), # splitting criterion
+  min.node.size = c(5, 10, 20)) # min observations in end node
+
+setParam$fit$numTreesRF <- 1000
+
+
+
+
+
 # number of list elements to save as outcome measures
+#   ... for every model GBM, ENET, RF
 setParam$fit$out <- 4 # performTrainStats, performTestStats, performPerSample, pvi
 setParam$fit$outLabels <- c("performTrainStats", "performTestStats", "performPerSample", "pvi")
+#   ... specifically for GBM 
 setParam$fit$outGBM <- 2 # interStrength, selectionPerSample
 setParam$fit$gbmLabels <- c("interStrength", "selectionPerSample")
+#   ... specifically for ENET 
 setParam$fit$outENET <- 4 # estBeta, estBetaFull, varSelection, selectionPerSample 
 setParam$fit$enetLabels <- c("estBeta", "estBetaFull", "varSelection", "selectionPerSample")
+#   ... specifically for RF
+setParam$fit$outRF <- 3 
+setParam$fit$rfLabels <- c("oobPredictions", "oobR2", "selectionPerSample")
