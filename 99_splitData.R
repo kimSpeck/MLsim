@@ -20,14 +20,14 @@ for (iData in seq_len(dim(gridFull)[1])) {
   
   # create Folder for single sample files of respective simulated condition (N x pTrash x reliability)
   sampleFolder <- paste0("/simDataN", N, "_pTrash", pTrash, "_rel", reliability)
-  createFolder(paste0(dataFolder, sampleFolder))  
+  createFolder(paste0(dataFolder, "/inter", sampleFolder))  
   
   # load data for respective simulated condition (N x pTrash x reliability)
-  load(paste0(dataFolder, sampleFolder, ".rda"))
+  load(paste0(dataFolder, "/inter", sampleFolder, ".rda"))
   
   # split list of data in single sample files 
   for (iList in names(data)) {
-    fileName <- paste0(dataFolder, sampleFolder, paste0("/sample_", iList, ".rda"))  
+    fileName <- paste0(dataFolder, "/inter", sampleFolder, paste0("/sample_", iList, ".rda"))  
     
     tmp <- data[[iList]]
     save(tmp, file = fileName)
