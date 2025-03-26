@@ -214,10 +214,10 @@ setParam$fit$out <- 4 # performTrainStats, performTestStats, performPerSample, p
 setParam$fit$outLabels <- c("performTrainStats", "performTestStats", "performPerSample", "pvi")
 #   ... specifically for GBM 
 setParam$fit$outGBM <- 3 # interStrength, selectionPerSample
-setParam$fit$gbmLabels <- c("performCVtest", "interStrength", "selectionPerSample")
+setParam$fit$gbmLabels <- c("performCVtestStats", "interStrength", "selectionPerSample")
 #   ... specifically for ENET 
 setParam$fit$outENET <- 4 # estBeta, estBetaFull, varSelection, selectionPerSample 
 setParam$fit$enetLabels <- c("estBeta", "estBetaFull", "varSelection", "selectionPerSample")
 #   ... specifically for RF
 setParam$fit$outRF <- 4 
-setParam$fit$rfLabels <- c("performCVtest", "oobPredictions", "oobR2", "selectionPerSample")
+setParam$fit$rfLabels <- c("performCVtestStats", "oobPredictions", "oobR2", "selectionPerSample")
