@@ -1,6 +1,6 @@
 saveGBM <- function(estRes, iCond, setParam, resList){
   ## H-Statistic
-  if (setParam$fit$InterStrength) {
+  if (setParam$fit$explanation & setParam$fit$InterStrength) {
     resList[["interStrength"]] <- do.call(rbind, lapply(seq_len(length(estRes)), function(iSample) {
       cbind(idxCondLabel = rep(iCond, dim(estRes[[iSample]][["interStrength"]])[1]),
             sample = iSample,

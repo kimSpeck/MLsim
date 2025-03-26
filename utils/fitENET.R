@@ -1,4 +1,17 @@
-fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
+fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) {
+  # # test it
+  # Xtrain <- data[["1"]][["X_int"]]
+  # Xtest <- data[["test1"]][["X_int"]]
+  # ytrain <- data[[1]][["yMat"]][,"R20.8lin_inter0.5_0.5"]
+  # ytest <- data[["test1"]][["yMat"]][,"R20.8lin_inter0.5_0.5"]
+  # 
+  # # train data
+  # idx_rmInter.train <- stringr::str_detect(colnames(Xtrain), ":")
+  # Xtrain <- Xtrain[,colnames(Xtrain)[!idx_rmInter.train]]
+  # # test data
+  # idx_rmInter.test <- stringr::str_detect(colnames(Xtest), ":")
+  # Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter.test]]
+  
   # cross-validation on full sample ("training")
   #     ... alpha (elastic net) & lambda-grid (overall penalty strength) for fitting Enet
   
@@ -81,11 +94,11 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
       tunedLambda = tuneParam[idxCrit,][idxOptim, "lambda"])
   })
   
+  # ridge: alpha = 0; lasso: alpha = 1
+  # here!!! avoid refitting
   fit <- glmnet(x = Xtrain,
                 y = ytrain, 
                 alpha = tunedParams["tunedAlpha", "1se"],
-                # alpha = 0, # test ridge
-                # alpha = 1, # test lasso
                 lambda = tunedParams["tunedLambda", "1se"],
                 family = "gaussian", 
                 standardize = TRUE)
@@ -102,16 +115,22 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   pred <- predict(fit, Xtest)  
   performTest <- evalPerformance(pred, ytest)
   
-  # permutation variable importance
-  predictor.enet <- Predictor$new(
-    model = fit, 
-    data = data.frame(Xtrain), 
-    y = ytrain, 
-    predict.fun = predEnet)
-  
-  imp.enet <- FeatureImp$new(predictor.enet, loss = "mse")
-  pviRank <- imp.enet$results$feature
-  pviValue <- imp.enet$results$importance
+  if (setParam$fit$explanation) {
+    # permutation variable importance
+    predictor.enet <- Predictor$new(
+      model = fit, 
+      data = data.frame(Xtrain), 
+      y = ytrain, 
+      predict.fun = predEnet)
+    
+    imp.enet <- FeatureImp$new(predictor.enet, loss = "mse")
+    pviRank <- imp.enet$results$feature
+    pviValue <- imp.enet$results$importance
+    
+  } else {
+    pviRank <- NA
+    pviValue <- NA
+  }
   
   return(list(estB = estBeta, 
               selectedVars = selectedVars,

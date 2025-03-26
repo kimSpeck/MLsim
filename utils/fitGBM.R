@@ -1,4 +1,4 @@
-fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
+fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) {
   
   # combine predictors with outcome
   trainData <- cbind(Xtrain, ytrain)
@@ -12,7 +12,7 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
                         trControl = trainControl(method="cv", 
                                                  number=setParam$fit$nfolds,
                                                  selectionFunction = "oneSE"), 
-                        tuneGrid = setParam$fit$tuneGrid, #setting the tuning grid
+                        tuneGrid = setParam$fit$tuneGrid_GBM, #setting the tuning grid
                         verbose = FALSE)
   
   # save tuning parameters! (results from cross validation)
@@ -26,6 +26,10 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   # performance test for train data
   predTrain <- predict(model, Xtrain)
   performTrain <- evalPerformance(predTrain, ytrain)
+  
+  # here!!!
+  1 - sum((ytrain-predTrain)^2)/sum((ytrain-mean(ytrain))^2)
+  
   # performTrain <- matrix(performTrain, ncol = length(performTrain), nrow = 1)
   # colnames(performTrain) <- c("RMSE", "Rsquared", "MAE")
   
@@ -35,19 +39,27 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   pred <- predict(model, Xtest)  
   performTest <- evalPerformance(pred, ytest)
   
-  # multiple dependent measures from the iml package
-  predictor.gbm <- Predictor$new(
-    model = model, 
-    data = data.frame(Xtrain), 
-    y = ytrain)
+  # here!!!
+  1 - sum((ytest-pred)^2)/sum((ytest-mean(ytest))^2)
   
-  # permutation variable importance
-  #       increase n.repetitions? (How often should the shuffling of the feature 
-  #       be repeated? The higher the number of repetitions the more stable 
-  #       and accurate the results become.)
-  imp.gbm <- FeatureImp$new(predictor.gbm, loss = "mse")
-  pviRank <- imp.gbm$results$feature
-  pviValue <- imp.gbm$results$importance
+  if (setParam$fit$explanation) {
+    # multiple dependent measures from the iml package
+    predictor.gbm <- Predictor$new(
+      model = model, 
+      data = data.frame(Xtrain), 
+      y = ytrain)
+    
+    # permutation variable importance
+    #       increase n.repetitions? (How often should the shuffling of the feature 
+    #       be repeated? The higher the number of repetitions the more stable 
+    #       and accurate the results become.)
+    imp.gbm <- FeatureImp$new(predictor.gbm, loss = "mse")
+    pviRank <- imp.gbm$results$feature
+    pviValue <- imp.gbm$results$importance
+  } else {
+    pviRank <- NA
+    pviValue <- NA
+  }
   
   # evaluate interaction strength with H-statistic
   if (setParam$fit$InterStrength) {
