@@ -138,7 +138,7 @@ setParam$dgp$reliability <- c(0.6, 0.8, 1)
 #   -> ensure reproducibility
 # iterate through these combinations of data conditions
 setParam$fit$condGrid <- expand.grid(data = c("inter", "nonlinear"),
-                                     model = c("ENETwo", "ENETw", "GBM"),
+                                     model = c("ENETwo", "ENETw", "GBM", "RF"),
                                      N = setParam$dgp$N, 
                                      pTrash = setParam$dgp$pTrash,
                                      reliability = setParam$dgp$reliability)
@@ -147,6 +147,7 @@ setParam$fit$condGrid <- expand.grid(data = c("inter", "nonlinear"),
 set.seed(7849380)
 seedNum <- sample(1:999999, dim(setParam$fit$condGrid)[1], replace = FALSE) 
 setParam$fit$condGrid$sampleSeed <- seedNum[1:dim(setParam$fit$condGrid)[1]]
+
 
 ##### Hyperparameter Tuning #####
 setParam$fit$nfolds <- 10
