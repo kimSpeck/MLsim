@@ -3,6 +3,7 @@ library(parallel) # fit models in parallel across samples
 library(glmnet)   # ENET
 library(caret)    # GBM
 library(gbm)      # GBM
+library(ranger)   # random forests
 library(iml)      # permutation variable importance, h-statistic
 
 # load parameters & custom functions 
@@ -12,16 +13,21 @@ source("utils/simTools.R")
 # functions to fit different models
 source("utils/fitENET.R")
 source("utils/fitGBM.R")
+source("utils/fitRF.R")
 
 # functions to calculate and save outcome measures from models
 source("utils/saveENET.R")
 source("utils/saveGBM.R")
+source("utils/saveRF.R")
 
 # build folder structure
 dataFolder <- "data"
 
 resFolder <- "results"
 createFolder(resFolder)
+
+createFolder(paste0(resFolder, "/inter"))
+createFolder(paste0(resFolder, "/nonlinear"))
 
 logFolder <- "log"
 createFolder(logFolder)
@@ -33,7 +39,9 @@ nCoresSampling <- 10
 
 # get condGrid from parameter set 
 condGrid <- setParam$fit$condGrid
+
 # remove lines in condGrid for which there already are results
+#   !!! this only works if the big rda files including all samples of a specific condition exist !!!
 # check which files are already in the results folder
 resFileList <- list.files(resFolder)
 resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", resFileList)
@@ -46,15 +54,20 @@ allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", ""
 fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
 condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
 
+# start fitting the data
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
-  fileName <- paste0("simDataN", condGrid[iSim, "N"],
+  # file name for all samples in one big rda file or folder name for single sample rda files
+  fileName <- paste0(condGrid[iSim, "data"], 
+                     "/simDataN", condGrid[iSim, "N"],
                      "_pTrash", condGrid[iSim, "pTrash"],
-                     "_rel", condGrid[iSim, "reliability"], ".rda")
+                     "_rel", condGrid[iSim, "reliability"])
   
-  load(paste0(dataFolder, "/", fileName))
+  if (!setParam$dgp$singleSamples) { # load big rda file data if technical argument applies
+    load(paste0(dataFolder, "/", fileName, ".rda"))
+  }
   
-  # fit regularized regression
+  # fit data (ENET, GBM, RF depending on fitting function; see below)
   tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { # R2 x lin_inter combinations
   
     # Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
@@ -67,7 +80,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     s <- .Random.seed
     clusterSetRNGStream(cl = cl, iseed = s)
       
-    tStart <- Sys.time()
+    tStart <- Sys.time() # time monitoring
+    # iterate over different training samples in parallel
     estRes <- parLapply(cl, seq_len(setParam$dgp$nTrain), function(iSample) {
       
       # monitor progress of the simulation study (irrespective of model)
@@ -79,20 +93,42 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
                      "; first Sample at ", format(Sys.time(), "%d%m%y_%H%M%S")))  
       }
       
-      # irrespective of model
-      # get predictor variable matrix (identical across all R2 x lin_inter conditions)
-      Xtrain <- as.matrix(data[[iSample]][["X_int"]]) 
-      # get criterion/target variable (column in yMat depending on R2 x lin_inter condition)
-      ytrain <- data[[iSample]][["yMat"]][,iCond]
+      # load data for single sample rda files or extract relevant data from big rda file 
+      if (setParam$dgp$singleSamples) { # data saved in single files
+        # load single sample
+        load(paste0(dataFolder, "/", fileName, "/sample_", iSample, ".rda"))
+        
+        # irrespective of model
+        # get predictor variable matrix (identical across all R2 x lin_inter conditions)
+        Xtrain <- as.matrix(dataList[["X_int"]]) 
+        # get criterion/target variable (column in yMat depending on R2 x lin_inter condition)
+        ytrain <- dataList[["yMat"]][,iCond]
+        
+        # load test data
+        # by doing this in advane condGrid and full data not an additional argument for model functions
+        # ... but, only if number of test samples is 1!
+        # setParam$dgp$nTest == 1
+        load(paste0(dataFolder, "/", fileName, "/sample_test1.rda"))
+        
+        Xtest <- as.matrix(dataList[["X_int"]]) 
+        ytest <- dataList[["yMat"]][,iCond] 
+        
+      } else { # data in one big rda file
+        # irrespective of model
+        # get predictor variable matrix (identical across all R2 x lin_inter conditions)
+        Xtrain <- as.matrix(data[[iSample]][["X_int"]]) 
+        # get criterion/target variable (column in yMat depending on R2 x lin_inter condition)
+        ytrain <- data[[iSample]][["yMat"]][,iCond]
+        
+        # extract test data 
+        # by doing this in advane condGrid and full data not an additional argument for model functions
+        # ... but, only if number of test samples is 1!
+        # setParam$dgp$nTest == 1
+        Xtest <- as.matrix(data[["test1"]][["X_int"]]) 
+        ytest <- data[["test1"]][["yMat"]][,iCond] 
+      }
       
-      # extract test data 
-      # by doing this in advane condGrid and full data not an additional argument for model functions
-      # ... but, only if number of test samples is 1!
-      # setParam$dgp$nTest == 1
-      Xtest <- as.matrix(data[["test1"]][["X_int"]]) 
-      ytest <- data[["test1"]][["yMat"]][,iCond] 
-      
-      # if GBM or ENETwo remove interactions from predictor matrix data (train & test) 
+      # if GBM, ENETwo or RF remove interactions from predictor matrix data (train & test) 
       if (condGrid[iSim, "model"] != "ENETw") {
         # train data
         idx_rmInter.train <- stringr::str_detect(colnames(Xtrain), ":")
@@ -102,15 +138,17 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter.test]]
       }
       
-      # depending on condGrid[iSim, "model"] run ENET or GBM code
-      if (condGrid[iSim, "model"] != "GBM") {
-        fitENET(Xtrain, ytrain, Xtest, ytest, setParam)
-      } else if (condGrid[iSim, "model"] == "GBM") {
-        fitGBM(Xtrain, ytrain, Xtest, ytest, setParam)
+      # depending on condGrid[iSim, "model"] run GBM, RF or ENET code
+      if (condGrid[iSim, "model"] == "GBM") {
+        fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation)
+      } else if (condGrid[iSim, "model"] == "RF") {
+        fitRF(Xtrain, ytrain, Xtest, ytest, setParam)
+      } else if (condGrid[iSim, "model"] != "GBM" & condGrid[iSim, "model"] != "RF") {
+        fitENET(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation)
       }
     
     }) # end of parallel fitting for samples
-    tEnd <- Sys.time()
+    tEnd <- Sys.time() # time monitoring
     difftime(tEnd, tStart)
     
     # close cluster to return resources (memory) back to OS
@@ -121,16 +159,22 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     #   - training and test performance (RMSE, Rsquared, MAE)
     #   - permutation variable importance (pvi)
     
-    # generate list for all results; write results in list immediatly after generating! 
-    if (condGrid[iSim, "model"] != "GBM") {
-      resList <- vector(mode = "list", 
-                        length = setParam$fit$out + setParam$fit$outENET)
-      names(resList) <- c(setParam$fit$outLabels, setParam$fit$enetLabels)
-    } else if (condGrid[iSim, "model"] == "GBM") {
+    # generate list for all results; write results in list immediately after generating! 
+    if (condGrid[iSim, "model"] == "GBM") {
       resList <- vector(mode = "list", 
                         length = setParam$fit$out + setParam$fit$outGBM)
       names(resList) <- c(setParam$fit$outLabels, setParam$fit$gbmLabels)
-    }
+    } else if (condGrid[iSim, "model"] == "RF") {
+      # here !!!
+      # how do results for RF look like?
+      resList <- vector(mode = "list", 
+                        length = setParam$fit$out + setParam$fit$outRF)
+      names(resList) <- c(setParam$fit$outLabels, setParam$fit$rfLabels)
+    } else if (condGrid[iSim, "model"] != "GBM" & condGrid[iSim, "model"] != "RF") {
+      resList <- vector(mode = "list", 
+                        length = setParam$fit$out + setParam$fit$outENET)
+      names(resList) <- c(setParam$fit$outLabels, setParam$fit$enetLabels)
+    } 
     
     # training performance (RMSE, Rsquared, MAE)
     performTrainMat <- do.call(rbind, lapply(estRes, function(X) X[["performTrain"]])) # each sample
@@ -153,16 +197,21 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     resList[["performPerSample"]] <- cbind(performTrainMat, performTestMat, idxCondLabel = iCond)
     
     # PVI - permutation variable importance from every sample
-    resList[["pvi"]] <- do.call(rbind, lapply(seq_len(length(estRes)), function(iSample) {
-      cbind(idxCondLabel = rep(iCond, dim(estRes[[iSample]][["pvi"]])[1]),
-            sample = iSample, 
-            estRes[[iSample]][["pvi"]])
-    }))
-    
-    resList <- if (condGrid[iSim, "model"] != "GBM") {
-      saveENET(estRes, iCond, setParam, resList)
-    } else if (condGrid[iSim, "model"] == "GBM") {
+    if (setParam$fit$explanation) {
+      resList[["pvi"]] <- do.call(rbind, lapply(seq_len(length(estRes)), function(iSample) {
+        cbind(idxCondLabel = rep(iCond, dim(estRes[[iSample]][["pvi"]])[1]),
+              sample = iSample, 
+              estRes[[iSample]][["pvi"]])
+      }))
+    } else {resList[["pvi"]] <- NA} 
+
+    # add model specific measures to resList and return full list
+    resList <- if (condGrid[iSim, "model"] == "GBM") {
       saveGBM(estRes, iCond, setParam, resList)
+    } else if (condGrid[iSim, "model"] == "GBM") {
+      saveRF(estRes, iCond, setParam, resList)
+    } else if (condGrid[iSim, "model"] != "GBM" & condGrid[iSim, "model"] != "RF") {
+      saveENET(estRes, iCond, setParam, resList)
     }
     
     resList
@@ -172,16 +221,16 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   names(tmp_estRes) <- setParam$dgp$condLabels
   iCondRes <- do.call(Map, c(f = rbind, tmp_estRes)) # das?
   
-  # clean up working memory
-  rm(data)
-  gc()
+  # # clean up working memory
+  # rm(data)
+  # gc()
   
   # save in nested loop across all N x pTrash conditions 
   
   # save separate each N x pTrash condition in rds files  
   #   -> pro: skip fitted condGrid conditions if algorithm does not run till the end... 
   #   -> con: writing data to rds file is slow and data needs to be united later on
-  resFileName <- paste0(resFolder, "/", 
+  resFileName <- paste0(resFolder, "/", condGrid[iSim, "data"], "/",
                         "resultsModel", condGrid[iSim, "model"], 
                         "_N", condGrid[iSim, "N"], 
                         "_pTrash", condGrid[iSim, "pTrash"], 
