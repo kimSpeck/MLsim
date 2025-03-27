@@ -1,9 +1,29 @@
 fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   # # test it
-  # Xtrain <- data[["1"]][["X_int"]]
-  # Xtest <- data[["test1"]][["X_int"]]
-  # ytrain <- data[[1]][["yMat"]][,"R20.8lin_inter0.5_0.5"]
-  # ytest <- data[["test1"]][["yMat"]][,"R20.8lin_inter0.5_0.5"]
+  # iSim =  7 # inter, RF, 100, 10, 0.6, 451935
+  # iSample = sample(size = 1, 1:1000)
+  # iCond = sample(size = 1, 1:9)
+  # 
+  # fileName <- paste0(condGrid[iSim, "data"], 
+  #                    "/simDataN", condGrid[iSim, "N"],
+  #                    "_pTrash", condGrid[iSim, "pTrash"],
+  #                    "_rel", condGrid[iSim, "reliability"])
+  # 
+  # load(paste0(dataFolder, "/", fileName, "/sample_", iSample, ".rda"))
+  # 
+  # # get predictor variable matrix (identical across all R2 x lin_inter conditions)
+  # Xtrain <- as.matrix(dataList[["X_int"]]) 
+  # # get criterion/target variable (column in yMat depending on R2 x lin_inter condition)
+  # ytrain <- dataList[["yMat"]][,iCond]
+  # 
+  # # load test data
+  # # by doing this in advane condGrid and full data not an additional argument for model functions
+  # # ... but, only if number of test samples is 1!
+  # # setParam$dgp$nTest == 1
+  # load(paste0(dataFolder, "/", fileName, "/sample_test1.rda"))
+  # 
+  # Xtest <- as.matrix(dataList[["X_int"]]) 
+  # ytest <- dataList[["yMat"]][,iCond] 
   # 
   # # train data
   # idx_rmInter.train <- stringr::str_detect(colnames(Xtrain), ":")
