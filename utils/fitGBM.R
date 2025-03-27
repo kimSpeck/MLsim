@@ -27,13 +27,6 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) 
                         tuneGrid = setParam$fit$tuneGrid_GBM, #setting the tuning grid
                         verbose = FALSE)
   
-  # save tuning parameters! (results from cross validation)
-  # cross-validated tuning parameters
-  tunedShrinkage <- model$finalModel$shrinkage
-  tunedMax_depth <- model$finalModel$interaction.depth
-  tunedMin_child_weight <- model$finalModel$n.minobsinnode
-  tunedNrounds <- model$finalModel$n.trees
-  
   # R² across all test sets in the CV procedure (for the final hyperparameters)
   performCVtest <- model$results[rownames(model$results) == rownames(model$bestTune), 
                                  c("RMSE", "Rsquared", "MAE")]
@@ -94,9 +87,9 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) 
     pvi = cbind(pviRank, pviValue), # permutation variable importance
     # h-statistic two-way interactions
     interStrength = if (setParam$fit$InterStrength) interStrength else NA,
-    # tuning parameters (GBM)
-    tunedShrinkage = tunedShrinkage,
-    tunedMax_depth = tunedMax_depth,
-    tunedMin_child_weight = tunedMin_child_weight,
-    tunedNrounds = tunedNrounds))
+    # cross-validated tuning parameters (GBM)
+    tunedShrinkage = model$finalModel$shrinkage,
+    tunedMax_depth = model$finalModel$interaction.depth,
+    tunedMin_child_weight =  model$finalModel$n.minobsinnode,
+    tunedNrounds = model$finalModel$n.trees))
 }
