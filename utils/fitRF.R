@@ -47,13 +47,7 @@ fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
                                                  selectionFunction = "oneSE"),
                         tuneGrid = setParam$fit$tuneGrid_RF, #setting the tuning grid
                         verbose = FALSE)
-  
-  # save tuning parameters! (results from cross validation)
-  # cross-validated tuning parameters
-  tunedMtry <- model$finalModel$mtry
-  tunedSplitrule <- model$finalModel$splitrule
-  tunedMinNodeSize <- model$finalModel$min.node.size
-  
+
   # R² across all test sets in the CV procedure (for the final hyperparameters)
   performCVtest <- model$results[rownames(model$results) == rownames(model$bestTune), 
                                  c("RMSE", "Rsquared", "MAE")]
@@ -65,7 +59,6 @@ fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
   performTrain <- evalPerformance(predTrain, ytrain)
   # performTrain <- matrix(performTrain, ncol = length(performTrain), nrow = 1)
   # colnames(performTrain) <- c("RMSE", "Rsquared", "MAE")
-  
   
   # get Root Mean Squared Error (RMSE), explained variance (R2), and Mean Absolute Error (MAE) for model testing
   # test data
@@ -81,8 +74,8 @@ fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
     # oob predictions and R2
     oobPredictions = model[["finalModel"]][["predictions"]], # the OOB predictions
     oobR2 = model$finalModel$r.squared, # oob R²
-    # tuning parameters (RF)
-    tunedMtry = tunedMtry, 
-    tunedSplitrule = tunedSplitrule,
-    tunedMinNodeSize = tunedMinNodeSize))
+    # cross-validated tuning parameters
+    tunedMtry = model$finalModel$mtry, 
+    tunedSplitrule = model$finalModel$splitrule,
+    tunedMinNodeSize = model$finalModel$min.node.size))
 }
