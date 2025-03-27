@@ -230,7 +230,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     # add model specific measures to resList and return full list
     resList <- if (condGrid[iSim, "model"] == "GBM") {
       saveGBM(estRes, iCond, setParam, resList)
-    } else if (condGrid[iSim, "model"] == "GBM") {
+    } else if (condGrid[iSim, "model"] == "RF") {
       saveRF(estRes, iCond, setParam, resList)
     } else if (condGrid[iSim, "model"] != "GBM" & condGrid[iSim, "model"] != "RF") {
       saveENET(estRes, iCond, setParam, resList)
