@@ -34,12 +34,12 @@ createFolder(logFolder)
 
 timeStamp <- format(Sys.time(), "%d%m%y_%H%M%S")
 # nCoresSampling <- detectCores() - 1 
-nCoresSampling <- 10
-# 10 cores seem to be max for ENET memory usage wise
+nCoresSampling <- 30
 
 # get condGrid from parameter set 
 condGrid <- setParam$fit$condGrid
 
+# here!
 # remove lines in condGrid for which there already are results
 #   !!! this only works if the big rda files including all samples of a specific condition exist !!!
 # check which files are already in the results folder
@@ -54,8 +54,38 @@ allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", ""
 fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
 condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
 
+# # choose one single condition to test code/timing
+# condGrid <- condGrid[condGrid$data == "inter" &
+#                        condGrid$model == "GBM" &
+#                        condGrid$N == 100 &
+#                        condGrid$pTrash == 10 &
+#                        condGrid$reliability == 0.6,]
+
+# setParam$fit$tuneGrid_GBM <- expand.grid(
+#   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
+#   n.minobsinnode = c(5, 10, 20),    # end node size (= min_child_weight in xgboost)
+#   n.trees = seq(20, 500, 30),      # max number of trees (= nTrees in xgboost)
+#   shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
+
+# # old tuning grid
+# setParam$fit$tuneGrid_GBM <- expand.grid(
+#   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
+#   n.minobsinnode = c(5, 10),    # end node size (= min_child_weight in xgboost)
+#   n.trees = c(50,100,150),      # max number of trees (= nTrees in xgboost)
+#   shrinkage = seq(.051, .201, .05))
 # start fitting the data
+
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
+  
+  # Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
+  cl <- makeCluster(nCoresSampling, type = "FORK",
+                    outfile = paste0(logFolder, "/", "fitDataStatus",
+                                     timeStamp, ".txt"))
+  
+  # set seed that works for parallel processing
+  set.seed(condGrid[iSim, "sampleSeed"])
+  s <- .Random.seed
+  clusterSetRNGStream(cl = cl, iseed = s)
   
   # file name for all samples in one big rda file or folder name for single sample rda files
   fileName <- paste0(condGrid[iSim, "data"], 
@@ -67,18 +97,13 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     load(paste0(dataFolder, "/", fileName, ".rda"))
   }
   
+  if (condGrid[iSim, "model"] == "RF") {
+    nPredictors <- condGrid[iSim, "pTrash"] + setParam$dgp$p
+    setParam$fit$tuningGrid_RF <- setParam$fit$setTuningGrid_RF(nPredictors)
+  }
+  
   # fit data (ENET, GBM, RF depending on fitting function; see below)
   tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { # R2 x lin_inter combinations
-  
-    # Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
-    cl <- makeCluster(nCoresSampling, type = "FORK",
-                      outfile = paste0(logFolder, "/", "fitDataStatus",
-                                       timeStamp, ".txt"))
-    
-    # set seed that works for parallel processing
-    set.seed(condGrid[iSim, "sampleSeed"])
-    s <- .Random.seed
-    clusterSetRNGStream(cl = cl, iseed = s)
       
     tStart <- Sys.time() # time monitoring
     # iterate over different training samples in parallel
@@ -151,9 +176,6 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     tEnd <- Sys.time() # time monitoring
     difftime(tEnd, tStart)
     
-    # close cluster to return resources (memory) back to OS
-    stopCluster(cl)
-    
     ##### save measures #####
     # model agnostic measures
     #   - training and test performance (RMSE, Rsquared, MAE)
@@ -216,6 +238,9 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
     
     resList
   }) # nested lapplys take ~ 15 mins
+  
+  # close cluster to return resources (memory) back to OS
+  stopCluster(cl)
   
   # manage data 
   names(tmp_estRes) <- setParam$dgp$condLabels
