@@ -134,8 +134,8 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE)
   
   return(list(estB = estBeta, 
               selectedVars = selectedVars,
-              performTrain = performTrain,
-              performTest = performTest, 
+              performTrain = performTrain,  # train performance (full train sample)
+              performTest = performTest, # (holdout) test performance
               # model agnostic measures
               pvi = cbind(pviRank, pviValue), # permutation variable importance
               tunedAlpha = tunedParams["tunedAlpha", "1se"], 
