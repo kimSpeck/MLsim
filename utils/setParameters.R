@@ -209,7 +209,8 @@ setParam$fit$nThread <- 1
 #   the number of predictors depends on pTrash in the simulated condition
 setParam$fit$setTuningGrid_RF <- function(nPred) {
   expand.grid(
-    mtry = c(2, sqrt(nPred), nPred/3, nPred/2, nPred), # random predictors @ each node
+    # mtry = c(2, sqrt(nPred), nPred/3, nPred/2, nPred), # random predictors @ each node
+    mtry = c(2, sqrt(nPred), nPred/3, nPred/2), # random predictors @ each node
     splitrule = c("variance", "extratrees"), # splitting criterion
     min.node.size = c(5, 10, 20)) # min observations in end node
 }
