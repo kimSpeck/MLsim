@@ -187,6 +187,13 @@ setParam$fit$tuneGrid_GBM <- expand.grid(
   n.trees = seq(20, 1000, 30),      # max number of trees (= nTrees in xgboost)
   shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
 
+# # old tuning grid
+# setParam$fit$tuneGrid_GBM <- expand.grid(
+#   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
+#   n.minobsinnode = c(5, 10),    # end node size (= min_child_weight in xgboost)
+#   n.trees = c(50,100,150),      # max number of trees (= nTrees in xgboost)
+#   shrinkage = seq(.051, .201, .05))
+
 # number of samples observations to calculate partial dependencies and h-statistic based on pds
 setParam$fit$nInterStrength <- 50
 setParam$fit$InterStrength <- FALSE
@@ -197,10 +204,19 @@ if (setParam$fit$InterStrength & !setParam$fit$explanation) {
 setParam$fit$nThread <- 1
 
 ##### Random Forest #####
-setParam$fit$tuneGrid_RF <- expand.grid(
-  mtry = c(2, 6, 10, 14), # random predictors @ each node
-  splitrule = c("variance", "extratrees"), # splitting criterion
-  min.node.size = c(5, 10, 20)) # min observations in end node
+# tuning grid for random forests is a function
+#   the tuning grid needs to change depending on the numbers of predictors 
+#   the number of predictors depends on pTrash in the simulated condition
+setParam$fit$setTuningGrid_RF <- function(nPred) {
+  expand.grid(
+    mtry = c(sqrt(nPred), nPred/3), # random predictors @ each node
+    splitrule = c("variance", "extratrees"), # splitting criterion
+    min.node.size = c(5, 10, 20)) # min observations in end node
+}
+# setParam$fit$tuneGrid_RF <- expand.grid(
+#   mtry = c(2, 6, 10, 14), # random predictors @ each node
+#   splitrule = c("variance", "extratrees"), # splitting criterion
+#   min.node.size = c(5, 10, 20)) # min observations in end node
 
 setParam$fit$numTreesRF <- 1000
 
