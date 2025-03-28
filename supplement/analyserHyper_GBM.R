@@ -1,10 +1,10 @@
 # load parameters and helper functions 
-source("setParameters.R")
-source("analysisTools.R")
+source("utils/setParameters.R")
+source("utils/analysisTools.R")
 
-# ANOVA
-library(afex) # für aov_ez()
-library(effectsize) # für Berechnung von Effektstärken; generalisiertes eta²
+# # ANOVA
+# library(afex) # für aov_ez()
+# library(effectsize) # für Berechnung von Effektstärken; generalisiertes eta²
 
 # plot results
 library(ggplot2)
@@ -23,10 +23,12 @@ if (!file.exists(plotFolder)){
 }
 
 # load results files
-resFolder <- "results/finalResults/dependentMeasures" 
+# resFolder <- "results/finalResults/dependentMeasures" 
+resFolder <- "results/dependentMeasures" 
 
 listDir <- dir(resFolder)
-hyperGBM <- loadRData(paste0(resFolder, "/hyperParametersSample_GBM.rda"))
+shrink <- 0.001  # or 0.011
+hyperGBM <- loadRData(paste0(resFolder, "/hyperParametersSample_GBM_mTrees500_shrink", shrink, ".rda"))
 
 # pull data from nested list of all results (fullData)
 hyperGBM <- rbindSingleResults(hyperGBM)
@@ -34,6 +36,13 @@ hyperGBM <- rbindSingleResults(hyperGBM)
 colnames(hyperGBM)
 
 hyperGBM <- idx2infoNew(hyperGBM)
+
+# here! maybe only due to nTrain = 100 in benchmarking
+if (shrink == 0.011) {
+  hyperGBM$sample <- rep(1:100, times = 6*9) 
+} else if (shrink == 0.001) {
+  hyperGBM$sample <- rep(1:100, times = 5*9) 
+}
 
 # change variables to factors
 col2fac <- c("N", "pTrash" , "R2" , "rel" , "lin_inter", "model", "sample")
@@ -142,12 +151,13 @@ plotHyper <- tidyr::pivot_wider(plotHyper,
 plotHyper <- tidyr::separate(plotHyper, "lin_inter", 
                              into = c("lin", "inter"), sep = "_", remove = F) 
 
-# N and R2 (+ their interaction) influence the max tree depth and the shrinkage
-(pTreeDepth_rel08 <- ggplot(plotHyper[plotHyper$DV == "maxDepth" &
-                                                       plotHyper$rel == 0.8,],
-                                           aes(x = N, y = M, 
-                                               group = interaction(lin_inter, pTrash), colour = lin_inter,
-                                               linetype = lin_inter, shape = pTrash)) +
+plotReliability <- 0.6
+
+plotHyperMeans <- function(data, measureLabel) {
+  ggplot(data,
+         aes(x = N, y = M, 
+             group = interaction(lin_inter, pTrash), colour = lin_inter,
+             linetype = lin_inter, shape = pTrash)) +
     geom_point(size = 3) +
     geom_line(linewidth = 0.75) +
     scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
@@ -158,7 +168,7 @@ plotHyper <- tidyr::separate(plotHyper, "lin_inter",
                   background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
                                       element_rect(fill = alpha(colValuesR2[2], 0.4)),
                                       element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
-    ylab("max tree depth") +
+    ylab(measureLabel) +
     xlab("N") +
     theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
           panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
@@ -173,32 +183,77 @@ plotHyper <- tidyr::separate(plotHyper, "lin_inter",
           legend.position = c(.2, .85), 
           legend.title = element_text(size = 25),
           legend.text = element_text(size = 20),
-          legend.box = "horizontal"))
+          legend.box = "horizontal")
+}
+
+# N and R2 (+ their interaction) influence the max tree depth and the shrinkage
+(pTreeDepth_rel08 <- plotHyperMeans(plotHyper[plotHyper$DV == "maxDepth" &
+                                               plotHyper$rel == plotReliability,], 
+                                   "max tree depth"))
 
 # # save plot as files
 # ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_treeDepth_R2facette_rel08.png"),
-#                 plot = pTreeDepth_rel08,
-#                 width = 13.08,
-#                 height = 6.68,
-#                 units = "in")
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_treeDepth_R2facette_rel06_shrink", shrink,".png"),
+                plot = pTreeDepth_rel08,
+                width = 13.08,
+                height = 6.68,
+                units = "in")
 
-(pShrinkage_rel08 <- ggplot(plotHyper[plotHyper$DV == "shrinkage" &
-                                        plotHyper$rel == 0.8,],
-                            aes(x = N, y = M, 
-                                group = interaction(lin_inter, pTrash), colour = lin_inter,
-                                linetype = lin_inter, shape = pTrash)) +
-    geom_point(size = 3) +
-    geom_line(linewidth = 0.75) +
-    scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(name = "Noise", values = c(16, 17)) +
-    scale_color_manual(name = "Lin:Inter", values = colValuesLin) +
-    facet_grid2(~ R2,
+(pShrinkage_rel08 <- plotHyperMeans(plotHyper[plotHyper$DV == "shrinkage" &
+                                                plotHyper$rel == plotReliability,],
+                                    "shrinkage"))
+
+# # save plot as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_shrinkage_R2facette_rel08.png"),
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_shrinkage_R2facette_rel06_shrink", shrink,".png"),
+                plot = pShrinkage_rel08,
+                width = 13.08,
+                height = 6.68,
+                units = "in")
+
+(pNtrees_rel08 <- plotHyperMeans(plotHyper[plotHyper$DV == "Nrounds" &
+                                             plotHyper$rel == plotReliability,],
+                                 "Ntrees"))
+
+# # save plot as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_Ntrees_R2facette_rel08.png"),
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_Ntrees_R2facette_rel06_shrink", shrink,".png"),
+                plot = pNtrees_rel08,
+                width = 13.08,
+                height = 6.68,
+                units = "in")
+
+(pMinObs_rel08 <- plotHyperMeans(plotHyper[plotHyper$DV == "minChildWeight" &
+                                             plotHyper$rel == plotReliability,],
+                                 "min obs in node"))
+
+# # save plot as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_minObs_R2facette_rel08.png"),
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_minObs_R2facette_rel06_shrink", shrink,".png"),
+                plot = pMinObs_rel08,
+                width = 13.08,
+                height = 6.68,
+                units = "in")
+################################################################################
+# plot hyper parameter values (alpha and lambda for the ENET)
+################################################################################
+num2char <- c("shrinkage", "maxDepth", "minChildWeight", "Nrounds")
+hyperGBM[num2char] <- lapply(hyperGBM[num2char], as.factor)
+str(hyperGBM)
+
+library(tidyverse)
+
+plotHyperBars <- function(data, x, measureLabel) {
+  ggplot(data, aes(x = factor(x), y = n, fill = pTrash)) +
+    geom_col(position = position_dodge(width = 0.7)) +
+    facet_grid2(N + lin_inter ~ R2,
                 strip = strip_themed(
                   background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
                                       element_rect(fill = alpha(colValuesR2[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
-    ylab("shrinkage") +
-    xlab("N") +
+                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) +
+    guides(fill = "none") + 
+    xlab(measureLabel) +
+    ylab("Count per level") +
     theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
           panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
           panel.background = element_rect(color = "white", fill = "white"),
@@ -212,11 +267,67 @@ plotHyper <- tidyr::separate(plotHyper, "lin_inter",
           legend.position = c(.2, .85), 
           legend.title = element_text(size = 25),
           legend.text = element_text(size = 20),
-          legend.box = "horizontal"))
+          legend.box = "horizontal")
+}
 
-# # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_shrinkage_R2facette_rel08.png"),
-#                 plot = pShrinkage_rel08,
-#                 width = 13.08,
-#                 height = 6.68,
-#                 units = "in")
+
+shrinkageCount <- hyperGBM %>% 
+  group_by(N, pTrash, rel, R2, lin_inter) %>% 
+  count(shrinkage) %>% 
+  ungroup()
+shrinkageCount$N <- factor(shrinkageCount$N, 
+                           levels = c(100, 300, 1000))
+
+(pShrinkageBar <- plotHyperBars(shrinkageCount, shrinkageCount$shrinkage, "shrinkage"))
+
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_shrinkageCount_rel06_shrink", shrink,".png"),
+                plot = pShrinkageBar,
+                width = 17.78,
+                height = 9.5,
+                units = "in")
+
+maxDepthCount <- hyperGBM %>% 
+  group_by(N, pTrash, rel, R2, lin_inter) %>% 
+  count(maxDepth) %>% 
+  ungroup()
+maxDepthCount$N <- factor(maxDepthCount$N, 
+                           levels = c(100, 300, 1000))
+
+(pMaxDepthBar <- plotHyperBars(maxDepthCount, maxDepthCount$maxDepth, "max depth trees"))
+
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_treeDepthCount_rel06_shrink", shrink,".png"),
+                plot = pMaxDepthBar,
+                width = 17.78,
+                height = 9.5,
+                units = "in")
+
+nRoundsCount <- hyperGBM %>% 
+  group_by(N, pTrash, rel, R2, lin_inter) %>% 
+  count(Nrounds) %>% 
+  ungroup()
+nRoundsCount$N <- factor(nRoundsCount$N, 
+                          levels = c(100, 300, 1000))
+
+(pNroundsBar <- plotHyperBars(nRoundsCount, nRoundsCount$Nrounds, "number of trees"))
+
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_NtreesCount_rel06_shrink", shrink,".png"),
+                plot = pNroundsBar,
+                width = 17.78,
+                height = 9.5,
+                units = "in")
+
+minChildCount <- hyperGBM %>% 
+  group_by(N, pTrash, rel, R2, lin_inter) %>% 
+  count(minChildWeight) %>% 
+  ungroup()
+minChildCount$N <- factor(minChildCount$N, 
+                         levels = c(100, 300, 1000))
+
+(pMinChildBar <- plotHyperBars(minChildCount, minChildCount$minChildWeight, "min obs per child"))
+
+ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_minObsCount_rel06_shrink", shrink,".png"),
+                plot = pMinChildBar,
+                width = 17.78,
+                height = 9.5,
+                units = "in")
+
