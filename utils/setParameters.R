@@ -184,8 +184,10 @@ for (iCrit in setParam$fit$lambdaCrit) {
 setParam$fit$tuneGrid_GBM <- expand.grid(
   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
   n.minobsinnode = c(5, 10, 20),    # end node size (= min_child_weight in xgboost)
-  n.trees = seq(20, 1000, 30),      # max number of trees (= nTrees in xgboost)
+  # n.trees = seq(20, 1000, 30),      # max number of trees (= nTrees in xgboost)
+  n.trees = c(seq(20, 500, 30)),      # max number of trees (= nTrees in xgboost)
   shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
+  # shrinkage = c(.011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
 
 # # old tuning grid
 # setParam$fit$tuneGrid_GBM <- expand.grid(
