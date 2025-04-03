@@ -21,6 +21,7 @@ setParam$dgp$testN <- 1000            # fixed test sample size across all N cond
 
 setParam$dgp$p <- 4                   # number of latent variables
 setParam$dgp$pTrash <- c(10, 50) # number of "trash" predictors 
+setParam$dgp$pNL <- 2
 
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
 setParam$dgp$poly <- c(0) # degree of polynomials (so far: no polynomials)
@@ -36,6 +37,10 @@ rm(P)
 setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
 # choose variables for interaction that have no linear effects (R2 budget)
 setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
+# nonlinear effects
+setParam$dgp$nonlinEffects <- sapply((setParam$dgp$p+1):(setParam$dgp$p+setParam$dgp$pNL), 
+                                     function(x) paste0("dumVar", x, ".1"))
+setParam$dgp$nonlinEffects <- c(setParam$dgp$nonlinEffects, "dumVar5.1:dumVar6.1")
 
 # proportion of effect explained by linear effects vs. interaction
 setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2) 
@@ -52,27 +57,48 @@ setParam$dgp$Rsquared <- c(.20, .50, .80)
 
 # beta coefficients brute forced based on correlation matrix of predictors
 #     via gibbs sampling procedure using optim to derive beta coefficients
+### these are the parameters that are used in bruteForceB.R and bruteForceNonLinearB.R
 setParam$bruteForceB$pTrash <- 0
 setParam$bruteForceB$N <- 100000
 setParam$bruteForceB$reliability <- 1
 setParam$bruteForceB$poly <- setParam$dgp$poly
-# see bruteForceB.R
-bruteForceB <- read.table("utils/bruteForceBcoefficients.csv", header = T, sep = ",")
 
-setParam$dgp$trueEffects$lin <- 
-  cbind(bruteForceB[which(bruteForceB$lin == 0.5), "betaLin"], 
-        bruteForceB[which(bruteForceB$lin == 0.8), "betaLin"], 
-        bruteForceB[which(bruteForceB$lin == 0.2), "betaLin"])
+# read in coefficients as results from bruteForceB.R and bruteForceNonLinearB.R
+bruteForceB_inter <- read.table("utils/bruteForceBcoeff_inter.csv", header = T, sep = ",")
+bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
 
-setParam$dgp$trueEffects$inter <- 
-  cbind(bruteForceB[which(bruteForceB$lin == 0.5), "betaInter"], 
-        bruteForceB[which(bruteForceB$lin == 0.8), "betaInter"], 
-        bruteForceB[which(bruteForceB$lin == 0.2), "betaInter"])
+# reorganize coefficients
+# setParam$dgp$trueB$inter$lin <- 
+#   cbind(bruteForceB_inter[which(bruteForceB_inter$lin == 0.5), "betaLin"], 
+#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.8), "betaLin"], 
+#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.2), "betaLin"])
+# 
+# setParam$dgp$trueB$inter$inter <- 
+#   cbind(bruteForceB_inter[which(bruteForceB_inter$lin == 0.5), "betaInter"], 
+#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.8), "betaInter"], 
+#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.2), "betaInter"])
+# 
+# rownames(setParam$dgp$trueB$inter$lin) <- rownames(setParam$dgp$trueB$inter$inter) <- setParam$dgp$Rsquared
+# colnames(setParam$dgp$trueB$inter$lin) <- unique(bruteForceB_inter$lin)
+# colnames(setParam$dgp$trueB$inter$inter) <- unique(bruteForceB_inter$inter)
 
-rownames(setParam$dgp$trueEffects$lin) <- rownames(setParam$dgp$trueEffects$inter) <- setParam$dgp$Rsquared
-colnames(setParam$dgp$trueEffects$lin) <- unique(bruteForceB$lin)
-colnames(setParam$dgp$trueEffects$inter) <- unique(bruteForceB$inter)
-rm(bruteForceB)
+setParam$dgp$trueB$inter$lin <- reshape2::dcast(bruteForceB_inter, R2 ~ lin, value.var = "betaLin")
+setParam$dgp$trueB$inter$inter <- reshape2::dcast(bruteForceB_inter, R2 ~ inter, value.var = "betaInter")
+
+row.names(setParam$dgp$trueB$inter$lin) <- setParam$dgp$trueB$inter$lin[["R2"]]
+setParam$dgp$trueB$inter$lin[["R2"]]    <- NULL
+row.names(setParam$dgp$trueB$inter$inter) <- setParam$dgp$trueB$inter$inter[["R2"]]
+setParam$dgp$trueB$inter$inter[["R2"]]    <- NULL
+
+setParam$dgp$trueB$nonlinear$lin <- reshape2::dcast(bruteForceB_nl, R2 ~ lin, value.var = "betaLin")
+setParam$dgp$trueB$nonlinear$nonlinear <- reshape2::dcast(bruteForceB_nl, R2 ~ inter, value.var = "betaInter")
+
+row.names(setParam$dgp$trueB$nonlinear$lin) <- setParam$dgp$trueB$nonlinear$lin[["R2"]]
+setParam$dgp$trueB$nonlinear$lin[["R2"]]    <- NULL
+row.names(setParam$dgp$trueB$nonlinear$nonlinear) <- setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]
+setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]    <- NULL
+
+rm(bruteForceB_inter, bruteForceB_nl) # rm temporary matrices 
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
                          paste(setParam$dgp$percentLinear, setParam$dgp$percentInter, sep = "_"))
@@ -89,12 +115,14 @@ setParam$fit$optimBetaTol <- 1e-5
 ##### predictor correlations #####
 # do not randomly sample correlation matrix in each sample!
 # instead: randomly choose one correlation matrix and use the same correlation matrix in each sample
-setParam$dgp$Reffects <- 0.4 # correlation between predictors with simulated effects
+setParam$dgp$rLinEffects <- 0.4 # correlation for linear predictors with simulated effects
+setParam$dgp$rNonLinEffects <- 0 # correlation for nonlinear predictors with simulated effects
 
 # average correlations of trash-predictors and their SD 
 setParam$dgp$meanR <- 0
 setParam$dgp$sdR <- 0.05 # 0.1 leads to non-PSM correlation matrix
 
+##### linear vs. interaction effects #####
 # use this correlation matrix in data simulation! 
 set.seed(42)
 
@@ -112,7 +140,7 @@ repeat{
   # rX <- lavaan::lav_matrix_upper2full(rep(0, corN), diagonal = F) # fill up upper triangle
   
   # correlations between predictor variables (all identical atm)
-  rP <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$Reffects, corNp), diagonal = F)
+  rP <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rLinEffects, corNp), diagonal = F)
   rX[1:dim(rP)[1], 1:dim(rP)[1]] <- rP
   diag(rX) <- 1
   
@@ -124,6 +152,45 @@ repeat{
 }
 setParam$dgp$predictorCorMat <- rX # save PSM correlation matrix
 rm(P, corN, corNp, corVec, rP, rX) # remove temporary variables
+
+##### linear vs. nonlinear effects #####
+set.seed(420)
+
+# randomly choose correlation matrix for biggest set of predictors (max(pTrash))
+# (use subsets for pTrash < max(pTrash))
+P_nl <- max(setParam$dgp$p + setParam$dgp$pNL + setParam$dgp$pTrash)
+corN_nl <- P_nl*(P_nl-1)/2
+corNp <- setParam$dgp$p*(setParam$dgp$p-1)/2
+corNpNL <- setParam$dgp$pNL*(setParam$dgp$pNL-1)/2
+
+repeat{
+  # correlations around 0 for all variables (but finally for trash variables) 
+  #   alternatively exactly 0 correlations
+  corVec <- truncnorm::rtruncnorm(corN_nl, mean = setParam$dgp$meanR, sd = setParam$dgp$sdR, 
+                                  a = -0.5, b = 0.5) 
+  rX <- lavaan::lav_matrix_upper2full(corVec, diagonal = F) # fill up upper triangle
+  # rX <- lavaan::lav_matrix_upper2full(rep(0, corN), diagonal = F) # fill up upper triangle
+  
+  # correlations between linear predictor variables (all identical atm)
+  #   replace around 0 correlations at the corresponding positions in the matrix
+  rP <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rLinEffects, corNp), diagonal = F)
+  rX[1:dim(rP)[1], 1:dim(rP)[1]] <- rP
+  
+  # correlations between nonlinear predictor variables (all identical atm)
+  #   replace around 0 correlations at the corresponding positions in the matrix
+  rPnl <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rNonLinEffects, corNpNL), diagonal = F)
+  rX[(setParam$dgp$p+1):(setParam$dgp$p+dim(rPnl)[1]), 
+     (setParam$dgp$p+1):(setParam$dgp$p+dim(rPnl)[1])] <- rPnl
+  diag(rX) <- 1
+  
+  # check if correlation matrix is positive semi-definite
+  # thereby avoid warning and correction procedure in rmvnorm
+  if(all(eigen(rX)$values >= 0)) {
+    break
+  }
+}
+setParam$dgp$predictorCorMat_nl <- rX # save PSM correlation matrix
+rm(P_nl, corN_nl, corNp, corNpNL, corVec, rP, rPnl, rX) # remove temporary variables
 
 # error "variance" (= standard deviation when sampling via rnorm due to fun. argument)
 setParam$dgp$sigmaE <- 1
@@ -152,6 +219,7 @@ setParam$fit$condGrid$sampleSeed <- seedNum[1:dim(setParam$fit$condGrid)[1]]
 ##### Hyperparameter Tuning #####
 setParam$fit$nfolds <- 10
 setParam$fit$explanation <- FALSE
+setParam$fit$saveConds <- TRUE
 
 ##### ENET #####
 # parameter for gbm or model fitting more general
@@ -184,7 +252,7 @@ for (iCrit in setParam$fit$lambdaCrit) {
 setParam$fit$tuneGrid_GBM <- expand.grid(
   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
   n.minobsinnode = c(5, 10, 20),    # end node size (= min_child_weight in xgboost)
-  n.trees = seq(20, 1000, 30),      # max number of trees (= nTrees in xgboost)
+  n.trees = c(5, seq(10, 40, 10), seq(50, 500, 30)),      # max number of trees (= nTrees in xgboost)
   shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
 
 # # old tuning grid
@@ -214,6 +282,10 @@ setParam$fit$setTuningGrid_RF <- function(nPred) {
     min.node.size = c(5, 10, 20)) # min observations in end node
 }
 setParam$fit$numTreesRF <- 500
+
+
+
+
 
 # number of list elements to save as outcome measures
 #   ... for every model GBM, ENET, RF
