@@ -45,12 +45,13 @@
 
 sampleNonlinearData <- function() {
   
-  createFolder(paste0(dataFolder,"/nonlinear"))
+  dgpFolder <- paste0(dataFolder, "/", data)
+  createFolder(dgpFolder)
   
   # create folder to save data in single sample files
   if (setParam$dgp$singleSamples) {
     sampleFolder <- paste0("/simDataN", N, "_pTrash", pTrash, "_rel", reliability)
-    createFolder(paste0(dataFolder,"/nonlinear", sampleFolder))
+    createFolder(paste0(dgpFolder, sampleFolder))
   }
   
   # sample data in parallel; 
@@ -121,7 +122,7 @@ sampleNonlinearData <- function() {
     
     # here: use data without the original variables, but with dummies in the data
     # here: add weights (= regression-coefficients) for the dummies and their interaction
-    bMatrix <- genBmat(X_intDummy, "nonlinear", setParam)
+    bMatrix <- genBmat(X_intDummy, data, setParam)
     
     # # quick check
     # bMatrix[rownames(bMatrix) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects),]
@@ -187,7 +188,7 @@ sampleNonlinearData <- function() {
       sampleNames <- c(seq_len(setParam$dgp$nTrain),
                        paste0("test", seq_len(setParam$dgp$nTest)))
       fileName <- paste0("sample_", sampleNames[iSample], ".rda")
-      save(dataList, file = paste0(dataFolder, "/inter", sampleFolder, "/", fileName))
+      save(dataList, file = paste0(dgpFolder, sampleFolder, "/", fileName))
     } else {
       dataList
     }
@@ -201,6 +202,6 @@ sampleNonlinearData <- function() {
                      paste0("test", seq_len(setParam$dgp$nTest)))
     
     fileName <- paste0("simDataN", N, "_pTrash", pTrash, "_rel", reliability, ".rda")
-    save(data, file = paste0(dataFolder, "/nonlinear/", fileName))
+    save(data, file = paste0(dgpFolder, "/", fileName))
   }
 }
