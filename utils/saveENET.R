@@ -1,4 +1,5 @@
 saveENET <- function(estRes, iCond, setParam, resList) {
+  # in general: concatenate outcome from different conditions!
   # coefficients
   estBeta <- do.call(cbind, lapply(estRes, function(X) X[["estB"]]))
   # remove variables which are not selected by Enet from mean calculation:
