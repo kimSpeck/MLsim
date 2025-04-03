@@ -43,7 +43,7 @@ sampleInteractionData <- function() {
     # rows represent predictors (thus, number of rows depends on pTrash which varies 
     #     between simulated conditions)
     # columns represent conditions (= combination of R2 and lin/inter effect balance)
-    bMatrix <- genBmat(X_int, setParam)
+    bMatrix <- genBmat(X_int, "inter", setParam)
     
     # calculate R^2 for every combination of R2 and lin/inter effect balance
     # print R^2 as a quick sanity check (removed for speed sake) 
