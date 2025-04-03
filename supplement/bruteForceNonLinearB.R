@@ -4,10 +4,9 @@
 
 # restrictions
 #     - Var1 = Var2 = Var3 = Var4 = ?
-#     - Var1:Var2 = Var1:Var4 = Var2:Var3 = Var3:Var4 = ?
-#     - Var1:Var3 = Var2:Var4 = 0
+#     - dumVar5.1 = dumVar6.1 = dumVar5.1:dumVar6.1 = ?
 
-# Rsquared either splits 20:80, 50:50 or 80:20 for interaction and linear effects respectively
+# Rsquared either splits 20:80, 50:50 or 80:20 for nonlinear and linear effects respectively
 # squared multiple correlation (r_y,yhat)^2 = multiple coefficient of determination
 # multiple coefficient of determination = sum of semipartial determinantes (squared 
 #     semipartial correlations) of increasingly higher order
@@ -29,16 +28,10 @@ pTrash <- setParam$bruteForceB$pTrash
 N <- setParam$bruteForceB$N
 reliability <- setParam$bruteForceB$reliability
 
-P <- setParam$dgp$p + pTrash # total number of variables
+P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
 
 X <- createPredictors(N = N, P = P, 
-                      corMat = setParam$dgp$predictorCorMat[seq_len(P), seq_len(P)])
-
-# # simulate X with uncorrelated predictors
-# nullCorMat <- matrix(0, ncol = P, nrow = P)
-# diag(nullCorMat) <- 1
-# X <- createPredictors(N = N, P = P, 
-#                       corMat = nullCorMat)
+                      corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
 
 # add names to variables
 colnames(X) <- paste0("Var", seq_len(P))
@@ -54,35 +47,21 @@ if (setParam$dgp$poly > 0) {
   X_int <- rmDuplicatePoly(X_int)  
 }
 
+X_int <- cbind(X_int, 
+               dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
+               dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
+# add the interaction between the dummies
+X_int <- cbind(X_int, 
+               `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
+
+# remove every other variable from data
+X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)]
 (empCor <- cor(X_int))
 # round(empCor, 3)
 cov(X_int)
 
-# # for independent normally distributed random variables 
-# mVar1 <- setParam$dgp$meanR
-# sdVar1 <- sqrt(diag(setParam$dgp$predictorCorMat)[1])
-# 
-# mVar2 <- setParam$dgp$meanR
-# sdVar2 <- sqrt(diag(setParam$dgp$predictorCorMat)[2])
-# var12_ind <- (mVar2 * sdVar1)**2 + (mVar1 * sdVar2)**2 + sdVar1**2 * sdVar2**2
-
 # the variance of the product of two correlated normally distributed random variables
 rho <- setParam$dgp$predictorCorMat[1,2] # correlation between linear predictors
-varProduct <- (1+rho**2)
-sdProduct <- sqrt(varProduct)
-# # without the assumption of standardized predictors (i.e., zero means and unit variance)
-# var12 <- (mVar2 * sdVar1)**2 + (mVar1 * sdVar2)**2 + 
-#   (sdVar1 * sdVar2)**2 * (1+rho**2) + 
-#   2*mVar1*mVar2*sdVar1*sdVar2
-
-# covariances and correlations between two products of random variables from a 
-#   multivariate normal distribution
-covCommon <- rho + (rho)**2
-corCommon <- covCommon/(sdProduct * sdProduct)
-
-covExclusive <- (rho)**2 + (rho)**2
-corExclusive <- covExclusive/(sdProduct * sdProduct)
-covExclusive/varProduct
 
 # build correlation matrix as block structure with ...
 #   ... block for linear predictors
@@ -90,9 +69,8 @@ covExclusive/varProduct
 corLin <- lavaan::lav_matrix_upper2full(rep(rho, setParam$dgp$p * (setParam$dgp$p-1) / 2), diagonal = F)
 diag(corLin) <- 1
 
-nInter <- setParam$dgp$p * (setParam$dgp$p-1) / 2
-corInter <- lavaan::lav_matrix_upper2full(rep(corCommon, nInter * (nInter-1)/2), diagonal = F)
-diag(corInter[,c(nInter:1)]) <- corExclusive
+nNL <- setParam$dgp$pNL + 1
+corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
 diag(corInter) <- 1
 
 # full correlation matrix (+ labels)
@@ -104,23 +82,7 @@ theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
 #                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
 #                                           "Var2:Var3", "Var2:Var3", "Var3:Var4")
 rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
-                                          "Var1:Var2", "Var1:Var3", "Var1:Var4",
-                                          "Var2:Var3", "Var2:Var4", "Var3:Var4")
-
-# # test formula in generall:
-# #     for 50:50 and different fixed Rsquared
-# setParam$dgp$Rsquared[3] * setParam$dgp$sigmaE / (1-setParam$dgp$Rsquared[3])
-# t(c(rep(0.346, 8), 0, 0)) %*% empCor %*% c(rep(0.346, 8), 0, 0)
-# 
-# setParam$dgp$Rsquared[4] * setParam$dgp$sigmaE / (1-setParam$dgp$Rsquared[4])
-# t(c(rep(0.693, 8), 0, 0)) %*% empCor %*% c(rep(0.693, 8), 0, 0)
-# 
-# # theta <- c(0.5009557, 0.4536119)
-# beta <- vector(mode = "numeric", length = dim(empCor)[1])
-# names(beta) <- colnames(empCor)
-# beta[names(beta) %in% setParam$dgp$linEffects] <- 0.5009557
-# beta[names(beta) %in% setParam$dgp$interEffects] <- 0.4536119
-# t(beta) %*% empCor %*% beta
+                                          setParam$dgp$nonlinEffects)
 
 ################################################################################
 # functions
@@ -131,72 +93,46 @@ linOptim <- function(theta, R2, lin, inter, beta_inter) {
     stop("lin and inter do not sum up to 1!")
   }
   
-  ### linear effects and interaction effects
   # generate zero/empty vector of regression coefficients
-  beta <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(beta) <- colnames(theoCor) # name vector
-  # only coefficients for simulated linear effects
-  beta[names(beta) %in% setParam$dgp$linEffects] <- theta
-  # add coefficients for interactions with simulated effects
-  beta[names(beta) %in% setParam$dgp$interEffects] <- beta_inter
+  beta <- betaVecLin <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(beta) <- names(betaVecLin) <-  colnames(theoCor) # name vector
+  linIdx <- names(beta) %in% setParam$dgp$linEffects
+  beta[linIdx] <- betaVecLin[linIdx] <- theta 
+  beta[names(beta) %in% setParam$dgp$nonlinEffects] <- beta_inter
   
-  ### only linear effects
-  # generate zero/empty vector of regression coefficients
-  betaVecLin <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(betaVecLin) <- colnames(theoCor) # name vector
-  # fill coefficients vector only with simulated linear effects
-  betaVecLin[names(betaVecLin) %in% setParam$dgp$linEffects] <- theta 
-  
-  # calculate the explained variance for only linear effects
   R2_lin <- var(X_int %*% betaVecLin) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
-  # how much does the estimated R2_lin deviate from the target R2 for linear effects
   return(abs(R2_lin - (R2 * lin)))
 }
 
 interOptim <- function(theta, R2, lin, inter, beta_lin) {
-  # check if the argument values meet conditions  
+  # check if the argument values meet conditions
   if (lin + inter != 1) {
     stop("lin and inter do not sum up to 1!")
   }
   
-  ### linear effects and interaction effects
-  # generate zero/empty vector of regression coefficients
-  beta <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(beta) <- colnames(theoCor) # name vector
-  # only coefficients for simulated linear effects
+  beta <- betaVecInter <-  vector(mode = "numeric", length = dim(theoCor)[1])
+  names(beta) <- names(betaVecInter) <- colnames(theoCor)
+  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
   beta[names(beta) %in% setParam$dgp$linEffects] <- beta_lin 
-  beta[names(beta) %in% setParam$dgp$interEffects] <- theta
+  beta[interIdx] <- betaVecInter[interIdx] <-  theta
   
-  ### only interaction effects
-  # generate zero/empty vector of regression coefficients
-  betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(betaVecInter) <- colnames(theoCor) # name vector
-  # fill coefficients vector only with simulated interaction effects
-  betaVecInter[names(betaVecInter) %in% setParam$dgp$interEffects] <- theta
-  
-  # calculate the explained variance for only interaction effects
   R2_inter <- var(X_int %*% betaVecInter) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
-  # how much does the estimated R2_inter deviate from the target R2 for interaction effects
   return(abs(R2_inter - (R2 * inter)))
 }
 
 checkOptim <- function(betaLin, betaInter){
-  # generate zero/empty vector of regression coefficients
-  beta <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(beta) <- colnames(theoCor) # name vector
-  # add coefficients for simulated linear effects and for interactions with simulated effects
-  beta[names(beta) %in% setParam$dgp$linEffects] <- betaLin
-  beta[names(beta) %in% setParam$dgp$interEffects] <- betaInter
+  #
+  beta <- betaVecLin <- betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
+  names(beta) <- names(betaVecInter) <- names(betaVecLin) <- colnames(theoCor)
+  linIdx <- names(beta) %in% setParam$dgp$linEffects
+  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
+  beta[linIdx] <- betaLin
+  beta[interIdx] <- betaInter
   
-  betaVecLin <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(betaVecLin) <- colnames(theoCor)
-  betaVecLin[names(betaVecLin) %in% setParam$dgp$linEffects] <- betaLin
-  
-  betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(betaVecInter) <- colnames(theoCor)
-  betaVecInter[names(betaVecInter) %in% setParam$dgp$interEffects] <- betaInter
+  betaVecLin[linIdx] <- betaLin
+  betaVecInter[interIdx] <- betaInter
   
   R2_lin <- var(X_int %*% betaVecLin) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   R2_inter <- var(X_int %*% betaVecInter) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
@@ -354,5 +290,5 @@ checkAcc <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
 betaData <- cbind(condGrid, betaCoef, checkAcc)
 round(betaData, 3)
 
-# write.csv(betaData, "utils/bruteForceBcoeff_inter.csv", row.names=FALSE)
-# bruteForceB <- read.table("utils/bruteForceBcoeff_inter.csv", header = T, sep = ",")
+# write.csv(betaData, "utils/bruteForceBcoeff_nonlinear.csv", row.names=FALSE)
+# bruteForceB <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")

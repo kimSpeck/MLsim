@@ -4,15 +4,21 @@ createFolder <- function(folderPath) {
   }
 }
 
-genBmat <- function(X_int, setParam) {
+genBmat <- function(X_int, dgp, setParam) {
   ###
   # create matrix with beta coefficients for each simulation condition R2 x lin_inter
   ## input:
-  # X_int     - [scalar] number of predictors
-  # setParam  - [vector] mean values for predictors (default: centered predictors)
+  # X_int     - [matrix] predictor value matrix
+  # dgp       - [char] indicating current dgp {inter, nonlinear} 
+  # setParam  - [vector] list with parameter values
   ## output:
-  # bMatrix   - [matrix] matrix with beta coefficients for each simulation condition R2 x lin_inter 
+  # bMatrix   - [matrix] matrix with beta coefficients for each simulation condition R2 x lin_inter
+  #                       with predictors in rows and simulated conditions in columns
   ###
+  
+  if (!(dgp %in% c("inter", "nonlinear"))) {
+    stop("We can only simulate inter or nonlinear data!")
+  }
   
   # generate empty matrix of beta coefficients with ...
   #   ... number of rows = total number of terms (linear effects, poly, interactions)
@@ -26,28 +32,59 @@ genBmat <- function(X_int, setParam) {
   
   # match structure of bMatrix with arrangement of values in matrix of true effects 
   #   (i.e., population beta coefficients)
+  #   R2 indicated by rows in matrices of population beta coefficients in setParam
   bMatrixR2 <- stringr::str_sub(colnames(bMatrix), start = 3L, end = 5L)
-  idxRow <- match(bMatrixR2, rownames(setParam$dgp$trueEffects$lin))
+   
+  # # organization of R² in rows is identical for lin vs. inter and for lin vs. nonlin 
+  # idxRowInter <- match(bMatrixR2, rownames(setParam$dgp$trueB$inter$inter))
+  # idxRowInter <- match(bMatrixR2, rownames(setParam$dgp$trueB$nonlinear$nonlinear))
+  # identical(idxRow, idxRowInter)
   
+  # how much R2 gets the linear effect: get lin from lin_inter in R20.2lin_inter0.5_0.5
   bMatrixLin <- stringr::str_sub(colnames(bMatrix), start = -7L, end = -5L)
-  bMatrixInter <- stringr::str_sub(colnames(bMatrix), start = -3L, end = -1L)
-  idxColLin <- match(bMatrixLin, colnames(setParam$dgp$trueEffects$lin))
-  idxColInter <- match(bMatrixInter, colnames(setParam$dgp$trueEffects$inter))
+  # how much R2 gets the interaction or nonlinear effect: get inter from lin_inter in R20.2lin_inter0.5_0.5
+  bMatrixOther <- stringr::str_sub(colnames(bMatrix), start = -3L, end = -1L)
   
-  # fill up bMatrix with different beta coefficients for linear and interaction
-  #   effects in each combination of ...
-  #   R2 {0.1, 0.3, 0.5, 0.8} and 
-  #   effect size splitting between linear & interaction effects {0.5_0.5, 0.8_0.2, 0.2_0.8}
-  for (iCond in seq_len(dim(bMatrix)[2])) {
-    # linear effects
-    bMatrix[c(setParam$dgp$linEffects), iCond] <- rep(
-      setParam$dgp$trueEffects$lin[idxRow[iCond],idxColLin[iCond]], 
-      times = length(setParam$dgp$linEffects)) 
-    # interaction effects
-    bMatrix[c(setParam$dgp$interEffects), iCond] <- rep(
-      setParam$dgp$trueEffects$inter[idxRow[iCond],idxColInter[iCond]], 
-      times = length(setParam$dgp$interEffects)) # R2 = 0.02
+  if (dgp == "inter") {
+    idxRow <- match(bMatrixR2, rownames(setParam$dgp$trueB$inter$lin)) 
+    idxColLin <- match(bMatrixLin, colnames(setParam$dgp$trueB$inter$lin))
+    idxColOther <- match(bMatrixOther, colnames(setParam$dgp$trueB$inter$inter))
+    
+    # fill up bMatrix with different beta coefficients for linear and interaction
+    #   effects in each combination of ...
+    #   R2 {0.1, 0.3, 0.5, 0.8} and 
+    #   effect size splitting between linear & interaction effects {0.5_0.5, 0.8_0.2, 0.2_0.8}
+    for (iCond in seq_len(dim(bMatrix)[2])) {
+      # linear effects
+      bMatrix[c(setParam$dgp$linEffects), iCond] <- rep(
+        setParam$dgp$trueB$inter$lin[idxRow[iCond],idxColLin[iCond]], 
+        times = length(setParam$dgp$linEffects)) 
+      # interaction effects
+      bMatrix[c(setParam$dgp$interEffects), iCond] <- rep(
+        setParam$dgp$trueB$inter$inter[idxRow[iCond],idxColOther[iCond]], 
+        times = length(setParam$dgp$interEffects)) # R2 = 0.02
+    }
+  } else if (dgp == "nonlinear"){
+    idxRow <- match(bMatrixR2, rownames(setParam$dgp$trueB$nonlinear$lin))
+    idxColLin <- match(bMatrixLin, colnames(setParam$dgp$trueB$nonlinear$lin))
+    idxColOther <- match(bMatrixOther, colnames(setParam$dgp$trueB$nonlinear$nonlinear))
+    
+    # fill up bMatrix with different beta coefficients for linear and interaction
+    #   effects in each combination of ...
+    #   R2 {0.1, 0.3, 0.5, 0.8} and 
+    #   effect size splitting between linear & interaction effects {0.5_0.5, 0.8_0.2, 0.2_0.8}
+    for (iCond in seq_len(dim(bMatrix)[2])) {
+      # linear effects
+      bMatrix[c(setParam$dgp$linEffects), iCond] <- rep(
+        setParam$dgp$trueB$nonlinear$lin[idxRow[iCond],idxColLin[iCond]], 
+        times = length(setParam$dgp$linEffects)) 
+      # interaction effects
+      bMatrix[c(setParam$dgp$nonlinEffects), iCond] <- rep(
+        setParam$dgp$trueB$nonlinear$nonlinear[idxRow[iCond],idxColOther[iCond]], 
+        times = length(setParam$dgp$nonlinEffects)) # R2 = 0.02
+    }
   }
+  
   return(bMatrix)
 }
 
@@ -96,6 +133,32 @@ genModel <- function(varVec, interDepth, polyDegree) {
                                       paste("poly(", varVec, ", degree = ", polyDegree, ", raw = 2)", 
                                             sep = "", collapse = "+")) # polynomials)
   return(model)
+}
+
+#   1. compute median/quantile in general, 2. create dummy based on median/quantile thresh
+createDummy <- function(var, q = 0.5, effectCoding = T) {
+  #####
+  # takes a numeric vector, computes a specified quantile, and returns a dummy (0/1) 
+  #   variable indicating which observations exceed that cutoff.
+  ## Input:
+  # var - numeric vector.
+  # q   - numeric value in [0, 1] specifying the quantile cutoff (default 0.5)
+  ## Output
+  #     - numeric vector of 0s and 1s (same length as var)
+  #####
+  # Safety checks for quantile
+  if (q > 1 | q < 0) {
+    stop("Please set quantile to a value between 0 and 1.")
+  } 
+  
+  # compute cutoff
+  thresh <- quantile(var, probs = q)
+  # create dummy: -1 for values <= median, 1 for values > median
+  if (effectCoding) {
+    ifelse(var > thresh, 1, -1)
+  } else { 
+    ifelse(var > thresh, 1, 0)
+  }
 }
 
 getR2 <- function(X, b, sigmaE) {

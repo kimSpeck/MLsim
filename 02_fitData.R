@@ -39,20 +39,20 @@ nCoresSampling <- 30
 # get condGrid from parameter set 
 condGrid <- setParam$fit$condGrid
 
-# here!
-# remove lines in condGrid for which there already are results
-#   !!! this only works if the big rda files including all samples of a specific condition exist !!!
-# check which files are already in the results folder
-resFileList <- list.files(resFolder)
-resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", resFileList)
-
-allDataFiles <- paste0("simDataN", condGrid[, "N"], 
-                       "_pTrash", condGrid[, "pTrash"], 
-                       "_rel", condGrid[,"reliability"], ".rda")
-allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", "", allDataFiles)
-
-fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
-condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
+# # here!
+# # remove lines in condGrid for which there already are results
+# #   !!! this only works if the big rda files including all samples of a specific condition exist !!!
+# # check which files are already in the results folder
+# resFileList <- list.files(resFolder)
+# resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", resFileList)
+# 
+# allDataFiles <- paste0("simDataN", condGrid[, "N"], 
+#                        "_pTrash", condGrid[, "pTrash"], 
+#                        "_rel", condGrid[,"reliability"], ".rda")
+# allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", "", allDataFiles)
+# 
+# fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
+# condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
 
 # # choose one single condition to test code/timing
 # condGrid <- condGrid[condGrid$data == "inter" &
@@ -61,19 +61,10 @@ condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
 #                        condGrid$pTrash == 10 &
 #                        condGrid$reliability == 0.6,]
 
-# setParam$fit$tuneGrid_GBM <- expand.grid(
-#   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
-#   n.minobsinnode = c(5, 10, 20),    # end node size (= min_child_weight in xgboost)
-#   n.trees = seq(20, 500, 30),      # max number of trees (= nTrees in xgboost)
-#   shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
-
-# # old tuning grid
-# setParam$fit$tuneGrid_GBM <- expand.grid(
-#   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
-#   n.minobsinnode = c(5, 10),    # end node size (= min_child_weight in xgboost)
-#   n.trees = c(50,100,150),      # max number of trees (= nTrees in xgboost)
-#   shrinkage = seq(.051, .201, .05))
-# start fitting the data
+# choose only random forests to fit here!
+condGrid <- condGrid[condGrid$data == "inter" &
+                       condGrid$model == "RF",]
+condGrid <- dplyr::arrange(condGrid, N)
 
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
@@ -99,11 +90,13 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   if (condGrid[iSim, "model"] == "RF") {
     nPredictors <- condGrid[iSim, "pTrash"] + setParam$dgp$p
-    setParam$fit$tuningGrid_RF <- setParam$fit$setTuningGrid_RF(nPredictors)
+    setParam$fit$tuneGrid_RF <- setParam$fit$setTuningGrid_RF(nPredictors)
   }
   
   # fit data (ENET, GBM, RF depending on fitting function; see below)
   tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { # R2 x lin_inter combinations
+  # # for starting with particular condition
+  # tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels)[7:length(setParam$dgp$condLabels)], function(iCond) { # R2 x lin_inter combinations
       
     tStart <- Sys.time() # time monitoring
     # iterate over different training samples in parallel
@@ -127,7 +120,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         # get predictor variable matrix (identical across all R2 x lin_inter conditions)
         Xtrain <- as.matrix(dataList[["X_int"]]) 
         # get criterion/target variable (column in yMat depending on R2 x lin_inter condition)
-        ytrain <- dataList[["yMat"]][,iCond]
+        ytrain <- dataList[["yMat"]][,setParam$dgp$condLabels[iCond]]
         
         # load test data
         # by doing this in advane condGrid and full data not an additional argument for model functions
@@ -136,21 +129,21 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         load(paste0(dataFolder, "/", fileName, "/sample_test1.rda"))
         
         Xtest <- as.matrix(dataList[["X_int"]]) 
-        ytest <- dataList[["yMat"]][,iCond] 
+        ytest <- dataList[["yMat"]][,setParam$dgp$condLabels[iCond]]
         
       } else { # data in one big rda file
         # irrespective of model
         # get predictor variable matrix (identical across all R2 x lin_inter conditions)
         Xtrain <- as.matrix(data[[iSample]][["X_int"]]) 
         # get criterion/target variable (column in yMat depending on R2 x lin_inter condition)
-        ytrain <- data[[iSample]][["yMat"]][,iCond]
+        ytrain <- data[[iSample]][["yMat"]][,setParam$dgp$condLabels[iCond]]
         
         # extract test data 
         # by doing this in advane condGrid and full data not an additional argument for model functions
         # ... but, only if number of test samples is 1!
         # setParam$dgp$nTest == 1
         Xtest <- as.matrix(data[["test1"]][["X_int"]]) 
-        ytest <- data[["test1"]][["yMat"]][,iCond] 
+        ytest <- data[["test1"]][["yMat"]][,setParam$dgp$condLabels[iCond]]
       }
       
       # if GBM, ENETwo or RF remove interactions from predictor matrix data (train & test) 
@@ -163,9 +156,19 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter.test]]
       }
       
+      if (condGrid[iSim, "data"] == "nonlinear" & condGrid[iSim, "model"] == "ENETw") {
+        # remove two variables at random from the predictor matrix to keep number of
+        #   predictors constant despite additional nonlinear variables!
+        stop("Kim! You still need to implement this!")
+      }
+      
       # depending on condGrid[iSim, "model"] run GBM, RF or ENET code
       if (condGrid[iSim, "model"] == "GBM") {
         fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation)
+        # # debugging
+        # currentSeed <- .Random.seed
+        # fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation,
+        #        iSample = iSample, currentSeed = currentSeed)
       } else if (condGrid[iSim, "model"] == "RF") {
         fitRF(Xtrain, ytrain, Xtest, ytest, setParam)
       } else if (condGrid[iSim, "model"] != "GBM" & condGrid[iSim, "model"] != "RF") {
@@ -236,8 +239,18 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       saveENET(estRes, iCond, setParam, resList)
     }
     
+    if (setParam$fit$saveConds) {
+      resCondFileName <- paste0(resFolder, "/", condGrid[iSim, "data"], "/",
+                            "resultsModel", condGrid[iSim, "model"], 
+                            "_N", condGrid[iSim, "N"], 
+                            "_pTrash", condGrid[iSim, "pTrash"], 
+                            "_rel", condGrid[iSim,"reliability"], 
+                            "_cond", iCond, ".rds")  
+      saveRDS(resList, file = resCondFileName)
+    }
+    
     resList
-  }) # nested lapplys take ~ 15 mins
+  }) 
   
   # close cluster to return resources (memory) back to OS
   stopCluster(cl)
