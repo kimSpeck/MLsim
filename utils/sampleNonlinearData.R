@@ -168,9 +168,9 @@ sampleNonlinearData <- function() {
     # we cannot calculate R2 with measurement error directly: coefficients only apply to
     #   predictor matrix with dummies; we could however recreate the dummies based on 
     #   the variable with measurement error (?)
-    R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) {
-      var(X_final %*% bMatrix[,x]) / (var(X_int %*% bMatrix[,x]) + setParam$dgp$sigmaE^2)
-    })
+    # R2_wME <- sapply(seq_len(ncol(bMatrix)), function(x) {
+    #   var(X_final %*% bMatrix[,x]) / (var(X_int %*% bMatrix[,x]) + setParam$dgp$sigmaE^2)
+    # })
     
     # save ...
     #     ... yMat with dependent variable for all R2 - lin/inter effect conditions in columns
