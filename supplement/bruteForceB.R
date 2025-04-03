@@ -18,8 +18,8 @@ library(truncnorm)
 library(parallel)
 
 # load parameters & custom functions 
-source("setParameters.R") # parameter values
-source("simTools.R") # functions for data simulation
+source("utils/setParameters.R") # parameter values
+source("utils/simTools.R") # functions for data simulation
 
 # generate folder for log files
 logFolder = "log"
@@ -97,9 +97,15 @@ diag(corInter) <- 1
 
 # full correlation matrix (+ labels)
 theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
+# # here: does typo mean that I simulated interaction effects based on 5 variables 
+# #     with the presumed effect instead of only 4?! thus, interaction did not get 
+# #     enough R²?!
+# rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
+#                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
+#                                           "Var2:Var3", "Var2:Var3", "Var3:Var4")
 rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
-                                          "Var2:Var3", "Var2:Var3", "Var3:Var4")
+                                          "Var2:Var3", "Var2:Var4", "Var3:Var4")
 
 # # test formula in generall:
 # #     for 50:50 and different fixed Rsquared
@@ -120,47 +126,67 @@ rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
 # functions
 ################################################################################
 linOptim <- function(theta, R2, lin, inter, beta_inter) {
+  # check if the argument values meet conditions  
   if (lin + inter != 1) {
     stop("lin and inter do not sum up to 1!")
   }
   
+  ### linear effects and interaction effects
+  # generate zero/empty vector of regression coefficients
   beta <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(beta) <- colnames(theoCor)
-  beta[names(beta) %in% setParam$dgp$linEffects] <- theta 
+  names(beta) <- colnames(theoCor) # name vector
+  # only coefficients for simulated linear effects
+  beta[names(beta) %in% setParam$dgp$linEffects] <- theta
+  # add coefficients for interactions with simulated effects
   beta[names(beta) %in% setParam$dgp$interEffects] <- beta_inter
   
+  ### only linear effects
+  # generate zero/empty vector of regression coefficients
   betaVecLin <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(betaVecLin) <- colnames(theoCor)
+  names(betaVecLin) <- colnames(theoCor) # name vector
+  # fill coefficients vector only with simulated linear effects
   betaVecLin[names(betaVecLin) %in% setParam$dgp$linEffects] <- theta 
   
+  # calculate the explained variance for only linear effects
   R2_lin <- var(X_int %*% betaVecLin) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
+  # how much does the estimated R2_lin deviate from the target R2 for linear effects
   return(abs(R2_lin - (R2 * lin)))
 }
 
 interOptim <- function(theta, R2, lin, inter, beta_lin) {
+  # check if the argument values meet conditions  
   if (lin + inter != 1) {
     stop("lin and inter do not sum up to 1!")
   }
   
+  ### linear effects and interaction effects
+  # generate zero/empty vector of regression coefficients
   beta <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(beta) <- colnames(theoCor)
+  names(beta) <- colnames(theoCor) # name vector
+  # only coefficients for simulated linear effects
   beta[names(beta) %in% setParam$dgp$linEffects] <- beta_lin 
   beta[names(beta) %in% setParam$dgp$interEffects] <- theta
   
+  ### only interaction effects
+  # generate zero/empty vector of regression coefficients
   betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(betaVecInter) <- colnames(theoCor)
+  names(betaVecInter) <- colnames(theoCor) # name vector
+  # fill coefficients vector only with simulated interaction effects
   betaVecInter[names(betaVecInter) %in% setParam$dgp$interEffects] <- theta
   
+  # calculate the explained variance for only interaction effects
   R2_inter <- var(X_int %*% betaVecInter) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
+  # how much does the estimated R2_inter deviate from the target R2 for interaction effects
   return(abs(R2_inter - (R2 * inter)))
 }
 
 checkOptim <- function(betaLin, betaInter){
-  #
+  # generate zero/empty vector of regression coefficients
   beta <- vector(mode = "numeric", length = dim(theoCor)[1])
-  names(beta) <- colnames(theoCor)
+  names(beta) <- colnames(theoCor) # name vector
+  # add coefficients for simulated linear effects and for interactions with simulated effects
   beta[names(beta) %in% setParam$dgp$linEffects] <- betaLin
   beta[names(beta) %in% setParam$dgp$interEffects] <- betaInter
   
@@ -256,12 +282,17 @@ gibbsB <- function(init, R2, lin, inter) {
              abs((inter*R2) - accEstBeta["R2_inter"]), 
              # R2_total would be more accurate but does not necessarily converge 
              #    getting R2_total AND {R2_lin, R2_inter} right is more difficult
-             abs(R2 - accEstBeta["R2_add"])) 
+             abs(R2 - accEstBeta["R2_total"])) 
+             # abs(R2 - accEstBeta["R2_add"])) 
     
     # repeat previous steps if criterions for convergence are not met
     #   a) R2_{lin, inter, add} near enough around target R2
     #   b) changes in beta{Lin, Inter} smaller than tolerance parameter
     if (all(acc < setParam$fit$optimTol) | all(abs(init - tmp_init) < setParam$fit$optimBetaTol)) {
+      
+      print(acc < setParam$fit$optimTol) 
+      print(abs(init - tmp_init) < setParam$fit$optimBetaTol)
+      
       return(list(init = tmp_init, 
                   checkAcc = accEstBeta))
       break
@@ -323,5 +354,5 @@ checkAcc <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
 betaData <- cbind(condGrid, betaCoef, checkAcc)
 round(betaData, 3)
 
-# write.csv(betaData, "bruteForceBcoefficients.csv", row.names=FALSE)
-# bruteForceB <- read.table("bruteForceBcoefficients.csv", header = T, sep = ",")
+# write.csv(betaData, "utils/bruteForceBcoeff_inter.csv", row.names=FALSE)
+# bruteForceB <- read.table("utils/bruteForceBcoeff_inter.csv", header = T, sep = ",")
