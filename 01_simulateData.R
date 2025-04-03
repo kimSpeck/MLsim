@@ -87,10 +87,11 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
 }
 
 # # test simulating data for only one condition
-# out <- do.call(mapply, c(FUN = createData, gridFull[1,]))
+# out <- do.call(mapply, c(FUN = createData, gridFull[1,])) # check inter
+# out <- do.call(mapply, c(FUN = createData, gridFull[19,])) # check nonlinear
 
-# simulate only nonlinear data
-out <- do.call(mapply, c(FUN = createData, gridFull[gridFull$data == "nonlinear", ]))
+# # simulate only nonlinear data
+# out <- do.call(mapply, c(FUN = createData, gridFull[gridFull$data == "nonlinear", ]))
 
 # # simulate full data
 # out <- do.call(mapply, c(FUN = createData, gridFull))

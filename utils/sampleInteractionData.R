@@ -2,11 +2,12 @@
 
 sampleInteractionData <- function() {
   
-  createFolder(paste0(dataFolder,"/inter"))
+  dgpFolder <- paste0(dataFolder, "/", data)
+  createFolder(dgpFolder)
   
   if (setParam$dgp$singleSamples) {
     sampleFolder <- paste0("/simDataN", N, "_pTrash", pTrash, "_rel", reliability)
-    createFolder(paste0(dataFolder, "/inter", sampleFolder))
+    createFolder(paste0(dgpFolder, sampleFolder))
   }
   
   # sample data in parallel; 
@@ -43,7 +44,7 @@ sampleInteractionData <- function() {
     # rows represent predictors (thus, number of rows depends on pTrash which varies 
     #     between simulated conditions)
     # columns represent conditions (= combination of R2 and lin/inter effect balance)
-    bMatrix <- genBmat(X_int, "inter", setParam)
+    bMatrix <- genBmat(X_int, data, setParam)
     
     # calculate R^2 for every combination of R2 and lin/inter effect balance
     # print R^2 as a quick sanity check (removed for speed sake) 
@@ -98,7 +99,7 @@ sampleInteractionData <- function() {
       sampleNames <- c(seq_len(setParam$dgp$nTrain),
                        paste0("test", seq_len(setParam$dgp$nTest)))
       fileName <- paste0("sample_", sampleNames[iSample], ".rda")
-      save(dataList, file = paste0(dataFolder, "/inter", sampleFolder, "/", fileName))
+      save(dataList, file = paste0(dgpFolder, sampleFolder, "/", fileName))
     } else {
       dataList
     }
@@ -111,6 +112,6 @@ sampleInteractionData <- function() {
                      paste0("test", seq_len(setParam$dgp$nTest)))
     
     fileName <- paste0("simDataN", N, "_pTrash", pTrash, "_rel", reliability, ".rda")
-    save(data, file = paste0(dataFolder, "/inter/", fileName))
+    save(data, file = paste0(dgpFolder, "/", fileName))
   }
 }
