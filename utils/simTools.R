@@ -4,6 +4,7 @@ createFolder <- function(folderPath) {
   }
 }
 
+# generate matrix of coefficients to simulate data depending on predictor matrix
 genBmat <- function(X_int, dgp, setParam) {
   ###
   # create matrix with beta coefficients for each simulation condition R2 x lin_inter
