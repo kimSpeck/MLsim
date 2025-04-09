@@ -41,6 +41,8 @@ gridInter <- expand.grid(N = setParam$dgp$N,
 str(gridInter) 
 
 # create seed number for parallel cluster (reproducibility of generated data)
+#   keep seeds from simulating only linear effects and only add nonlinear conditions with seed
+#   -> two step grid generating
 set.seed(8967369)
 seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
 gridInter$sampleSeed <- seedNum[1:dim(gridInter)[1]]
