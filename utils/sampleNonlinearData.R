@@ -45,6 +45,13 @@
 
 sampleNonlinearData <- function() {
   
+  # # generate one big test data set
+  # N <- 1000000
+  # pTrash <- 10
+  # dgpFolder <- paste0(dataFolder, "/bigTestSamples")
+  # reliability <- 1
+  # data <- "nonlinear"
+  
   dgpFolder <- paste0(dataFolder, "/", data)
   createFolder(dgpFolder)
   
@@ -183,6 +190,9 @@ sampleNonlinearData <- function() {
                      X_int = X_final, # these are the predictors (IV) with measurement error
                      R2 = R2) #, # without measurement error
                      # R2_wME = R2_wME) # with measurement error
+    
+    # testFileName <- paste0("simDataN", N, "_pTrash", pTrash, "_rel", reliability, "_", data, ".rda")
+    # save(dataList, file = paste0(dgpFolder, "/", testFileName))
     
     if (setParam$dgp$singleSamples){
       sampleNames <- c(seq_len(setParam$dgp$nTrain),
