@@ -63,25 +63,17 @@ setParam$bruteForceB$N <- 100000
 setParam$bruteForceB$reliability <- 1
 setParam$bruteForceB$poly <- setParam$dgp$poly
 
+# parameters for beta coefficient estimation
+setParam$fit$optimLowerLimit <- 0
+setParam$fit$optimUpperLimit <- 2
+setParam$fit$optimTol <- 1e-5
+setParam$fit$optimBetaTol <- 1e-5
+
 # read in coefficients as results from bruteForceB.R and bruteForceNonLinearB.R
 bruteForceB_inter <- read.table("utils/bruteForceBcoeff_inter.csv", header = T, sep = ",")
 bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
 
 # reorganize coefficients
-# setParam$dgp$trueB$inter$lin <- 
-#   cbind(bruteForceB_inter[which(bruteForceB_inter$lin == 0.5), "betaLin"], 
-#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.8), "betaLin"], 
-#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.2), "betaLin"])
-# 
-# setParam$dgp$trueB$inter$inter <- 
-#   cbind(bruteForceB_inter[which(bruteForceB_inter$lin == 0.5), "betaInter"], 
-#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.8), "betaInter"], 
-#         bruteForceB_inter[which(bruteForceB_inter$lin == 0.2), "betaInter"])
-# 
-# rownames(setParam$dgp$trueB$inter$lin) <- rownames(setParam$dgp$trueB$inter$inter) <- setParam$dgp$Rsquared
-# colnames(setParam$dgp$trueB$inter$lin) <- unique(bruteForceB_inter$lin)
-# colnames(setParam$dgp$trueB$inter$inter) <- unique(bruteForceB_inter$inter)
-
 setParam$dgp$trueB$inter$lin <- reshape2::dcast(bruteForceB_inter, R2 ~ lin, value.var = "betaLin")
 setParam$dgp$trueB$inter$inter <- reshape2::dcast(bruteForceB_inter, R2 ~ inter, value.var = "betaInter")
 
@@ -105,12 +97,6 @@ comboGrid <- expand.grid(setParam$dgp$Rsquared,
 setParam$dgp$condLabels <- sapply(seq_len(length(setParam$dgp$Rsquared) * length(setParam$dgp$percentLinear)), 
                                   function(x) paste0("R2", comboGrid$Var1[x], "lin_inter", comboGrid$Var2[x]))
 rm(comboGrid)
-
-# parameters for beta coefficient estimation
-setParam$fit$optimLowerLimit <- 0
-setParam$fit$optimUpperLimit <- 2
-setParam$fit$optimTol <- 1e-5
-setParam$fit$optimBetaTol <- 1e-5
 
 ##### predictor correlations #####
 # do not randomly sample correlation matrix in each sample!
@@ -284,9 +270,7 @@ setParam$fit$setTuningGrid_RF <- function(nPred) {
 setParam$fit$numTreesRF <- 500
 
 
-
-
-
+# organize data in outcome list objects
 # number of list elements to save as outcome measures
 #   ... for every model GBM, ENET, RF
 setParam$fit$out <- 4 # performTrainStats, performTestStats, performPerSample, pvi
