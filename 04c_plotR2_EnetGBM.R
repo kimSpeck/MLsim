@@ -18,12 +18,15 @@ if (!file.exists(plotFolder)){
 }
 
 # path to result files (i.e., dependent measures)
-resFolder <- "results/finalResults/dependentMeasures"
+# resFolder <- "results/finalResults/dependentMeasures"
+# resFolder <- "results/inter/oldDataRF/dependentMeasures"
+resFolder <- "results/nonlinear/dependentMeasures"
 
 # read in data
-load("results/finalResults/dependentMeasures/rSquaredData_stats.rda")
-load("results/finalResults/dependentMeasures/rSquaredData_eachSample.rda")
+load("results/inter/oldDataRF/dependentMeasures/rSquaredData_stats.rda")
+load("results/inter/oldDataRF/dependentMeasures/rSquaredData_eachSample.rda")
 
+performanceData <- performanceSubRF
 ##### add Monte Carlo Error
 # as standard deviation of the Monte Carlo estimate
 # plot 2 Monte Carlo Errors as Error Bars  
@@ -51,8 +54,8 @@ pR2sub$lin_inter <- factor(pR2sub$lin_inter,
                            labels = c("80:20", "50:50", "20:80"))
 
 pR2sub$model <- factor(pR2sub$model,
-                       levels = c("ENETw", "ENETwo", "GBM"),
-                       labels = c("ENETinter", "ENETlin", "GBM"))
+                       levels = c("ENETw", "ENETwo", "GBM", "RF"),
+                       labels = c("ENETinter", "ENETlin", "GBM", "RF"))
 
 plotR2sub <- function(data, pTrash, N, title = "", guides = T) {
   pTmp <- ggplot(data[data$pTrash == pTrash &
@@ -64,8 +67,8 @@ plotR2sub <- function(data, pTrash, N, title = "", guides = T) {
     geom_line(linewidth = 0.75) +
     geom_errorbar(aes(ymin = values - 2*SE, ymax = values + 2*SE),
                   width = 0.2, alpha = 0.4) +
-    scale_linetype_manual(name = "ML model", values = c("solid", "dashed", "dotted")) +
-    scale_shape_manual(name = "ML model", values = c(16, 16, 17)) +
+    scale_linetype_manual(name = "ML model", values = c("solid", "dashed", "dotted", "dotdash")) +
+    scale_shape_manual(name = "ML model", values = c(16, 16, 17, 17)) +
     scale_color_manual(name = "R²", values = colValuesR2) +
     geom_hline(aes(yintercept = 0)) +
     facet_grid2(~ lin_inter,
@@ -102,23 +105,44 @@ plotR2sub <- function(data, pTrash, N, title = "", guides = T) {
   return(pTmp)
 }
 
-pR2_N100 <- plotR2sub(pR2sub, pTrash = 50, N = 100, title = "B", guides = T)
-pR2_N1000 <-plotR2sub(pR2sub, pTrash = 50, N = 1000, title = "A", guides = F)
-pR2_N300 <-plotR2sub(pR2sub, pTrash = 50, N = 300, title = "", guides = F)
+pR2_N100_pTrash50 <- plotR2sub(pR2sub, pTrash = 50, N = 100, title = "B", guides = T)
+pR2_N1000_pTrash50 <-plotR2sub(pR2sub, pTrash = 50, N = 1000, title = "A", guides = F)
+pR2_N300_pTrash50 <-plotR2sub(pR2sub, pTrash = 50, N = 300, title = "", guides = F)
 
-# # save plot as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N100_2SE.png"),
-#                 plot = pR2_N100,
-#                 width = 13.63,
-#                 height = 8.59,
-#                 units = "in")
-# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N300_2SE.png"),
-#                 plot = pR2_N300,
-#                 width = 13.63,
-#                 height = 8.59,
-#                 units = "in")
-# ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N1000_2SE.png"),
-#                 plot = pR2_N1000,
-#                 width = 13.63,
-#                 height = 8.59,
-#                 units = "in")
+pR2_N100_pTrash10 <- plotR2sub(pR2sub, pTrash = 10, N = 100, title = "B", guides = T)
+pR2_N1000_pTrash10 <-plotR2sub(pR2sub, pTrash = 10, N = 1000, title = "A", guides = F)
+pR2_N300_pTrash10 <-plotR2sub(pR2sub, pTrash = 10, N = 300, title = "", guides = F)
+
+# save plot as files
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N100_2SE_pTrash10.png"),
+                plot = pR2_N100_pTrash10,
+                width = 13.63,
+                height = 8.59,
+                units = "in")
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N300_2SE_pTrash10.png"),
+                plot = pR2_N300_pTrash10,
+                width = 13.63,
+                height = 8.59,
+                units = "in")
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N1000_2SE_pTrash10.png"),
+                plot = pR2_N1000_pTrash10,
+                width = 13.63,
+                height = 8.59,
+                units = "in")
+
+# save plot as files
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N100_2SE_pTrash50.png"),
+                plot = pR2_N100_pTrash50,
+                width = 13.63,
+                height = 8.59,
+                units = "in")
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N300_2SE_pTrash50.png"),
+                plot = pR2_N300_pTrash50,
+                width = 13.63,
+                height = 8.59,
+                units = "in")
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_N1000_2SE_pTrash50.png"),
+                plot = pR2_N1000_pTrash50,
+                width = 13.63,
+                height = 8.59,
+                units = "in")
