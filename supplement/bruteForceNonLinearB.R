@@ -40,7 +40,7 @@ colnames(X) <- paste0("Var", seq_len(P))
 popModel <- genModel(colnames(X), setParam$dgp$interDepth, setParam$dgp$poly)
 
 # predictor matrix that allows for polynomials and interactions
-X_int <- model.matrix(as.formula(popModel),data.frame(X))
+X_int <- model.matrix(as.formula(popModel), data.frame(X))
 
 # remove first degree polynomials from data (they are duplicates!)
 if (setParam$dgp$poly > 0) {
@@ -162,7 +162,7 @@ init <- c(1, 0.1)
 names(init) <- c("betaLin", "betaInter")
 
 condGrid <- expand.grid(R2 = setParam$dgp$Rsquared,
-                        lin = setParam$dgp$percentLinear)
+                        lin = c(setParam$dgp$percentLinear, 0))
 condGrid$inter <- 1 - condGrid$lin
 
 optimBeta <- function(init, R2, lin, inter) {
@@ -290,5 +290,5 @@ checkAcc <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
 betaData <- cbind(condGrid, betaCoef, checkAcc)
 round(betaData, 3)
 
-# write.csv(betaData, "utils/bruteForceBcoeff_nonlinear.csv", row.names=FALSE)
-# bruteForceB <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
+# write.csv(betaData, "utils/bruteForceBcoeff_nonlinear_plus.csv", row.names=FALSE)
+# bruteForceB <- read.table("utils/bruteForceBcoeff_nonlinear_plus.csv", header = T, sep = ",")

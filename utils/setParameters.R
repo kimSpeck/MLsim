@@ -43,9 +43,9 @@ setParam$dgp$nonlinEffects <- sapply((setParam$dgp$p+1):(setParam$dgp$p+setParam
 setParam$dgp$nonlinEffects <- c(setParam$dgp$nonlinEffects, "dumVar5.1:dumVar6.1")
 
 # proportion of effect explained by linear effects vs. interaction
-setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2) 
-setParam$dgp$percentInter <- c(0.5, 0.2, 0.8)
-setParam$dgp$percentPoly <- c(0, 0, 0)
+setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2, 0.0) 
+setParam$dgp$percentInter <- c(0.5, 0.2, 0.8, 1.0)
+setParam$dgp$percentPoly <- c(0, 0, 0, 0)
 
 # check
 if (!all(setParam$dgp$percentLinear+
@@ -71,7 +71,8 @@ setParam$fit$optimBetaTol <- 1e-5
 
 # read in coefficients as results from bruteForceB.R and bruteForceNonLinearB.R
 bruteForceB_inter <- read.table("utils/bruteForceBcoeff_inter.csv", header = T, sep = ",")
-bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
+#bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
+bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear_plus.csv", header = T, sep = ",")
 
 # reorganize coefficients
 setParam$dgp$trueB$inter$lin <- reshape2::dcast(bruteForceB_inter, R2 ~ lin, value.var = "betaLin")
@@ -90,10 +91,14 @@ setParam$dgp$trueB$nonlinear$lin[["R2"]]    <- NULL
 row.names(setParam$dgp$trueB$nonlinear$nonlinear) <- setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]
 setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]    <- NULL
 
+colnames(setParam$dgp$trueB$nonlinear$lin) <- formatC(sort(setParam$dgp$percentLinear), format = "f", digits = 1)
+colnames(setParam$dgp$trueB$nonlinear$nonlinear) <- formatC(sort(setParam$dgp$percentInter), format = "f", digits = 1)
+
 rm(bruteForceB_inter, bruteForceB_nl) # rm temporary matrices 
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
-                         paste(setParam$dgp$percentLinear, setParam$dgp$percentInter, sep = "_"))
+                         paste(formatC(setParam$dgp$percentLinear, format = "f", digits = 1), 
+                               formatC(setParam$dgp$percentInter, format = "f", digits = 1), sep = "_"))
 setParam$dgp$condLabels <- sapply(seq_len(length(setParam$dgp$Rsquared) * length(setParam$dgp$percentLinear)), 
                                   function(x) paste0("R2", comboGrid$Var1[x], "lin_inter", comboGrid$Var2[x]))
 rm(comboGrid)
