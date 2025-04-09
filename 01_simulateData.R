@@ -29,7 +29,7 @@ logFolder = "log"
 createFolder(logFolder)
 
 # set number of cores to use in parallel computing
-nCoresSampling <- 5 # simulate data
+nCoresSampling <- 30 # simulate data
 
 # grid to simulate data with mapply later
 # simulation via mapply to easily simulate subsets of parameter combinations
