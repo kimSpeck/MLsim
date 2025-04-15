@@ -1,5 +1,4 @@
 # simulate data
-
 # load packages
 library(mvtnorm)
 library(truncnorm)
@@ -12,6 +11,7 @@ source("utils/simTools.R") # general functions for data simulation
 # functions to generate data
 source("utils/sampleInteractionData.R") # linear + interaction effects
 source("utils/sampleNonlinearData.R") # linear + nonlinear effects
+source("utils/samplePiecewiseLinearData.R") # linear + nonlinear effects
 
 timeStampFolder <- format(Sys.time(), "%d%m%y_%H%M%S")
 
@@ -22,6 +22,8 @@ createFolder(dataFolder)
 dgpFolder <- "/inter"
 createFolder(paste0(dataFolder, dgpFolder))
 dgpFolder <- "/nonlinear"
+createFolder(paste0(dataFolder, dgpFolder))
+dgpFolder <- "/pwlinear"
 createFolder(paste0(dataFolder, dgpFolder))
 
 # generate folder for log files
@@ -47,15 +49,27 @@ set.seed(8967369)
 seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
 gridInter$sampleSeed <- seedNum[1:dim(gridInter)[1]]
 
-gridFull <- cbind(data = "inter", gridInter)
+# add dgp type column to the grid
+gridNL <- cbind(data = "inter", gridInter)   
 
+# add nonlinear grid
 set.seed(4890920)
 seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
 
-gridFull <- rbind(gridFull, 
-                  cbind(data = "nonlinear", 
+gridNL <- rbind(gridNL, 
+                cbind(data = "nonlinear", 
+                      gridInter[,!colnames(gridInter) %in% "sampleSeed"], 
+                      sampleSeed = seedNum))
+
+# add piecewise linear grid
+set.seed(7485936)
+seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
+
+gridFull <- rbind(gridNL, 
+                  cbind(data = "pwlinear", 
                         gridInter[,!colnames(gridInter) %in% "sampleSeed"], 
                         sampleSeed = seedNum))
+
 
 # sample data in parallel
 createData <- function(data, N, pTrash, reliability, sampleSeed){
@@ -64,8 +78,10 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
     environment(sampleInteractionData) <- environment()  
   } else if (data == "nonlinear") {
     environment(sampleNonlinearData) <- environment()  
+  } else if (data == "pwlinear") {
+    environment(samplePiecewiseLinearData) <- environment()  
   } else {
-    stop("We can only simulate inter or nonlinear data!")
+    stop("We can only simulate inter, nonlinear or piecewise linear data!")
   }
   
   # Initiate cluster; type = "FORK" only on Linux/MacOS: contains all environment variables automatically
@@ -82,6 +98,8 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
     sampleInteractionData() # run function to actually create dataset
   } else if (data == "nonlinear") {
     sampleNonlinearData()
+  } else if (data == "pwlinear") {
+    samplePiecewiseLinearData()
   }
   
   # close cluster to return resources (memory) back to OS

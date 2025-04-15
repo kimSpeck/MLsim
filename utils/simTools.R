@@ -17,8 +17,8 @@ genBmat <- function(X_int, dgp, setParam) {
   #                       with predictors in rows and simulated conditions in columns
   ###
   
-  if (!(dgp %in% c("inter", "nonlinear"))) {
-    stop("We can only simulate inter or nonlinear data!")
+  if (!(dgp %in% c("inter", "nonlinear", "pwlinear"))) {
+    stop("We can only simulate inter, nonlinear or piecewise linear data!")
   }
   
   # generate empty matrix of beta coefficients with ...
@@ -35,7 +35,7 @@ genBmat <- function(X_int, dgp, setParam) {
   #   (i.e., population beta coefficients)
   #   R2 indicated by rows in matrices of population beta coefficients in setParam
   bMatrixR2 <- stringr::str_sub(colnames(bMatrix), start = 3L, end = 5L)
-   
+  
   # # organization of R² in rows is identical for lin vs. inter and for lin vs. nonlin 
   # idxRowInter <- match(bMatrixR2, rownames(setParam$dgp$trueB$inter$inter))
   # idxRowInter <- match(bMatrixR2, rownames(setParam$dgp$trueB$nonlinear$nonlinear))
@@ -83,6 +83,25 @@ genBmat <- function(X_int, dgp, setParam) {
       bMatrix[c(setParam$dgp$nonlinEffects), iCond] <- rep(
         setParam$dgp$trueB$nonlinear$nonlinear[idxRow[iCond],idxColOther[iCond]], 
         times = length(setParam$dgp$nonlinEffects)) # R2 = 0.02
+    }
+  } else if (dgp == "pwlinear"){
+    idxRow <- match(bMatrixR2, rownames(setParam$dgp$trueB$pwlinear$lin))
+    idxColLin <- match(bMatrixLin, colnames(setParam$dgp$trueB$pwlinear$lin))
+    idxColOther <- match(bMatrixOther, colnames(setParam$dgp$trueB$pwlinear$nonlinear))
+    
+    # fill up bMatrix with different beta coefficients for linear and interaction
+    #   effects in each combination of ...
+    #   R2 {0.1, 0.3, 0.5, 0.8} and 
+    #   effect size splitting between linear & interaction effects {0.5_0.5, 0.8_0.2, 0.2_0.8}
+    for (iCond in seq_len(dim(bMatrix)[2])) {
+      # linear effects
+      bMatrix[c(setParam$dgp$linEffects), iCond] <- rep(
+        setParam$dgp$trueB$pwlinear$lin[idxRow[iCond],idxColLin[iCond]], 
+        times = length(setParam$dgp$linEffects)) 
+      # interaction effects
+      bMatrix[c(setParam$dgp$pwlinEffects), iCond] <- rep(
+        setParam$dgp$trueB$pwlinear$nonlinear[idxRow[iCond],idxColOther[iCond]], 
+        times = length(setParam$dgp$pwlinEffects)) # R2 = 0.02
     }
   }
   

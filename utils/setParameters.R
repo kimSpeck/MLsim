@@ -19,12 +19,13 @@ setParam$dgp$N <- c(100, 300, 1000) # number of observations
 #   -> fix test sample size 
 setParam$dgp$testN <- 1000            # fixed test sample size across all N conditions 
 
-setParam$dgp$p <- 4                   # number of latent variables
-setParam$dgp$pTrash <- c(10, 50) # number of "trash" predictors 
-setParam$dgp$pNL <- 2
-
+setParam$dgp$p <- 4               # number of latent variables
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
 setParam$dgp$poly <- c(0) # degree of polynomials (so far: no polynomials)
+
+setParam$dgp$pNL <- 2             # number of original variables for nonlinear effects         
+setParam$dgp$pPWL <- 3             # number of original variables for piecewise-linear effects
+setParam$dgp$pTrash <- c(10, 50)  # number of noise variables
 
 # predictors and their polynomials + all interactions of depth
 P <- (setParam$dgp$p + setParam$dgp$pTrash) # all predictors
@@ -37,15 +38,24 @@ rm(P)
 setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("Var", x))
 # choose variables for interaction that have no linear effects (R2 budget)
 setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
+
 # nonlinear effects
 setParam$dgp$nonlinEffects <- sapply((setParam$dgp$p+1):(setParam$dgp$p+setParam$dgp$pNL), 
                                      function(x) paste0("dumVar", x, ".1"))
 setParam$dgp$nonlinEffects <- c(setParam$dgp$nonlinEffects, "dumVar5.1:dumVar6.1")
 
+# piecewise linear effect
+setParam$dgp$pwlinEffects <- c("Var5.2nd", "Var6.2nd", "Var7.2nd")
+
 # proportion of effect explained by linear effects vs. interaction
-setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2, 0.0) 
-setParam$dgp$percentInter <- c(0.5, 0.2, 0.8, 1.0)
-setParam$dgp$percentPoly <- c(0, 0, 0, 0)
+setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2) 
+setParam$dgp$percentInter <- c(0.5, 0.2, 0.8)
+setParam$dgp$percentPoly <- c(0, 0, 0)
+
+# # simulate conditions in which interactions, nonlinear and piecewise linear effects get 100% R² 
+# setParam$dgp$percentLinear <- c(0.5, 0.8, 0.2, 0.0) 
+# setParam$dgp$percentInter <- c(0.5, 0.2, 0.8, 1.0)
+# setParam$dgp$percentPoly <- c(0, 0, 0, 0)
 
 # check
 if (!all(setParam$dgp$percentLinear+
@@ -71,10 +81,12 @@ setParam$fit$optimBetaTol <- 1e-5
 
 # read in coefficients as results from bruteForceB.R and bruteForceNonLinearB.R
 bruteForceB_inter <- read.table("utils/bruteForceBcoeff_inter.csv", header = T, sep = ",")
-#bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
-bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear_plus.csv", header = T, sep = ",")
+bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
+# bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear_plus.csv", header = T, sep = ",")
+bruteForceB_pwl <- read.table("utils/bruteForceBcoeff_piecewise.csv", header = T, sep = ",")
 
 # reorganize coefficients
+# # lin vs. interaction
 setParam$dgp$trueB$inter$lin <- reshape2::dcast(bruteForceB_inter, R2 ~ lin, value.var = "betaLin")
 setParam$dgp$trueB$inter$inter <- reshape2::dcast(bruteForceB_inter, R2 ~ inter, value.var = "betaInter")
 
@@ -83,6 +95,7 @@ setParam$dgp$trueB$inter$lin[["R2"]]    <- NULL
 row.names(setParam$dgp$trueB$inter$inter) <- setParam$dgp$trueB$inter$inter[["R2"]]
 setParam$dgp$trueB$inter$inter[["R2"]]    <- NULL
 
+# # lin vs. nonlinear
 setParam$dgp$trueB$nonlinear$lin <- reshape2::dcast(bruteForceB_nl, R2 ~ lin, value.var = "betaLin")
 setParam$dgp$trueB$nonlinear$nonlinear <- reshape2::dcast(bruteForceB_nl, R2 ~ inter, value.var = "betaInter")
 
@@ -91,10 +104,20 @@ setParam$dgp$trueB$nonlinear$lin[["R2"]]    <- NULL
 row.names(setParam$dgp$trueB$nonlinear$nonlinear) <- setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]
 setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]    <- NULL
 
-colnames(setParam$dgp$trueB$nonlinear$lin) <- formatC(sort(setParam$dgp$percentLinear), format = "f", digits = 1)
-colnames(setParam$dgp$trueB$nonlinear$nonlinear) <- formatC(sort(setParam$dgp$percentInter), format = "f", digits = 1)
+# # naming conventions for 0.0 vs. 1.0
+# colnames(setParam$dgp$trueB$nonlinear$lin) <- formatC(sort(setParam$dgp$percentLinear), format = "f", digits = 1)
+# colnames(setParam$dgp$trueB$nonlinear$nonlinear) <- formatC(sort(setParam$dgp$percentInter), format = "f", digits = 1)
 
-rm(bruteForceB_inter, bruteForceB_nl) # rm temporary matrices 
+# # lin vs. piecewise linear
+setParam$dgp$trueB$pwlinear$lin <- reshape2::dcast(bruteForceB_pwl, R2 ~ lin, value.var = "betaLin")
+setParam$dgp$trueB$pwlinear$nonlinear <- reshape2::dcast(bruteForceB_pwl, R2 ~ inter, value.var = "betaInter")
+
+row.names(setParam$dgp$trueB$pwlinear$lin) <- setParam$dgp$trueB$pwlinear$lin[["R2"]]
+setParam$dgp$trueB$pwlinear$lin[["R2"]]    <- NULL
+row.names(setParam$dgp$trueB$pwlinear$nonlinear) <- setParam$dgp$trueB$pwlinear$nonlinear[["R2"]]
+setParam$dgp$trueB$pwlinear$nonlinear[["R2"]]    <- NULL
+
+rm(bruteForceB_inter, bruteForceB_nl, bruteForceB_pwl) # rm temporary matrices 
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
                          paste(formatC(setParam$dgp$percentLinear, format = "f", digits = 1), 
@@ -182,6 +205,45 @@ repeat{
 }
 setParam$dgp$predictorCorMat_nl <- rX # save PSM correlation matrix
 rm(P_nl, corN_nl, corNp, corNpNL, corVec, rP, rPnl, rX) # remove temporary variables
+
+##### linear vs. piecewise linear effects #####
+set.seed(42420)
+
+# randomly choose correlation matrix for biggest set of predictors (max(pTrash))
+# (use subsets for pTrash < max(pTrash))
+P_pwl <- max(setParam$dgp$p + setParam$dgp$pPWL + setParam$dgp$pTrash)
+corN_pwl <- P_pwl*(P_pwl-1)/2
+corNp <- setParam$dgp$p*(setParam$dgp$p-1)/2
+corNpPWL <- setParam$dgp$pPWL*(setParam$dgp$pPWL-1)/2
+
+repeat{
+  # correlations around 0 for all variables (but finally for trash variables) 
+  #   alternatively exactly 0 correlations
+  corVec <- truncnorm::rtruncnorm(corN_pwl, mean = setParam$dgp$meanR, sd = setParam$dgp$sdR, 
+                                  a = -0.5, b = 0.5) 
+  rX <- lavaan::lav_matrix_upper2full(corVec, diagonal = F) # fill up upper triangle
+  # rX <- lavaan::lav_matrix_upper2full(rep(0, corN), diagonal = F) # fill up upper triangle
+  
+  # correlations between linear predictor variables (all identical atm)
+  #   replace around 0 correlations at the corresponding positions in the matrix
+  rP <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rLinEffects, corNp), diagonal = F)
+  rX[1:dim(rP)[1], 1:dim(rP)[1]] <- rP
+  
+  # correlations between nonlinear predictor variables (all identical atm)
+  #   replace around 0 correlations at the corresponding positions in the matrix
+  rPpwl <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rNonLinEffects, corNpPWL), diagonal = F)
+  rX[(setParam$dgp$p+1):(setParam$dgp$p+dim(rPpwl)[1]), 
+     (setParam$dgp$p+1):(setParam$dgp$p+dim(rPpwl)[1])] <- rPpwl
+  diag(rX) <- 1
+  
+  # check if correlation matrix is positive semi-definite
+  # thereby avoid warning and correction procedure in rmvnorm
+  if(all(eigen(rX)$values >= 0)) {
+    break
+  }
+}
+setParam$dgp$predictorCorMat_pwl <- rX # save PSM correlation matrix
+rm(P_pwl, corN_pwl, corNp, corNpPWL, corVec, rP, rPpwl, rX) # remove temporary variables
 
 # error "variance" (= standard deviation when sampling via rnorm due to fun. argument)
 setParam$dgp$sigmaE <- 1
