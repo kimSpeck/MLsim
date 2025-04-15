@@ -1,6 +1,6 @@
 # brute force algorithm to find beta coefficients with fixed Rsquared
 # Gibbs Sampling to arrive at beta coefficients that lead to respective Rsquared 
-#   for linear effects and interactions
+#   for linear effects and nonlinear effects (stepwise)
 
 # restrictions
 #     - Var1 = Var2 = Var3 = Var4 = ?
