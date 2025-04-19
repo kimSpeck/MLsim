@@ -1,4 +1,4 @@
-# (actual) function to simulate linear vs. non-linear data
+# (actual) function to simulate linear vs. piecewise-linear data
 
 # simulate two additional variables 
 #   - nonlinear "original" variables are uncorrelated with ...
@@ -43,14 +43,14 @@
 #   fall into both dummies (D1 = 1 and D2 = 1 never occurs by design)
 #####
 
-sampleNonlinearData <- function() {
+samplePiecewiseLinearData <- function() {
   
   # # generate one big test data set
   # N <- 1000000
   # pTrash <- 10
   # dgpFolder <- paste0(dataFolder, "/bigTestSamples")
   # reliability <- 1
-  # data <- "nonlinear"
+  # data <- "pwlinear"
   
   dgpFolder <- paste0(dataFolder, "/", data)
   createFolder(dgpFolder)
@@ -65,7 +65,7 @@ sampleNonlinearData <- function() {
   # generate samples in parallel as samples are drawn as random & independent
   data <- parLapply(cl, seq_len(setParam$dgp$nSamples), function(iSample) {
     
-    P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
+    P <- setParam$dgp$p + setParam$dgp$pPWL + pTrash # total number of variables
     # generate matrix of (almost) uncorrelated predictors
     if (iSample > setParam$dgp$nTrain) {
       # test sample with fixed sample size across all simulated conditions (independent of N)
@@ -78,7 +78,7 @@ sampleNonlinearData <- function() {
     # here: add additional variable for nonlinear effect to predictor matrix or
     #       use one of the pTrash variables to generate dummy? 
     X <- createPredictors(N = N, P = P, 
-                          corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
+                          corMat = setParam$dgp$predictorCorMat_pwl[seq_len(P), seq_len(P)])
     
     # add names to variables
     colnames(X) <- paste0("Var", seq_len(P))
@@ -102,42 +102,55 @@ sampleNonlinearData <- function() {
     # apply(X_int, 2, var)
     # cor(X_int)
     
-    # here: we need to switch to the dummy coded variables
-    # add the dummy coded version of the non-linear effect variables to the data
-    #   overwriting var does not work because we need the numeric variable later on
-    # here: set effect coding to get dummies with variance = 1 
-    X_int <- cbind(X_int, 
-                   dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
-                   dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
-    # add the interaction between the dummies
-    X_int <- cbind(X_int, 
-                   `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
-    # # var(dumVar5.1) = 1; var(dumVar6.1) = 1; var(dumVar5.1:dumVar6.1) = 1
-    # # dummies are uncorrelated with everything
-    # var(X_int[, "dumVar5.1"]); var(X_int[, "dumVar6.1"]); var(X_int[, "dumVar5.1:dumVar6.1"])
-    # cor(X_int[, c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)])
+    # here: we need to switch to the piecewise linear variables
+    # add ...
+    #   ... the dummy coded version of the threshold and
+    #   ... the resulting x value for the second segment to data matrix
+    # median split of the original variable means splitting at 0
+    #   ... therefore beta0 and beta0.2nd has to be 0! 
+    # median split at 0 essentially means we are applying a ReLu function to the original variable
+    # -> how to calculate (expected mean and) expected variance of a ReLu transformed variable
+    #     ... there are closed form solutions!
+    # we do not need to overwrite the linear variable because we need it for the 
+    #     linear regression as predictor later and for the piecewise linear regression model, too
+    # here: do not use effect coding on the dummy as the dummy is only intermediate step
+    #       but dummy will not be kept in predictor matrix to model y; therefore only vector
     
-    # detect dummies to remove the corresponding original variables temporarily
-    detectDum <- colnames(X_int)[stringr::str_detect(colnames(X_int), "^dum") ] 
-    varNamesDummies <- paste0("Var", unique(stringr::str_extract(detectDum, "(?<=dumVar)\\d+")))
-    X_intDummy <- X_int[, !colnames(X_int) %in% c(varNamesDummies)] # remove original variables
+    # dummy to calculate 2nd segment x
+    dumVar5 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = F) 
+    dumVar6 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = F) 
+    dumVar7 = createDummy(X_int[, "Var7"], q = 0.5, effectCoding = F) 
+    X_int <- cbind(X_int, 
+                   Var5.2nd = (X_int[, "Var5"] - quantile(X_int[, "Var5"], 0.5))*dumVar5,
+                   Var6.2nd = (X_int[, "Var6"] - quantile(X_int[, "Var6"], 0.5))*dumVar6,
+                   Var7.2nd = (X_int[, "Var7"] - quantile(X_int[, "Var7"], 0.5))*dumVar7)
+    
+    # apply(X_int[,c("Var5", "Var6", "Var5.2nd", "Var6.2nd")], 2, mean)
+    # # Var5          Var6      Var5.2nd      Var6.2nd 
+    # # 0.0006299155 -0.0002065031  0.3991402179  0.3982295602 
+    # apply(X_int[,c("Var5", "Var6", "Var5.2nd", "Var6.2nd")], 2, var)
+    # # Var5      Var6  Var5.2nd  Var6.2nd 
+    # # 1.0002533 0.9974187 0.3412924 0.3394212 
+    # cor(X_int[, c(setParam$dgp$linEffects, setParam$dgp$pwlinEffects)])
+    # # nonlineare Variablen sind unkorreliert miteinander; 
+    # #   first and second Segment ignorieren, weil Koeffizient für Var5, etc. = 0
     
     # generate matrix of regression coefficients (matrix includes all conditions)
     # rows represent predictors (thus, number of rows depends on pTrash which varies 
     #     between simulated conditions)
     # columns represent conditions (= combination of R2 and lin/inter effect balance)
     
-    # here: use data without the original variables, but with dummies in the data
-    # here: add weights (= regression-coefficients) for the dummies and their interaction
-    bMatrix <- genBmat(X_intDummy, data, setParam)
+    # here: use data with the original variable and the second segment variable
+    # here: add weights (= regression-coefficients) for the second segment variable
+    bMatrix <- genBmat(X_int, data, setParam)
     
     # # quick check
-    # bMatrix[rownames(bMatrix) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects),]
+    # bMatrix[rownames(bMatrix) %in% c(setParam$dgp$linEffects, setParam$dgp$pwlinEffects),]
     
     # calculate R^2 for every combination of R2 and lin/inter effect balance
     # print R^2 as a quick sanity check (removed for speed sake) 
     # here: use data without the original variables, but with dummies in the data
-    R2 <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_intDummy, bMatrix[,x], setParam$dgp$sigmaE))
+    R2 <- sapply(seq_len(ncol(bMatrix)), function(x) getR2(X_int, bMatrix[,x], setParam$dgp$sigmaE))
     
     # calculate dependent variable for every combination of R2 and lin/inter effect balance
     # dependent variable is simulated based on ...
@@ -146,7 +159,7 @@ sampleNonlinearData <- function() {
     
     # here: use data without the original variables, but with dummies in the data
     yMatrix <- sapply(seq_len(ncol(bMatrix)), function(x) {
-      calcDV(X = X_intDummy, b = bMatrix[,x],
+      calcDV(X = X_int, b = bMatrix[,x],
              sigmaE = setParam$dgp$sigmaE, N = N)
     })
     colnames(yMatrix) <- setParam$dgp$condLabels
@@ -189,8 +202,9 @@ sampleNonlinearData <- function() {
     dataList <- list(yMat = yMatrix, # criterion (DV) with R2 x lin_inter in columns
                      X_int = X_final, # these are the predictors (IV) with measurement error
                      R2 = R2) #, # without measurement error
-                     # R2_wME = R2_wME) # with measurement error
+    # R2_wME = R2_wME) # with measurement error
     
+    # # to save big test sample
     # testFileName <- paste0("simDataN", N, "_pTrash", pTrash, "_rel", reliability, "_", data, ".rda")
     # save(dataList, file = paste0(dgpFolder, "/", testFileName))
     

@@ -16,8 +16,28 @@ for (iData in seq_along(listDir)) {
   
   Xtrain <- dataList[["X_int"]]
   if (stringr::str_detect(listDir[iData], "inter")) {
-    Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
+    Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects,
                                                setParam$dgp$interEffects)]  
+  
+    
+    
+  } else if (stringr::str_detect(listDir[iData], "pwlinear")) {
+    Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
+                                               "Var5", "Var6", "Var7")] 
+    
+    Xtrain_lm <- Xtrain
+    
+    dumVar5 = createDummy(Xtrain[, "Var5"], q = 0.5, effectCoding = F) 
+    dumVar6 = createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = F) 
+    dumVar7 = createDummy(Xtrain[, "Var7"], q = 0.5, effectCoding = F) 
+    Xtrain <- cbind(Xtrain, 
+                   Var5.2nd = (Xtrain[, "Var5"] - quantile(Xtrain[, "Var5"], 0.5))*dumVar5,
+                   Var6.2nd = (Xtrain[, "Var6"] - quantile(Xtrain[, "Var6"], 0.5))*dumVar6,
+                   Var7.2nd = (Xtrain[, "Var7"] - quantile(Xtrain[, "Var7"], 0.5))*dumVar7)
+    
+    Xtrain_oracle <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
+                                                      setParam$dgp$pwlinEffects)]
+    
   } else {
     Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
                                                "Var5", "Var6")]  
@@ -43,6 +63,21 @@ for (iData in seq_along(listDir)) {
     
     if (stringr::str_detect(listDir[iData], "inter")) {
       colnames(df) <- c(setParam$dgp$linEffects, setParam$dgp$interEffects, "y")
+      
+    }  else if (stringr::str_detect(listDir[iData], "pwlinear")) {  
+      # additionally the original variables as predictors 
+      # does this affect the performance of the linear regression (due to multicollinearity)?
+      colnames(df) <- c(setParam$dgp$linEffects, "Var5", "Var6", "Var7",
+                        setParam$dgp$pwlinEffects, "y")
+      
+      # this is what the linear model gets
+      df_lm <- data.frame(cbind(Xtrain_lm, ytrain))
+      colnames(df_lm) <- c(setParam$dgp$linEffects, "Var5", "Var6", "Var7", "y")
+      
+      # this is what an oracle model would know
+      df_oracle <- data.frame(cbind(Xtrain_oracle, ytrain))
+      colnames(df_oracle) <- c(setParam$dgp$linEffects, setParam$dgp$pwlinEffects, "y")
+      
     } else {
       colnames(df) <- c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects, "y")
       df_lm <- data.frame(cbind(Xtrain_lm, ytrain))
@@ -58,7 +93,13 @@ for (iData in seq_along(listDir)) {
     if (!(stringr::str_detect(listDir[iData], "inter"))) {
       fit <- lm(y ~ ., data = df_lm)
       R2lm_full <- summary(fit)$r.squared  
-    }
+    } 
+    if (stringr::str_detect(listDir[iData], "pwlinear")) {
+      fit <- lm(y ~ ., data = df_oracle)
+      R2oracle_full <- summary(fit)$r.squared  
+    } 
+    
+    
     
     #   - fit only linear effect
     df_lin <- df[,c(setParam$dgp$linEffects, "y")]
@@ -67,10 +108,20 @@ for (iData in seq_along(listDir)) {
     
     #   - fit only other effect
     if (stringr::str_detect(listDir[iData], "inter")) {
-      df_other <- df[,c(setParam$dgp$interEffects, "y")]
+      
+      df_other <- df[,c(setParam$dgp$interEffects, "y")] 
+      
+    } else if (stringr::str_detect(listDir[iData], "pwlinear")) {
+      df_other <- df[,c(setParam$dgp$pwlinEffects, "y")] 
+      
+      # nonlinear effects variables as available in linear regression model
+      fit <- lm(y ~ Var5 + Var6 + Var7, data = df_lm)
+      R2lm_other <- summary(fit)$r.squared  
+      
     } else {
       df_other <- df[,c(setParam$dgp$nonlinEffects, "y")]
       
+      # nonlinear effects variables as available in linear regression model
       fit <- lm(y ~ Var5 + Var6 + `Var5:Var6`, data = df_lm)
       R2lm_other <- summary(fit)$r.squared  
     }
@@ -87,6 +138,8 @@ for (iData in seq_along(listDir)) {
     
     c(trueR2 = trueR2, R2_full = R2_full, 
       R2lm_full = if (stringr::str_detect(listDir[iData], "inter")) {NA} else {R2lm_full},
+      # oracle model with only true predictors
+      R2oracle_full = if (stringr::str_detect(listDir[iData], "pwlinear")) {R2oracle_full} else {NA},
       trueLin = trueLin, R2_lin = R2_lin, trueLinPC = trueLinPC,
       trueOther = trueOther, R2_other = R2_other, 
       R2lm_other = if (stringr::str_detect(listDir[iData], "inter")) {NA} else {R2lm_other},

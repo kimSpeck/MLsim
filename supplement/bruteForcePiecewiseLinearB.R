@@ -1,10 +1,10 @@
 # brute force algorithm to find beta coefficients with fixed Rsquared
 # Gibbs Sampling to arrive at beta coefficients that lead to respective Rsquared 
-#   for linear effects and nonlinear effects (stepwise)
+#   for linear effects and piecewise linear effects
 
 # restrictions
 #     - Var1 = Var2 = Var3 = Var4 = ?
-#     - dumVar5.1 = dumVar6.1 = dumVar5.1:dumVar6.1 = ?
+#     - Var5.2nd = Var6.2nd = Var7.2nd = ?
 
 # Rsquared either splits 20:80, 50:50 or 80:20 for nonlinear and linear effects respectively
 # squared multiple correlation (r_y,yhat)^2 = multiple coefficient of determination
@@ -28,10 +28,10 @@ pTrash <- setParam$bruteForceB$pTrash
 N <- setParam$bruteForceB$N
 reliability <- setParam$bruteForceB$reliability
 
-P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
+P <- setParam$dgp$p + setParam$dgp$pPWL + pTrash # total number of variables
 
 X <- createPredictors(N = N, P = P, 
-                      corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
+                      corMat = setParam$dgp$predictorCorMat_pwl[seq_len(P), seq_len(P)])
 
 # add names to variables
 colnames(X) <- paste0("Var", seq_len(P))
@@ -47,15 +47,17 @@ if (setParam$dgp$poly > 0) {
   X_int <- rmDuplicatePoly(X_int)  
 }
 
+# dummy to calculate 2nd segment x
+dumVar5 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = F) 
+dumVar6 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = F) 
+dumVar7 = createDummy(X_int[, "Var7"], q = 0.5, effectCoding = F) 
 X_int <- cbind(X_int, 
-               dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
-               dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
-# add the interaction between the dummies
-X_int <- cbind(X_int, 
-               `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
+               Var5.2nd = (X_int[, "Var5"] - quantile(X_int[, "Var5"], 0.5))*dumVar5,
+               Var6.2nd = (X_int[, "Var6"] - quantile(X_int[, "Var6"], 0.5))*dumVar6,
+               Var7.2nd = (X_int[, "Var7"] - quantile(X_int[, "Var7"], 0.5))*dumVar7)
 
 # remove every other variable from data
-X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)]
+X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$pwlinEffects)]
 (empCor <- cor(X_int))
 # round(empCor, 3)
 cov(X_int)
@@ -69,8 +71,8 @@ rho <- setParam$dgp$predictorCorMat[1,2] # correlation between linear predictors
 corLin <- lavaan::lav_matrix_upper2full(rep(rho, setParam$dgp$p * (setParam$dgp$p-1) / 2), diagonal = F)
 diag(corLin) <- 1
 
-nNL <- setParam$dgp$pNL + 1
-corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
+nPWL <- setParam$dgp$pPWL
+corInter <- lavaan::lav_matrix_upper2full(rep(0, setParam$dgp$pPWL * (setParam$dgp$pPWL-1)/2), diagonal = F)
 diag(corInter) <- 1
 
 # full correlation matrix (+ labels)
@@ -82,7 +84,7 @@ theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
 #                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
 #                                           "Var2:Var3", "Var2:Var3", "Var3:Var4")
 rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
-                                          setParam$dgp$nonlinEffects)
+                                          setParam$dgp$pwlinEffects)
 
 ################################################################################
 # functions
@@ -98,7 +100,7 @@ linOptim <- function(theta, R2, lin, inter, beta_inter) {
   names(beta) <- names(betaVecLin) <-  colnames(theoCor) # name vector
   linIdx <- names(beta) %in% setParam$dgp$linEffects
   beta[linIdx] <- betaVecLin[linIdx] <- theta 
-  beta[names(beta) %in% setParam$dgp$nonlinEffects] <- beta_inter
+  beta[names(beta) %in% setParam$dgp$pwlinEffects] <- beta_inter
   
   R2_lin <- var(X_int %*% betaVecLin) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
@@ -113,7 +115,7 @@ interOptim <- function(theta, R2, lin, inter, beta_lin) {
   
   beta <- betaVecInter <-  vector(mode = "numeric", length = dim(theoCor)[1])
   names(beta) <- names(betaVecInter) <- colnames(theoCor)
-  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
+  interIdx <- names(beta) %in% setParam$dgp$pwlinEffects
   beta[names(beta) %in% setParam$dgp$linEffects] <- beta_lin 
   beta[interIdx] <- betaVecInter[interIdx] <-  theta
   
@@ -127,7 +129,7 @@ checkOptim <- function(betaLin, betaInter){
   beta <- betaVecLin <- betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
   names(beta) <- names(betaVecInter) <- names(betaVecLin) <- colnames(theoCor)
   linIdx <- names(beta) %in% setParam$dgp$linEffects
-  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
+  interIdx <- names(beta) %in% setParam$dgp$pwlinEffects
   beta[linIdx] <- betaLin
   beta[interIdx] <- betaInter
   
@@ -162,7 +164,8 @@ init <- c(1, 0.1)
 names(init) <- c("betaLin", "betaInter")
 
 condGrid <- expand.grid(R2 = setParam$dgp$Rsquared,
-                        lin = c(setParam$dgp$percentLinear, 0))
+                        # lin = c(setParam$dgp$percentLinear, 0))
+                        lin = c(setParam$dgp$percentLinear))
 condGrid$inter <- 1 - condGrid$lin
 
 optimBeta <- function(init, R2, lin, inter) {
@@ -219,7 +222,7 @@ gibbsB <- function(init, R2, lin, inter) {
              # R2_total would be more accurate but does not necessarily converge 
              #    getting R2_total AND {R2_lin, R2_inter} right is more difficult
              abs(R2 - accEstBeta["R2_total"])) 
-             # abs(R2 - accEstBeta["R2_add"])) 
+    # abs(R2 - accEstBeta["R2_add"])) 
     
     # repeat previous steps if criterions for convergence are not met
     #   a) R2_{lin, inter, add} near enough around target R2
@@ -290,5 +293,5 @@ checkAcc <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
 betaData <- cbind(condGrid, betaCoef, checkAcc)
 round(betaData, 3)
 
-# write.csv(betaData, "utils/bruteForceBcoeff_nonlinear_plus.csv", row.names=FALSE)
-# bruteForceB <- read.table("utils/bruteForceBcoeff_nonlinear_plus.csv", header = T, sep = ",")
+# write.csv(betaData, "utils/bruteForceBcoeff_piecewise.csv", row.names=FALSE)
+# bruteForceB <- read.table("utils/bruteForceBcoeff_piecewise.csv", header = T, sep = ",")

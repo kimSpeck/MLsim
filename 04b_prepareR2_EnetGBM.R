@@ -25,8 +25,10 @@ condN_pTrash <- paste0("N", condGrid$N,
                        "_pTrash", condGrid$pTrash,
                        "_rel", condGrid$reliability)
 
-
-resFolder <- "results/finalResults/dependentMeasures"
+data <- "nonlinear"
+# resFolder <- "results/finalResults/dependentMeasures"
+# resFolder <- "results/inter/oldDataRF/dependentMeasures"
+resFolder <- paste0("results/", data, "/dependentMeasures")
 
 # read in data
 listDir <- dir(resFolder)
@@ -38,6 +40,88 @@ for (iData in seq_len(length(dataList))) {
   objectName <- paste0("p", tvst[iData], "_", models[iData])
   assign(objectName, loadRData(paste0(resFolder, "/", dataList[iData])))
 }
+
+################################################################################
+# (overview) plot train and test performance (RF)
+################################################################################
+# change list of  matrices to data.frame
+pTest_RF <- rbindSingleResults(pTest_RF)
+pTrain_RF <- rbindSingleResults(pTrain_RF)
+
+# variables from rownames to own column to work with variable information
+pTrain_RF <- rowNames2col(pTrain_RF, "measure")
+pTrain_RF$measure <- paste0(pTrain_RF$measure, "_train")
+
+pTest_RF <- rowNames2col(pTest_RF, "measure")
+pTest_RF$measure[which(pTest_RF$measure == "Rsq_test")] <- "Rsquared_test"
+
+# get informative variables for simulated conditions (N, pTrash, R2, lin_inter) 
+pTrain_RF <- idx2infoNew(pTrain_RF)
+pTest_RF <- idx2infoNew(pTest_RF) 
+
+# merge performance Train and performance Test
+performanceStats <- rbind(pTrain_RF, pTest_RF)
+performanceStats <- tidyr::separate(performanceStats, measure, c("measure", "trainTest"), sep = "_")
+
+# change type of columns or specific entry details to prepare plotting  
+performanceStats$N <- factor(performanceStats$N, levels = setParam$dgp$N)
+performanceStats$pTrash <- factor(performanceStats$pTrash, levels = sort(setParam$dgp$pTrash, decreasing = T))
+str(performanceStats)
+chr2fac <- c("rel", "measure", "R2", "lin_inter")
+performanceStats[chr2fac] <- lapply(performanceStats[chr2fac], factor)
+
+
+# plot overfit instead of train as train - test
+performanceStats <- tidyr::pivot_wider(performanceStats, 
+                                       names_from = "trainTest", values_from = c(M, SE, SD))
+chr2num <- c("M_train", "M_test", "SE_train", "SE_test", "SD_train", "SD_test")
+performanceStats[chr2num] <- lapply(performanceStats[chr2num], as.numeric)
+
+performanceStats$overfit <- performanceStats$M_train - performanceStats$M_test
+performanceSubRF <- performanceStats[which(performanceStats$measure != "MAE" &
+                                           performanceStats$measure != "RMSE"),]
+performanceSubRF[,c("M_train", "SE_train", "SE_test", "SD_train", "SD_test")] <- list(NULL)
+performanceSubRF <- tidyr::pivot_longer(performanceSubRF, c(M_test, overfit),
+                                      names_to = "measures", values_to = "values")
+
+# plot performance measures for train and test data
+(pPerformTrainVStestRF <- ggplot(performanceSubRF,
+                                  aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+                                      group = R2, colour = R2)) +
+    geom_point() +
+    geom_line() +
+    scale_linetype_manual(values = c("dashed", "dotted", "solid")) +
+    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+    scale_color_manual(values = colValuesR2) +
+    geom_hline(aes(yintercept = 0)) +
+    facet_grid(measures + rel ~ lin_inter, labeller = label_both) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
+               alpha = 0.4) +
+    ylab("") +
+    xlab("pTrash (decreasing) x N (increasing)") +
+    ggtitle("R^2: Training vs. Test performance (RF)") +
+    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.text.x = element_text(size = 15),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+ 
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTestRF_", data, ".png"),
+#                 plot = pPerformTrainVStestRF,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+
 
 ################################################################################
 # (overview) plot train and test performance (GBM)
@@ -76,14 +160,14 @@ chr2num <- c("M_train", "M_test", "SE_train", "SE_test", "SD_train", "SD_test")
 performanceStats[chr2num] <- lapply(performanceStats[chr2num], as.numeric)
 
 performanceStats$overfit <- performanceStats$M_train - performanceStats$M_test
-performanceSub <- performanceStats[which(performanceStats$measure != "MAE" &
+performanceSubGBM <- performanceStats[which(performanceStats$measure != "MAE" &
                                            performanceStats$measure != "RMSE"),]
-performanceSub[,c("M_train", "SE_train", "SE_test", "SD_train", "SD_test")] <- list(NULL)
-performanceSub <- tidyr::pivot_longer(performanceSub, c(M_test, overfit),
+performanceSubGBM[,c("M_train", "SE_train", "SE_test", "SD_train", "SD_test")] <- list(NULL)
+performanceSubGBM <- tidyr::pivot_longer(performanceSubGBM, c(M_test, overfit),
                                       names_to = "measures", values_to = "values")
 
 # plot performance measures for train and test data
-(pPerformTrainVStestGBM <- ggplot(performanceSub,
+(pPerformTrainVStestGBM <- ggplot(performanceSubGBM,
                                aes(x = interaction(pTrash, N, sep = " x "), y = values, 
                                    group = R2, colour = R2)) +
     geom_point() +
@@ -179,24 +263,28 @@ performanceSubENET <- tidyr::pivot_longer(performanceSubENET, c(M_test, overfit)
                                       names_to = "measures", values_to = "values")
 
 head(performanceSubENET)
-head(performanceSub)
-performanceSub$fitInter <- rep(2, dim(performanceSub)[1])
+head(performanceSubGBM)
+head(performanceSubRF)
+performanceSubGBM$fitInter <- rep(2, dim(performanceSubGBM)[1])
+performanceSubRF$fitInter <- rep(3, dim(performanceSubRF)[1])
 
-colnames(performanceSub)
+colnames(performanceSubRF)
+colnames(performanceSubGBM)
 colnames(performanceSubENET)
-performanceData <- rbind(performanceSub, performanceSubENET)
+
+performanceData <- rbind(performanceSubRF, performanceSubGBM, performanceSubENET)
 # performanceData$fitInter <- plyr::mapvalues(performanceData$fitInter, 
 #                                             from=c(0,1,2), 
 #                                             to=c("ENET - lin","ENET - inter","GBM"))
 
 unique(performanceData$fitInter)
-performanceData$fit <- ifelse(performanceData$fitInter != 2, "enet", "gbm")
+performanceData$fit <- ifelse(performanceData$fitInter >= 2, "treeBased", "reg")
 unique(performanceData$fit)
 unique(performanceData$model)
 
-# save(performanceData, file = "results/finalResults/dependentMeasures/rSquaredData_stats.rda")
+# save(performanceData, file = "results/inter/oldDataRF/dependentMeasures/rSquaredData_stats.rda")
 
-################################################################################
+###############################################################################
 # (overview) plot train and test performance (GBM + ENET)
 ################################################################################
 # plot performance measures for train and test data
@@ -207,7 +295,7 @@ unique(performanceData$model)
                                    linetype = model, shape = fit)) +
    geom_point() +
    geom_line() +
-   scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+   scale_linetype_manual(values = c("solid", "dashed", "dotted", "dotdash")) +
    scale_shape_manual(values = c(16, 8)) +
    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
    scale_color_manual(values = colValuesR2) +
@@ -234,8 +322,47 @@ unique(performanceData$model)
          strip.text.y = element_text(size = 15)))
 
 # # save plots as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest_ENTvsGBM.png"),
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest_ENTvsGBMvsRF.png"),
 #                 plot = pPerformTrainVStest,
+#                 width = 13.08,
+#                 height = 12.18,
+#                 units = "in")
+
+(pPerformTest <- ggplot(performanceData[performanceData$measures == "M_test",],
+                               aes(x = interaction(pTrash, N, sep = " x "), y = values, 
+                                   group = interaction(R2, model, fit), colour = R2,
+                                   linetype = model, shape = fit)) +
+    geom_point() +
+    geom_line() +
+    scale_linetype_manual(values = c("solid", "dashed", "dotted", "dotdash")) +
+    scale_shape_manual(values = c(16, 8)) +
+    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
+    scale_color_manual(values = colValuesR2) +
+    geom_hline(aes(yintercept = 0)) +
+    facet_grid(rel ~ lin_inter, labeller = label_both) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
+               alpha = 0.4) +
+    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
+               alpha = 0.4) +
+    ylab("") +
+    xlab("pTrash (decreasing) x N (increasing)") +
+    ggtitle("R^2 test performance") +
+    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
+          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
+          panel.background = element_rect(color = "white", fill = "white"),
+          axis.text.y = element_text(size = 20),
+          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
+          axis.text.x = element_text(size = 15),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          strip.text.x = element_text(size = 15),
+          strip.text.y = element_text(size = 15)))
+
+# # save plots as files
+# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTest_ENTvsGBMvsRF.png"),
+#                 plot = pPerformTest,
 #                 width = 13.08,
 #                 height = 12.18,
 #                 units = "in")

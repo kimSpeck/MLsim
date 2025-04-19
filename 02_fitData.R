@@ -62,8 +62,8 @@ condGrid <- setParam$fit$condGrid
 #                        condGrid$reliability == 0.6,]
 
 # choose only random forests to fit here!
-condGrid <- condGrid[condGrid$data == "inter" &
-                       condGrid$model == "RF",]
+condGrid <- condGrid[condGrid$data == "nonlinear" &
+                       condGrid$model == "ENETw",]
 condGrid <- dplyr::arrange(condGrid, N)
 
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
@@ -156,10 +156,26 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter.test]]
       }
       
-      if (condGrid[iSim, "data"] == "nonlinear" & condGrid[iSim, "model"] == "ENETw") {
-        # remove two variables at random from the predictor matrix to keep number of
+      if (condGrid[iSim, "data"] == "nonlinear" & condGrid[iSim, "model"] %in% c("ENETw", "ENETwo")) {
+        # remove two noise variables at random from the predictor matrix to keep number of
         #   predictors constant despite additional nonlinear variables!
-        stop("Kim! You still need to implement this!")
+        
+        # randomly sample two variables between (p + pNL + 1): (p + pNL + pTrash)
+        rmVars <- paste0("Var", sample((setParam$dgp$p+setParam$dgp$pNL+1):
+                                         (setParam$dgp$p+setParam$dgp$pNL+condGrid[iSim, "pTrash"]), 
+               setParam$dgp$pNL))
+        
+        # choose all variable names and interactions including these variables
+        var_rm.train <- colnames(Xtrain)[grepl(rmVars[1], colnames(Xtrain)) | grepl(rmVars[2], colnames(Xtrain))]
+        
+        # find indices of these variable names in the data
+        idx_rm.train <- colnames(Xtrain) %in% var_rm.train
+        idx_rm.test <- colnames(Xtest) %in% var_rm.train
+        
+        # remove variables and all their interactions with other variables from the data
+        Xtrain <- Xtrain[,!idx_rm.train]
+        Xtest <- Xtest[,!idx_rm.test]
+        
       }
       
       # depending on condGrid[iSim, "model"] run GBM, RF or ENET code
