@@ -62,7 +62,7 @@ condGrid <- setParam$fit$condGrid
 #                        condGrid$reliability == 0.6,]
 
 # choose only random forests to fit here!
-condGrid <- condGrid[condGrid$data == "nonlinear" &
+condGrid <- condGrid[condGrid$data == "pwlinear" &
                        condGrid$model == "ENETw",]
 condGrid <- dplyr::arrange(condGrid, N)
 
@@ -176,15 +176,29 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         Xtrain <- Xtrain[,!idx_rm.train]
         Xtest <- Xtest[,!idx_rm.test]
         
+      } else if (condGrid[iSim, "data"] == "pwlinear" & condGrid[iSim, "model"] %in% c("ENETw", "ENETwo")) {
+        # randomly sample two variables between (p + pPWL + 1): (p + pPWL + pTrash)
+        rmVars <- paste0("Var", sample((setParam$dgp$p+setParam$dgp$pPWL+1):
+                                         (setParam$dgp$p+setParam$dgp$pPWL+condGrid[iSim, "pTrash"]), 
+                                       setParam$dgp$pPWL))
+        
+        # choose all variable names and interactions including these variables
+        var_rm.train <- colnames(Xtrain)[grepl(rmVars[1], colnames(Xtrain)) | 
+                                           grepl(rmVars[2], colnames(Xtrain)) |
+                                           grepl(rmVars[3], colnames(Xtrain))]
+        
+        # find indices of these variable names in the data
+        idx_rm.train <- colnames(Xtrain) %in% var_rm.train
+        idx_rm.test <- colnames(Xtest) %in% var_rm.train
+        
+        # remove variables and all their interactions with other variables from the data
+        Xtrain <- Xtrain[,!idx_rm.train]
+        Xtest <- Xtest[,!idx_rm.test]
       }
       
       # depending on condGrid[iSim, "model"] run GBM, RF or ENET code
       if (condGrid[iSim, "model"] == "GBM") {
         fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation)
-        # # debugging
-        # currentSeed <- .Random.seed
-        # fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation,
-        #        iSample = iSample, currentSeed = currentSeed)
       } else if (condGrid[iSim, "model"] == "RF") {
         fitRF(Xtrain, ytrain, Xtest, ytest, setParam)
       } else if (condGrid[iSim, "model"] != "GBM" & condGrid[iSim, "model"] != "RF") {
@@ -206,8 +220,6 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
                         length = setParam$fit$out + setParam$fit$outGBM)
       names(resList) <- c(setParam$fit$outLabels, setParam$fit$gbmLabels)
     } else if (condGrid[iSim, "model"] == "RF") {
-      # here !!!
-      # how do results for RF look like?
       resList <- vector(mode = "list", 
                         length = setParam$fit$out + setParam$fit$outRF)
       names(resList) <- c(setParam$fit$outLabels, setParam$fit$rfLabels)
