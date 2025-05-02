@@ -23,6 +23,8 @@ dgpFolder <- "/inter"
 createFolder(paste0(dataFolder, dgpFolder))
 dgpFolder <- "/nonlinear"
 createFolder(paste0(dataFolder, dgpFolder))
+dgpFolder <- "/nonlinear3"
+createFolder(paste0(dataFolder, dgpFolder))
 dgpFolder <- "/pwlinear"
 createFolder(paste0(dataFolder, dgpFolder))
 
@@ -52,7 +54,7 @@ gridInter$sampleSeed <- seedNum[1:dim(gridInter)[1]]
 # add dgp type column to the grid
 gridNL <- cbind(data = "inter", gridInter)   
 
-# add nonlinear grid
+# add nonlinear grid (2 dummy variables + their interaction)
 set.seed(4890920)
 seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
 
@@ -70,13 +72,24 @@ gridFull <- rbind(gridNL,
                         gridInter[,!colnames(gridInter) %in% "sampleSeed"], 
                         sampleSeed = seedNum))
 
+# add nonlinear dgp with 3 dummy variables
+set.seed(89697604)
+seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
+
+gridFull <- rbind(gridFull, 
+                  cbind(data = "nonlinear3", 
+                        gridInter[,!colnames(gridInter) %in% "sampleSeed"], 
+                        sampleSeed = seedNum))
+
+# # check sampleSeed uniqueness
+# length(unique(gridFull$sampleSeed))
 
 # sample data in parallel
 createData <- function(data, N, pTrash, reliability, sampleSeed){
   
   if (data == "inter"){
     environment(sampleInteractionData) <- environment()  
-  } else if (data == "nonlinear") {
+  } else if (data %in% c("nonlinear", "nonlinear3")) {
     environment(sampleNonlinearData) <- environment()  
   } else if (data == "pwlinear") {
     environment(samplePiecewiseLinearData) <- environment()  
@@ -96,7 +109,7 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
   
   if (data == "inter"){
     sampleInteractionData() # run function to actually create dataset
-  } else if (data == "nonlinear") {
+  } else if (data %in% c("nonlinear", "nonlinear3")) {
     sampleNonlinearData()
   } else if (data == "pwlinear") {
     samplePiecewiseLinearData()
@@ -111,7 +124,7 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
 # out <- do.call(mapply, c(FUN = createData, gridFull[19,])) # check nonlinear
 
 # # simulate only nonlinear data
-# out <- do.call(mapply, c(FUN = createData, gridFull[gridFull$data == "nonlinear", ]))
+# out <- do.call(mapply, c(FUN = createData, gridFull[gridFull$data == "nonlinear3", ]))
 
 # # simulate full data
 # out <- do.call(mapply, c(FUN = createData, gridFull))

@@ -50,7 +50,7 @@ sampleNonlinearData <- function() {
   # pTrash <- 10
   # dgpFolder <- paste0(dataFolder, "/bigTestSamples")
   # reliability <- 1
-  # data <- "nonlinear"
+  # data <- "nonlinear3"
   
   dgpFolder <- paste0(dataFolder, "/", data)
   createFolder(dgpFolder)
@@ -65,7 +65,12 @@ sampleNonlinearData <- function() {
   # generate samples in parallel as samples are drawn as random & independent
   data <- parLapply(cl, seq_len(setParam$dgp$nSamples), function(iSample) {
     
-    P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
+    if (data == "nonlinear"){
+      P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
+    } else if (data == "nonlinear3") {
+      P <- setParam$dgp$p + setParam$dgp$pNL3 + pTrash # total number of variables  
+    }
+    
     # generate matrix of (almost) uncorrelated predictors
     if (iSample > setParam$dgp$nTrain) {
       # test sample with fixed sample size across all simulated conditions (independent of N)
@@ -77,8 +82,14 @@ sampleNonlinearData <- function() {
     #   variables as interactions are with linear effects (Bohrnstedt and Goldberger, 1969)
     # here: add additional variable for nonlinear effect to predictor matrix or
     #       use one of the pTrash variables to generate dummy? 
-    X <- createPredictors(N = N, P = P, 
-                          corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
+    if (data == "nonlinear"){
+      X <- createPredictors(N = N, P = P, 
+                            corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
+    } else if (data == "nonlinear3") {
+      X <- createPredictors(N = N, P = P, 
+                            corMat = setParam$dgp$predictorCorMat_pwl[seq_len(P), seq_len(P)])
+    }
+    
     
     # add names to variables
     colnames(X) <- paste0("Var", seq_len(P))
@@ -106,16 +117,27 @@ sampleNonlinearData <- function() {
     # add the dummy coded version of the non-linear effect variables to the data
     #   overwriting var does not work because we need the numeric variable later on
     # here: set effect coding to get dummies with variance = 1 
-    X_int <- cbind(X_int, 
-                   dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
-                   dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
-    # add the interaction between the dummies
-    X_int <- cbind(X_int, 
-                   `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
-    # # var(dumVar5.1) = 1; var(dumVar6.1) = 1; var(dumVar5.1:dumVar6.1) = 1
-    # # dummies are uncorrelated with everything
-    # var(X_int[, "dumVar5.1"]); var(X_int[, "dumVar6.1"]); var(X_int[, "dumVar5.1:dumVar6.1"])
-    # cor(X_int[, c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)])
+    if (data == "nonlinear"){
+      X_int <- cbind(X_int, 
+                     dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
+                     dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
+      # add the interaction between the dummies
+      X_int <- cbind(X_int, 
+                     `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
+      # # var(dumVar5.1) = 1; var(dumVar6.1) = 1; var(dumVar5.1:dumVar6.1) = 1
+      # # dummies are uncorrelated with everything
+      # var(X_int[, "dumVar5.1"]); var(X_int[, "dumVar6.1"]); var(X_int[, "dumVar5.1:dumVar6.1"])
+      # cor(X_int[, c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)])
+    } else if (data == "nonlinear3") {
+      X_int <- cbind(X_int, 
+                     dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
+                     dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T),
+                     dumVar7.1 = createDummy(X_int[, "Var7"], q = 0.5, effectCoding = T))
+      # # var(dumVar5.1) = 1; var(dumVar6.1) = 1; var(dumVar7.1) = 1
+      # # dummies are uncorrelated with everything
+      # var(X_int[, "dumVar5.1"]); var(X_int[, "dumVar6.1"]); var(X_int[, "dumVar7.1"])
+      # cor(X_int[, c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects3)])
+    }
     
     # detect dummies to remove the corresponding original variables temporarily
     detectDum <- colnames(X_int)[stringr::str_detect(colnames(X_int), "^dum") ] 
@@ -132,7 +154,8 @@ sampleNonlinearData <- function() {
     bMatrix <- genBmat(X_intDummy, data, setParam)
     
     # # quick check
-    # bMatrix[rownames(bMatrix) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects),]
+    # bMatrix[rownames(bMatrix) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects),] # nonlinear
+    # bMatrix[rownames(bMatrix) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects3),] # nonlinear3
     
     # calculate R^2 for every combination of R2 and lin/inter effect balance
     # print R^2 as a quick sanity check (removed for speed sake) 

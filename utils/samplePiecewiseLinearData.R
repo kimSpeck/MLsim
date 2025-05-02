@@ -1,48 +1,5 @@
 # (actual) function to simulate linear vs. piecewise-linear data
 
-# simulate two additional variables 
-#   - nonlinear "original" variables are uncorrelated with ...
-#     ... each other and with the linear predictor variables
-#     - nonlinear effects should suit the random forest which typically works better
-#       for uncorrelated variables 
-#     - technical reason: engineering the correlation of the dummies for which the 
-#       effects are simulated is rather difficult as we sample data for a continuous 
-#       variable first
-#   - additional to p and pTrash; but! keep total number of predictors in the ENET 
-#     constant to linear:interaction condition! 
-#     thus, remove two randomly chosen noise variables and their interactions with 
-#       every other variable from the predictor matrix of the ENET
-# separate both additional variables into one dummy (based on quantiles)
-#   one dummy (= 2 steps): 50% quantile; effect-coded {-1, 1} 
-#     due to effect coding each dummy variable has unit variance
-#     their interaction has smaller variance
-# effect coding of the dummy variable has the additional benefit that the main effect
-#   of the dummy variable is reflected in the regression coefficient of the dummy
-#   therefore, we do not need to add an intercept!
-# simulate mean differences for the dummies as regression coefficients of the effect
-#   coded dummy variable
-# interaction between these two dummies
-
-# Vergleich ist linear:Interaktions und linear:non-linear; nicht interactions vs.non-linear; 
-#   therefore reliability of non-linear effects shoulde be the same as for linear effects
-#   which is more than for interactions (thus, non-linear effects should be easier to find)
-# Wie halte ich die Varianz der Dummies identisch mit der Varianz in den linearen Prädiktoren? 
-# Wie kontrolliere ich das R² wenn es Mittelwertsdifferenzen und Reg.koeffizienten gibt?
-#   - Nein: Mittelwertsunterschiede bestimmen die Varianz der Dummies; Balanciertheit bestimmt die Varianz der Dummies
-#   - Reg.koeffizient bestimmt das R² und den Mittelwertsunterschied!
-# Was nehme ich dann als Prädiktor in den Modellen? immer die "normale" Variable
-#   - ENET muss Gerade durch Gruppen ziehen
-#   - Bäume können splitten
-# Jetzt durch 2 Stufen, durch die ENET einfach Regressionsgerade ziehen kann?! 
-
-#####
-# NO: separate additional variable into two dummies (based on quantiles)
-#   two dummies (= 3 steps): 33.3 quantiles
-# simulate mean differences for the dummies
-# interaction between these two dummies is meaningless as no observation will 
-#   fall into both dummies (D1 = 1 and D2 = 1 never occurs by design)
-#####
-
 samplePiecewiseLinearData <- function() {
   
   # # generate one big test data set
@@ -51,7 +8,7 @@ samplePiecewiseLinearData <- function() {
   # dgpFolder <- paste0(dataFolder, "/bigTestSamples")
   # reliability <- 1
   # data <- "pwlinear"
-  
+
   dgpFolder <- paste0(dataFolder, "/", data)
   createFolder(dgpFolder)
   

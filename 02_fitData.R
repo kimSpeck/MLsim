@@ -28,6 +28,8 @@ createFolder(resFolder)
 
 createFolder(paste0(resFolder, "/inter"))
 createFolder(paste0(resFolder, "/nonlinear"))
+createFolder(paste0(resFolder, "/nonlinear3"))
+createFolder(paste0(resFolder, "/pwlinear"))
 
 logFolder <- "log"
 createFolder(logFolder)
@@ -65,6 +67,13 @@ condGrid <- setParam$fit$condGrid
 condGrid <- condGrid[condGrid$data == "pwlinear" &
                        condGrid$model == "ENETw",]
 condGrid <- dplyr::arrange(condGrid, N)
+
+setParam$fit$saveConds <- FALSE
+setParam$dgp$condLabels
+
+testFlag <- F
+
+options(warn = -1)
 
 results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
@@ -156,6 +165,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter.test]]
       }
       
+      # remove 2 randomly chosen noise variables
       if (condGrid[iSim, "data"] == "nonlinear" & condGrid[iSim, "model"] %in% c("ENETw", "ENETwo")) {
         # remove two noise variables at random from the predictor matrix to keep number of
         #   predictors constant despite additional nonlinear variables!
@@ -176,6 +186,20 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         Xtrain <- Xtrain[,!idx_rm.train]
         Xtest <- Xtest[,!idx_rm.test]
         
+        # if (testFlag) {
+        #   Xtrain[, "Var5"] <- createDummy(Xtrain[, "Var5"], q = 0.5, effectCoding = T)
+        #   Xtrain[, "Var6"] <- createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = T)
+        #   # add the interaction between the dummies
+        #   Xtrain <- cbind(Xtrain, 
+        #                  `Var5:Var6` = Xtrain[, "Var5"] * Xtrain[, "Var6"])
+        #   
+        #   Xtest[, "Var5"] <- createDummy(Xtest[, "Var5"], q = 0.5, effectCoding = T)
+        #   Xtest[, "Var6"] <- createDummy(Xtest[, "Var6"], q = 0.5, effectCoding = T)
+        #   Xtest <- cbind(Xtest, 
+        #                   `Var5:Var6` = Xtest[, "Var5"] * Xtest[, "Var6"])
+        # } 
+      
+      # remove 3 randomly chosen noise variables  
       } else if (condGrid[iSim, "data"] == "pwlinear" & condGrid[iSim, "model"] %in% c("ENETw", "ENETwo")) {
         # randomly sample two variables between (p + pPWL + 1): (p + pPWL + pTrash)
         rmVars <- paste0("Var", sample((setParam$dgp$p+setParam$dgp$pPWL+1):
@@ -304,7 +328,4 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   saveRDS(iCondRes, file = resFileName)
 })
 
-
-
-
-
+options(warn = 0)
