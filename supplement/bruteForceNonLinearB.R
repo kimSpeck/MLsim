@@ -4,7 +4,9 @@
 
 # restrictions
 #     - Var1 = Var2 = Var3 = Var4 = ?
-#     - dumVar5.1 = dumVar6.1 = dumVar5.1:dumVar6.1 = ?
+#     - two options: 
+#       - dumVar5.1 = dumVar6.1 = dumVar5.1:dumVar6.1 = ?
+#       - dumVar5.1 = dumVar6.1 = dumVar7.1 = ?
 
 # Rsquared either splits 20:80, 50:50 or 80:20 for nonlinear and linear effects respectively
 # squared multiple correlation (r_y,yhat)^2 = multiple coefficient of determination
@@ -27,11 +29,18 @@ createFolder(logFolder)
 pTrash <- setParam$bruteForceB$pTrash
 N <- setParam$bruteForceB$N
 reliability <- setParam$bruteForceB$reliability
+# nDummies <- c(2, 3)
+nDummies <- c(3)
 
-P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
-
-X <- createPredictors(N = N, P = P, 
-                      corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
+if (nDummies == 2) {
+  P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
+  X <- createPredictors(N = N, P = P,
+                        corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
+} else if (nDummies == 3) {
+  P <- setParam$dgp$p + setParam$dgp$pNL3 + pTrash # total number of variables
+  X <- createPredictors(N = N, P = P, 
+                        corMat = setParam$dgp$predictorCorMat_pwl[seq_len(P), seq_len(P)])
+}
 
 # add names to variables
 colnames(X) <- paste0("Var", seq_len(P))
@@ -47,15 +56,29 @@ if (setParam$dgp$poly > 0) {
   X_int <- rmDuplicatePoly(X_int)  
 }
 
-X_int <- cbind(X_int, 
-               dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
-               dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
-# add the interaction between the dummies
-X_int <- cbind(X_int, 
-               `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
+if (nDummies == 2) {
+  X_int <- cbind(X_int, 
+                 dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
+                 dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
+  # add the interaction between the dummies
+  X_int <- cbind(X_int,
+                 `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
+  
+  # remove every other variable from data
+  X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)]
+  
+} else if (nDummies == 3) {
+  X_int <- cbind(X_int, 
+                 dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
+                 dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T),
+                 dumVar7.1 = createDummy(X_int[, "Var7"], q = 0.5, effectCoding = T))
+  
+  # remove every other variable from data
+  X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects3)]
+} 
 
-# remove every other variable from data
-X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)]
+
+
 (empCor <- cor(X_int))
 # round(empCor, 3)
 cov(X_int)
@@ -69,8 +92,13 @@ rho <- setParam$dgp$predictorCorMat[1,2] # correlation between linear predictors
 corLin <- lavaan::lav_matrix_upper2full(rep(rho, setParam$dgp$p * (setParam$dgp$p-1) / 2), diagonal = F)
 diag(corLin) <- 1
 
-nNL <- setParam$dgp$pNL + 1
-corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
+if (nDummies == 2) {
+  nNL <- setParam$dgp$pNL + 1
+  corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
+} else if (nDummies == 3) {
+  nNL <- setParam$dgp$pNL3
+  corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
+}
 diag(corInter) <- 1
 
 # full correlation matrix (+ labels)
@@ -82,7 +110,7 @@ theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
 #                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
 #                                           "Var2:Var3", "Var2:Var3", "Var3:Var4")
 rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
-                                          setParam$dgp$nonlinEffects)
+                                          if (nDummies == 2) setParam$dgp$nonlinEffects else setParam$dgp$nonlinEffects3)
 
 ################################################################################
 # functions
@@ -98,7 +126,8 @@ linOptim <- function(theta, R2, lin, inter, beta_inter) {
   names(beta) <- names(betaVecLin) <-  colnames(theoCor) # name vector
   linIdx <- names(beta) %in% setParam$dgp$linEffects
   beta[linIdx] <- betaVecLin[linIdx] <- theta 
-  beta[names(beta) %in% setParam$dgp$nonlinEffects] <- beta_inter
+  # beta[names(beta) %in% setParam$dgp$nonlinEffects] <- beta_inter
+  beta[names(beta) %in% setParam$dgp$nonlinEffects3] <- beta_inter
   
   R2_lin <- var(X_int %*% betaVecLin) / (var(X_int %*% beta) + setParam$dgp$sigmaE^2)
   
@@ -113,7 +142,8 @@ interOptim <- function(theta, R2, lin, inter, beta_lin) {
   
   beta <- betaVecInter <-  vector(mode = "numeric", length = dim(theoCor)[1])
   names(beta) <- names(betaVecInter) <- colnames(theoCor)
-  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
+  # interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
+  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects3
   beta[names(beta) %in% setParam$dgp$linEffects] <- beta_lin 
   beta[interIdx] <- betaVecInter[interIdx] <-  theta
   
@@ -127,7 +157,8 @@ checkOptim <- function(betaLin, betaInter){
   beta <- betaVecLin <- betaVecInter <- vector(mode = "numeric", length = dim(theoCor)[1])
   names(beta) <- names(betaVecInter) <- names(betaVecLin) <- colnames(theoCor)
   linIdx <- names(beta) %in% setParam$dgp$linEffects
-  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
+  # interIdx <- names(beta) %in% setParam$dgp$nonlinEffects
+  interIdx <- names(beta) %in% setParam$dgp$nonlinEffects3
   beta[linIdx] <- betaLin
   beta[interIdx] <- betaInter
   
@@ -162,7 +193,7 @@ init <- c(1, 0.1)
 names(init) <- c("betaLin", "betaInter")
 
 condGrid <- expand.grid(R2 = setParam$dgp$Rsquared,
-                        lin = c(setParam$dgp$percentLinear, 0))
+                        lin = setParam$dgp$percentLinear)
 condGrid$inter <- 1 - condGrid$lin
 
 optimBeta <- function(init, R2, lin, inter) {
@@ -290,5 +321,5 @@ checkAcc <- do.call(rbind, lapply(seq_along(bruteForceB), function(subList) {
 betaData <- cbind(condGrid, betaCoef, checkAcc)
 round(betaData, 3)
 
-# write.csv(betaData, "utils/bruteForceBcoeff_nonlinear_plus.csv", row.names=FALSE)
-# bruteForceB <- read.table("utils/bruteForceBcoeff_nonlinear_plus.csv", header = T, sep = ",")
+# write.csv(betaData, "utils/bruteForceBcoeff_nonlinear3.csv", row.names=FALSE)
+# bruteForceB <- read.table("utils/bruteForceBcoeff_nonlinear3.csv", header = T, sep = ",")
