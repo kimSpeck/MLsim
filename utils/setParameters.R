@@ -131,7 +131,7 @@ setParam$dgp$trueB$pwlinear$lin[["R2"]]    <- NULL
 row.names(setParam$dgp$trueB$pwlinear$nonlinear) <- setParam$dgp$trueB$pwlinear$nonlinear[["R2"]]
 setParam$dgp$trueB$pwlinear$nonlinear[["R2"]]    <- NULL
 
-rm(bruteForceB_inter, bruteForceB_nl, bruteForceB_pwl) # rm temporary matrices 
+rm(bruteForceB_inter, bruteForceB_nl, bruteForceB_nl3, bruteForceB_pwl) # rm temporary matrices 
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
                          paste(formatC(setParam$dgp$percentLinear, format = "f", digits = 1), 
@@ -271,7 +271,7 @@ setParam$dgp$reliability <- c(0.6, 0.8, 1)
 # always create the full set of conditions including sample seeds and remove conditions 
 #   -> ensure reproducibility
 # iterate through these combinations of data conditions
-setParam$fit$condGrid <- expand.grid(data = c("inter", "nonlinear", "pwlinear"),
+setParam$fit$condGrid <- expand.grid(data = c("inter", "nonlinear", "pwlinear", "nonlinear3"),
                                      model = c("ENETwo", "ENETw", "GBM", "RF"),
                                      N = setParam$dgp$N, 
                                      pTrash = setParam$dgp$pTrash,
