@@ -9,6 +9,7 @@ listDir <- dir(dataFolder)
 
 checkR2 <- vector(mode = "list", length = length(listDir))
 names(checkR2) <- listDir
+
 # iterate through both datasets
 for (iData in seq_along(listDir)) {
   load(paste0(dataFolder, "/", listDir[iData]))
@@ -18,7 +19,7 @@ for (iData in seq_along(listDir)) {
   if (stringr::str_detect(listDir[iData], "inter")) {
     Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects,
                                                setParam$dgp$interEffects)]  
-  
+    
     
     
   } else if (stringr::str_detect(listDir[iData], "pwlinear")) {
@@ -31,27 +32,41 @@ for (iData in seq_along(listDir)) {
     dumVar6 = createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = F) 
     dumVar7 = createDummy(Xtrain[, "Var7"], q = 0.5, effectCoding = F) 
     Xtrain <- cbind(Xtrain, 
-                   Var5.2nd = (Xtrain[, "Var5"] - quantile(Xtrain[, "Var5"], 0.5))*dumVar5,
-                   Var6.2nd = (Xtrain[, "Var6"] - quantile(Xtrain[, "Var6"], 0.5))*dumVar6,
-                   Var7.2nd = (Xtrain[, "Var7"] - quantile(Xtrain[, "Var7"], 0.5))*dumVar7)
+                    Var5.2nd = (Xtrain[, "Var5"] - quantile(Xtrain[, "Var5"], 0.5))*dumVar5,
+                    Var6.2nd = (Xtrain[, "Var6"] - quantile(Xtrain[, "Var6"], 0.5))*dumVar6,
+                    Var7.2nd = (Xtrain[, "Var7"] - quantile(Xtrain[, "Var7"], 0.5))*dumVar7)
     
     Xtrain_oracle <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
                                                       setParam$dgp$pwlinEffects)]
     
-  } else {
+  } else if (stringr::str_detect(listDir[iData], "nonlinear\\.")) {
     Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
                                                "Var5", "Var6")]  
     Xtrain_lm <- Xtrain
     
     Xtrain <- cbind(Xtrain, 
-                   dumVar5.1 = createDummy(Xtrain[, "Var5"], q = 0.5, effectCoding = T),
-                   dumVar6.1 = createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = T))
+                    dumVar5.1 = createDummy(Xtrain[, "Var5"], q = 0.5, effectCoding = T),
+                    dumVar6.1 = createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = T))
     
     # add the interaction between the dummies
     Xtrain <- cbind(Xtrain, 
-                   `dumVar5.1:dumVar6.1` = Xtrain[, "dumVar5.1"] * Xtrain[, "dumVar6.1"])
+                    `dumVar5.1:dumVar6.1` = Xtrain[, "dumVar5.1"] * Xtrain[, "dumVar6.1"])
     Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
                                                setParam$dgp$nonlinEffects)]  
+    
+  } else if (stringr::str_detect(listDir[iData], "nonlinear3\\.")) {
+    Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
+                                               "Var5", "Var6", "Var7")]  
+    Xtrain_lm <- Xtrain
+    
+    Xtrain <- cbind(Xtrain, 
+                    dumVar5.1 = createDummy(Xtrain[, "Var5"], q = 0.5, effectCoding = T),
+                    dumVar6.1 = createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = T),
+                    dumVar7.1 = createDummy(Xtrain[, "Var7"], q = 0.5, effectCoding = T))
+    
+    Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
+                                               setParam$dgp$nonlinEffects3)]  
+    
   }
   
   
@@ -78,11 +93,17 @@ for (iData in seq_along(listDir)) {
       df_oracle <- data.frame(cbind(Xtrain_oracle, ytrain))
       colnames(df_oracle) <- c(setParam$dgp$linEffects, setParam$dgp$pwlinEffects, "y")
       
-    } else {
+    } else if (stringr::str_detect(listDir[iData], "nonlinear\\.")) {
       colnames(df) <- c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects, "y")
       df_lm <- data.frame(cbind(Xtrain_lm, ytrain))
       df_lm$`Var5:Var6` <- df_lm$Var5 * df_lm$Var6
       colnames(df_lm) <- c(setParam$dgp$linEffects, "Var5", "Var6", "Var5:Var6", "y")
+      
+    } else if (stringr::str_detect(listDir[iData], "nonlinear3\\.")) {
+      colnames(df) <- c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects3, "y")
+      
+      df_lm <- data.frame(cbind(Xtrain_lm, ytrain))
+      colnames(df_lm) <- c(setParam$dgp$linEffects, "Var5", "Var6", "Var7", "y")
     }
     
     # fit a regression model on the true data
@@ -118,11 +139,18 @@ for (iData in seq_along(listDir)) {
       fit <- lm(y ~ Var5 + Var6 + Var7, data = df_lm)
       R2lm_other <- summary(fit)$r.squared  
       
-    } else {
+    } else if (stringr::str_detect(listDir[iData], "nonlinear\\.")) {
       df_other <- df[,c(setParam$dgp$nonlinEffects, "y")]
       
       # nonlinear effects variables as available in linear regression model
       fit <- lm(y ~ Var5 + Var6 + `Var5:Var6`, data = df_lm)
+      R2lm_other <- summary(fit)$r.squared  
+      
+    } else if (stringr::str_detect(listDir[iData], "nonlinear3\\.")) {
+      df_other <- df[,c(setParam$dgp$nonlinEffects3, "y")]
+      
+      # nonlinear effects variables as available in linear regression model
+      fit <- lm(y ~ Var5 + Var6 + Var7, data = df_lm)
       R2lm_other <- summary(fit)$r.squared  
     }
     
