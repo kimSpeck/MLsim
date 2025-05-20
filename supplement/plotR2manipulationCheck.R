@@ -30,13 +30,15 @@ colValuesR2 <- c('#db4a07', '#850c0c', '#3c1518')
 colValuesInter <- c('#050440', '#181ff2', '#0eb2e8')
 colValuesLin <- c('#0eb2e8', '#181ff2', '#050440')
 
-load("results/checkR2manipulation.rda")
+# load r2 results from the manipulation check
+# load("results/checkR2manipulation.rda") # c("inter", "nonlinear", "pwlinear")
+load("data/bigTestSamples/checkR2manipulation.rda")
 
 condNames <- names(checkR2)
 checkR2 <- do.call(rbind, checkR2)
 checkR2 <- data.frame(cbind(checkR2, condNames = rep(condNames, each = 9)))
 
-pattern <- "pTrash(\\d+)_rel(\\d+\\.?\\d*)_(inter|nonlinear|pwlinear)\\.rda$"
+pattern <- "pTrash(\\d+)_rel(\\d+\\.?\\d*)_(inter|nonlinear|nonlinear3|pwlinear)\\.rda$"
 
 matches <- stringr::str_match(checkR2$condNames, pattern)
 
@@ -61,11 +63,11 @@ checkR2$lin_inter <- factor(checkR2$lin_inter,
   
 plotCheckFunction <- function(data, y) {
   ggplot(data, aes(x = factor(rel), y = y, group = interaction(trueR2, data),
-                    color = factor(trueR2), linetype = factor(data))) +
+                    color = factor(data), linetype = factor(trueR2))) +
   geom_point() +
   geom_line() +
-  scale_linetype_manual(name = "data", values = c("solid", "dotted", "dashed")) +
-  scale_color_manual(name = "R²", values = colValuesR2) +
+  scale_linetype_manual(name = "R²", values = c("dotted", "dashed", "solid")) +
+  scale_color_manual(name = "R²", values = c("#0a2463", "#2a9d8f", "#8338ec", "#a44200")) +
   facet_grid2(~ lin_inter, 
               strip = strip_themed(
                 background_x = list(element_rect(fill = alpha(colValuesLin[3], 0.4)),
