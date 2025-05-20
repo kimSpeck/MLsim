@@ -14,7 +14,7 @@ source("utils/setParameters.R") # import parameter values
 resFolder <- paste0("results")
 
 # all results from the following combinations
-dgpVec = c("inter", "nonlinear", "pwlinear")
+dgpVec = c("inter", "nonlinear", "pwlinear", "nonlinear3")
 modelVec = c("ENETw", "ENETwo", "GBM", "RF")
 condGrid <- expand.grid(data = dgpVec,
                         model = modelVec,
