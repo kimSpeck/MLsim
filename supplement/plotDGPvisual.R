@@ -3,6 +3,12 @@ library(ggplot2)
 library(rockchalk)
 library(patchwork)
 
+# for the tree plot
+library(rpart)
+library(rpart.plot)
+library(grid)
+library(ggplotify)
+
 source("utils/simTools.R")
 
 # path to plot folder
@@ -22,15 +28,17 @@ themeFunction <- function(plot) {
           panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
           panel.background = element_rect(color = "white", fill = "white"),
           plot.title = element_text(size = 30, face = "bold"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 15),
+          axis.text.x = element_text(size = 15),
           axis.title.x = element_text(size = 20),
           axis.title.y = element_text(size = 20),
           strip.text.x = element_text(size = 15),
           strip.text.y = element_text(size = 15),
-          legend.position = c(.15, .85), 
+          legend.position = c(.08, .92), 
           legend.title = element_text(size = 25),
-          legend.text = element_text(size = 20),
+          # legend.text = element_text(size = 20),
+          legend.text = element_blank(),
+          legend.direction = "horizontal",
           legend.box = "horizontal")
 }
 
@@ -79,109 +87,95 @@ y <- beta0 + beta1 * x + rnorm(n, mean = 0, sd = 1)
 df_linear <- data.frame(x = x, y = y)
 
 # Plot
-linear <- ggplot(df_linear, aes(x = x, y = y)) +
+(linear <- ggplot(df_linear, aes(x = x, y = y)) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "black") +
   labs(x = "X", y = "Y") +
-  theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-        panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
         panel.background = element_rect(color = "white", fill = "white"),
         axis.text.y = element_blank(),
         axis.text.x = element_blank(),
         axis.title.x = element_text(size = 20),
         axis.title.y = element_text(size = 20),
         axis.ticks.x = element_blank(),
-        axis.ticks.y = element_blank())
+        axis.ticks.y = element_blank()))
+
 ################################################################################
 ##### illustrate non-linear effect (2 dummies, with interaction) #####
 ################################################################################
-# ... without measurement error
-load("data/bigTestSamples/simDataN1e+06_pTrash10_rel1_nonlinear.rda")
-
-# save subset for nonlinear effect 
-df_nl <- data.frame(x5 = dataList[["X_int"]][1:1000, "Var5"], 
-                    x6 = dataList[["X_int"]][1:1000, "Var6"], 
-                    y = dataList[["yMat"]][1:1000, "R20.8lin_inter0.2_0.8"])
-
-df_nl$d5 <- createDummy(df_nl$x5, q = 0.5, effectCoding = T)
-df_nl$d6 <- createDummy(df_nl$x6, q = 0.5, effectCoding = T)
-df_nl$group <- paste0(df_nl$d5, "x", df_nl$d6)
-
-plotNL <- function(data) {
-  ggplot(data) +
-    geom_point(aes(x = x5, y = y, group = group, colour = x6, shape = group), 
-               alpha = 0.6, size = 2.5) +
-    scale_shape_manual(values = c(1, 16, 2, 17)) +
-    scale_colour_gradient2(
-      low      = "#F44336",  # red
-      mid      = "#9C27B0",  # purple
-      high     = "#2196F3",  # blue
-      midpoint = 0,          # numeric center of z
-      space    = "Lab"
-    ) +
-    # scale_colour_continuous(type = "viridis") + # colorblind version
-    geom_smooth(aes(x = d5, y = y, group = d6), method = "lm", colour = "black") + 
-    guides(shape = "none")
-}
-
-pNL_rel1 <- plotNL(df_nl)
-pNL_rel1 <- themeFunction(pNL_rel1)
-
-# ... with measurement error
-load("data/bigTestSamples/simDataN1e+06_pTrash10_rel0.6_nonlinear.rda")
-df_nl_rel0.6 <- data.frame(x5 = dataList[["X_int"]][1:1000, "Var5"], 
-                           x6 = dataList[["X_int"]][1:1000, "Var6"], 
-                           y = dataList[["yMat"]][1:1000, "R20.8lin_inter0.2_0.8"])
-
-df_nl_rel0.6$d5 <- createDummy(df_nl_rel0.6$x5, q = 0.5, effectCoding = T)
-df_nl_rel0.6$d6 <- createDummy(df_nl_rel0.6$x6, q = 0.5, effectCoding = T)
-df_nl_rel0.6$group <- paste0(df_nl_rel0.6$d5, "x", df_nl_rel0.6$d6)
-
-pNL_rel0.6 <- plotNL(df_nl_rel0.6)
-pNL_rel0.6 <- themeFunction(pNL_rel0.6)
-
-##### line plot to only schematically illustrate DGP #####
-beta0 <- 2
-beta1 <- 3
-beta2 <- 3
-beta3 <- 3
-
-# Create all combinations of the two dummy variables
-df_dum <- expand.grid(D1 = c(-1, 1), D2 = c(-1, 1))
-
-# Calculate Y for each (D1, D2) pair
-df_dum$Y <- beta0 + beta1 * df_dum$D1 + beta2 * df_dum$D2 + beta3 * df_dum$D1 * df_dum$D2
-
-# Convert D1 and D2 to factors (for cleaner plotting)
-df_dum$D1 <- factor(df_dum$D1)
-df_dum$D2 <- factor(df_dum$D2)
-
-# Plot
-(nonlinear <- ggplot(df_dum, aes(x = D1, y = Y, group = interaction(D1, D2), 
-                                  shape = interaction(D1, D2))) +
-    geom_line(aes(group = D2, linetype = D2)) +
-    geom_point(size = 2.5) +
-    ylim(-7, 17) +
-    scale_shape_manual(values = c(1, 2, 16, 17),
-                       name = "[D1, D2]",
-                       labels = c("-1.-1" = "[-1, -1]",
-                                  "-1.1" = "[-1, 1]",
-                                  "1.-1" = "[1, -1]",
-                                  "1.1" = "[1, 1]")) +
-    scale_linetype_manual(values = c("solid", "solid")) +
-    guides(linetype = "none") +
-    labs(x = "Dummy 1", y = "Y", linetype = "Dummy 2", shape = "Dummy 2") +
-    theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_blank(),
-          axis.text.x = element_blank(),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          axis.ticks.y = element_blank(),
-          legend.position = c(.15, .85), 
-          legend.title = element_text(size = 25),
-          legend.text = element_text(size = 20),
-          legend.box = "horizontal"))
+# # ... without measurement error
+# load("data/bigTestSamples/simDataN1e+06_pTrash10_rel1_nonlinear.rda")
+# 
+# # save subset for nonlinear effect 
+# df_nl <- data.frame(x5 = dataList[["X_int"]][1:1000, "Var5"], 
+#                     x6 = dataList[["X_int"]][1:1000, "Var6"], 
+#                     y = dataList[["yMat"]][1:1000, "R20.8lin_inter0.2_0.8"])
+# 
+# df_nl$d5 <- createDummy(df_nl$x5, q = 0.5, effectCoding = T)
+# df_nl$d6 <- createDummy(df_nl$x6, q = 0.5, effectCoding = T)
+# df_nl$group <- paste0(df_nl$d5, "x", df_nl$d6)
+# 
+# 
+# 
+# pNL_rel1 <- plotNL(df_nl)
+# pNL_rel1 <- themeFunction(pNL_rel1)
+# 
+# # ... with measurement error
+# load("data/bigTestSamples/simDataN1e+06_pTrash10_rel0.6_nonlinear.rda")
+# df_nl_rel0.6 <- data.frame(x5 = dataList[["X_int"]][1:1000, "Var5"], 
+#                            x6 = dataList[["X_int"]][1:1000, "Var6"], 
+#                            y = dataList[["yMat"]][1:1000, "R20.8lin_inter0.2_0.8"])
+# 
+# df_nl_rel0.6$d5 <- createDummy(df_nl_rel0.6$x5, q = 0.5, effectCoding = T)
+# df_nl_rel0.6$d6 <- createDummy(df_nl_rel0.6$x6, q = 0.5, effectCoding = T)
+# df_nl_rel0.6$group <- paste0(df_nl_rel0.6$d5, "x", df_nl_rel0.6$d6)
+# 
+# pNL_rel0.6 <- plotNL(df_nl_rel0.6)
+# pNL_rel0.6 <- themeFunction(pNL_rel0.6)
+# 
+# ##### line plot to only schematically illustrate DGP #####
+# beta0 <- 2
+# beta1 <- 3
+# beta2 <- 3
+# beta3 <- 3
+# 
+# # Create all combinations of the two dummy variables
+# df_dum <- expand.grid(D1 = c(-1, 1), D2 = c(-1, 1))
+# 
+# # Calculate Y for each (D1, D2) pair
+# df_dum$Y <- beta0 + beta1 * df_dum$D1 + beta2 * df_dum$D2 + beta3 * df_dum$D1 * df_dum$D2
+# 
+# # Convert D1 and D2 to factors (for cleaner plotting)
+# df_dum$D1 <- factor(df_dum$D1)
+# df_dum$D2 <- factor(df_dum$D2)
+# 
+# # Plot
+# (nonlinear <- ggplot(df_dum, aes(x = D1, y = Y, group = interaction(D1, D2), 
+#                                   shape = interaction(D1, D2))) +
+#     geom_line(aes(group = D2, linetype = D2)) +
+#     geom_point(size = 2.5) +
+#     ylim(-7, 17) +
+#     scale_shape_manual(values = c(1, 2, 16, 17),
+#                        name = "[D1, D2]",
+#                        labels = c("-1.-1" = "[-1, -1]",
+#                                   "-1.1" = "[-1, 1]",
+#                                   "1.-1" = "[1, -1]",
+#                                   "1.1" = "[1, 1]")) +
+#     scale_linetype_manual(values = c("solid", "solid")) +
+#     guides(linetype = "none") +
+#     labs(x = "Dummy 1", y = "Y", linetype = "Dummy 2", shape = "Dummy 2") +
+#     theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
+#           panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
+#           panel.background = element_rect(color = "white", fill = "white"),
+#           axis.text.y = element_blank(),
+#           axis.text.x = element_blank(),
+#           axis.title.x = element_text(size = 20),
+#           axis.title.y = element_text(size = 20),
+#           axis.ticks.y = element_blank(),
+#           legend.position = c(.15, .85), 
+#           legend.title = element_text(size = 25),
+#           legend.text = element_text(size = 20),
+#           legend.box = "horizontal"))
 
 ################################################################################
 ##### illustrate non-linear effect (3 dummies, no interaction) #####
@@ -198,6 +192,29 @@ df_nl3$d5 <- createDummy(df_nl3$x5, q = 0.5, effectCoding = T)
 df_nl3$d6 <- createDummy(df_nl3$x6, q = 0.5, effectCoding = T)
 df_nl3$group <- paste0(df_nl3$d5, "x", df_nl3$d6)
 
+# c("#F44336", "#9C27B0", "#1565C0")
+# c("#fa9e1e", "#9C27B0", "#25f7f0")
+
+plotNL <- function(data) {
+  # ggplot(data) +
+  #   geom_point(aes(x = x5, y = y, group = group, colour = x6, shape = group), 
+  #              alpha = 0.6, size = 2.5) +
+  #   scale_shape_manual(values = c(1, 17, 16, 2)) +
+  #   scale_colour_gradient2(low = "#fa9e1e", mid = "#9C27B0", high = "#25f7f0", 
+  #                          midpoint = 0, space    = "Lab") +
+  #   geom_smooth(aes(x = d5, y = y, group = d6), method = "lm", colour = "black") + 
+  #   guides(shape = "none")
+  ggplot(data) +
+    geom_point(aes(x = x5, y = y, group = group, colour = x6, shape = group), 
+               alpha = 0.6, size = 2.5) +
+    scale_shape_manual(values = c(1, 17, 16, 2)) +
+    scale_colour_gradient2(low = "#fa9e1e", mid = "#9C27B0", high = "#25f7f0", 
+                           midpoint = 0, space    = "Lab") +
+    geom_point(aes(x = d5, y = y, group = group, shape = group), 
+               alpha = 1, size = 5, stroke = 2, color = "black", stat = 'summary', fun = 'mean') +
+    guides(shape = "none")
+}
+
 pNL3_rel1 <- plotNL(df_nl3)
 pNL3_rel1 <- themeFunction(pNL3_rel1)
 
@@ -212,7 +229,7 @@ df_nl3_rel0.6$d6 <- createDummy(df_nl3_rel0.6$x6, q = 0.5, effectCoding = T)
 df_nl3_rel0.6$group <- paste0(df_nl3_rel0.6$d5, "x", df_nl3_rel0.6$d6)
 
 pNL3_rel0.6 <- plotNL(df_nl3_rel0.6)
-pNL3_rel0.6 <- themeFunction(pNL3_rel0.6)
+pNL3_rel0.6 <- themeFunction(pNL3_rel0.6) # + guides(color = "none")
 
 ##### line plot to only schematically illustrate DGP #####
 # Define model parameters (no interaction): Y = β₀ + β₁*D1 + β₂*D2
@@ -221,43 +238,108 @@ beta1 <- 1
 beta2 <- 3
 
 # Create all combinations of the two dummy variables
-df_dum3 <- expand.grid(D1 = c(-1, 1), D2 = c(-1, 1))
+df_dum3 <- expand.grid(X5 = c(-1, 1), X6 = c(-1, 1))
 
 # Calculate Y for each (D1, D2) pair
-df_dum3$Y <- beta0 + beta1 * df_dum3$D1 + beta2 * df_dum3$D2
+df_dum3$Y <- beta0 + beta1 * df_dum3$X5 + beta2 * df_dum3$X6
 
 # Convert D1 and D2 to factors (for cleaner plotting)
-df_dum3$D1 <- factor(df_dum3$D1)
-df_dum3$D2 <- factor(df_dum3$D2)
+df_dum3$X5 <- factor(df_dum3$X5, levels = c(-1, 1), labels = c("< 0", "> 0"))
+df_dum3$X6 <- factor(df_dum3$X6, levels = c(-1, 1), labels = c("< 0", "> 0"))
+# df_dum3$Y <- factor(df_dum3$Y, levels = c(-2, 0, 4, 6), 
+#                     labels = c("E(-1,-1)", "E(-1,1)", "E(1,-1)", "E(1,1)"))
 
-# Plot
-(nonlinear3 <- ggplot(df_dum3, aes(x = D1, y = Y, group = interaction(D1, D2), 
-                                  shape = interaction(D1, D2))) +
-    geom_line(aes(group = D2, linetype = D2)) +
-    geom_point(size = 2.5) +
-    ylim(-6, 10) +
-    # scale_shape_manual(values = c(1, 2, 16, 17)) +
-    scale_shape_manual(values = c(1, 2, 16, 17),
-                       name = "[D1, D2]",
-                       labels = c("-1.-1" = "[-1, -1]",
-                                  "-1.1" = "[-1, 1]",
-                                  "1.-1" = "[1, -1]",
-                                  "1.1" = "[1, 1]")) +
-    scale_linetype_manual(values = c("solid", "solid")) +
-    guides(linetype = "none") +
-    labs(x = "Dummy 1", y = "Y", linetype = "Dummy 2", shape = "Dummy 2") +
-    theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_blank(),
-          axis.text.x = element_blank(),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          axis.ticks.y = element_blank(),
-          legend.position = c(.15, .85), 
-          legend.title = element_text(size = 25),
-          legend.text = element_text(size = 20),
-          legend.box = "horizontal"))
+# Fit a small regression tree to illustrate the splitting logic
+tree_fit <- rpart(
+  Y ~ X5 + X6,
+  data = df_dum3,
+  method = "anova",
+  control = rpart.control(
+    minsplit = 2,     # minimum number of obs needed to attempt a split
+    minbucket = 1,    # minimum number of obs in any terminal node
+    cp = 0,           # cost-complexity parameter (lower means more splits)
+    xval = 0          # turn off cross-validation
+  )
+)
+
+
+makeNodeLabels <- function(leafLabels) {
+  function(x, labs, digits, varlen) {
+    # Determine which nodes are leaves
+    leaves <- (x$frame$var == "<leaf>")
+    
+    # Copy the default labels
+    newLabels <- labs
+    
+    # How many leaves do we have?
+    numLeaves <- sum(leaves)
+    
+    # Safety check: if the number of leaves doesn't match leaf_labels length
+    if (length(leafLabels) != numLeaves) {
+      stop(
+        sprintf(
+          "Number of leaf labels (%d) does not match the number of leaves (%d).",
+          length(leafLabels),
+          numLeaves
+        )
+      )
+    }
+    
+    # Get the row indices (in x$frame) where leaves == TRUE
+    leafIndices <- which(leaves)
+    
+    # Assign labels in your desired order
+    # By default, rpart lists nodes from top to bottom in x$frame
+    for (i in seq_along(leafIndices)) {
+      newLabels[leafIndices[i]] <- leafLabels[i]
+    }
+    
+    return(newLabels)
+  }
+}
+
+leafLabels <- c("E(-1,-1)", "E(-1,1)", "E(1,-1)", "E(1,1)")
+nodeLabels <- makeNodeLabels(leafLabels)
+
+nonlinear3 <- rpart.plot(
+    tree_fit, 
+    type         = 3,         # show splits & node labels
+    fallen.leaves = TRUE,     # place leaves at the same level
+    box.palette   = "white",   # color palette for the boxes
+    node.fun = nodeLabels,
+    digits        = 3,         # number of digits in labels
+    main          = "")
+
+# # Plot
+# (nonlinear3 <- ggplot(df_dum3, aes(x = D1, y = Y, group = interaction(D1, D2), 
+#                                   shape = interaction(D1, D2))) +
+#     geom_line(aes(group = D2, linetype = D2)) +
+#     geom_point(size = 2.5) +
+#     ylim(-6, 10) +
+#     # scale_shape_manual(values = c(1, 2, 16, 17)) +
+#     scale_shape_manual(values = c(1, 16, 17, 2),
+#                        name = expression("(" * D[X][5] * "," *D[X][6]* ")"),
+#                        labels = c("-1.-1" = "(-1,-1)",
+#                                   "-1.1" = "(1,1)",
+#                                   "1.-1" = "(1,-1)",
+#                                   "1.1" = "(1,1)")) +
+#     scale_linetype_manual(values = c("solid", "solid")) +
+#     guides(linetype = "none") +
+#     labs(x = "X5", y = "Y", linetype = "Dummy 2", shape = "Dummy 2") +
+#     theme(panel.grid.major = element_blank(), 
+#           panel.grid.minor = element_blank(),
+#           panel.background = element_rect(color = "white", fill = "white"),
+#           axis.text.y = element_blank(),
+#           axis.text.x = element_blank(),
+#           axis.title.x = element_text(size = 20),
+#           axis.title.y = element_text(size = 20),
+#           axis.ticks.y = element_blank(),
+#           legend.position = c(.5, .1), 
+#           legend.title = element_text(size = 20),
+#           legend.text = element_text(size = 15),
+#           legend.direction = "horizontal",
+#           legend.box = "horizontal"))
+
 ################################################################################
 ##### illustrate piecewise linear effect #####
 ################################################################################
@@ -316,8 +398,8 @@ df_piecewise <- data.frame(x = x, y = y)
     geom_vline(xintercept = cutpoint, linetype = "dashed", color = "red") +
     labs(x = "X", y = "Y") + 
     ylim(0, 42) +
-    theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
           panel.background = element_rect(color = "white", fill = "white"),
           axis.text.y = element_blank(),
           axis.text.x = element_blank(),
@@ -362,8 +444,10 @@ plotInter <- function(data) {
     geom_abline(aes(intercept = (b0 + b2.m * (0+1)),
                     slope = (b1 + b3 * (0+1)), colour = "#2196F3"), linewidth = 1.5) +  # MW + SD
     scale_color_identity("",
-                         breaks = c("#F44336", "#9C27B0", "#2196F3"),
-                         labels = c("x2: low (M - SD)", "x2: mean (M)", "x2: high (M + SD)"),
+                         # breaks = c("#F44336", "#9C27B0", "#2196F3"),
+                         # labels = c("X2: low (M - SD)", "X2: mean (M)", "X2: high (M + SD)"),
+                         breaks = c("#2196F3", "#9C27B0", "#F44336"),
+                         labels = c("X2: high (M + SD)", "X2: mean (M)", "X2: low (M - SD)"),
                          guide = "legend") +
     guides(color = "none")
 }
@@ -404,19 +488,19 @@ df_list <- lapply(X2, function(iX2) {
 })
 
 df_combined <- do.call(rbind, df_list)
-df_combined$X2 <- factor(df_combined$X2, levels = c("X2 = 2", "X2 = 6", "X2 = 10"))
+df_combined$X2 <- factor(df_combined$X2, levels = c("X2 = 10", "X2 = 6", "X2 = 2"))
 # Plot multiple lines (one for each Z level)
 (inter <- ggplot(df_combined, aes(x = X1, y = Y, color = X2)) +
   geom_line(size = 1) +
   labs(x = "X1", y = "Y") +
   scale_color_manual("",
-                       values = c("#F44336", "#9C27B0", "#2196F3"),
-                       labels = c("X2 = 2" = "x2: low (M + SD)",
-                                  "X2 = 6" = "x2: mean (M)",
-                                  "X2 = 10" = "x2: high (M - SD)"),
+                     values = c("#2196F3", "#9C27B0", "#F44336"),
+                     labels = c("X2 = 10" = "X2: high (M + SD)",
+                                "X2 = 6" = "X2: mean (M)",
+                                "X2 = 2" = "X2: low (M - SD)"),
                        guide = "legend") +
-  theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-        panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
         panel.background = element_rect(color = "white", fill = "white"),
         axis.text.y = element_blank(),
         axis.text.x = element_blank(),
@@ -442,11 +526,28 @@ df_combined$X2 <- factor(df_combined$X2, levels = c("X2 = 2", "X2 = 6", "X2 = 10
 # the data is simulated with R² = 0.8 and for the depicted effect (linear or other)
 #   the condition with 80% of R² on the respectice effect is illustrated
 
+png("plots/tmpNonlinear.png", width = 400, height = 300)
+par(mar = c(1, 1, 1, 1))
+rpart.plot(
+  tree_fit, 
+  type         = 3,         # show splits & node labels
+  fallen.leaves = TRUE,     # place leaves at the same level
+  box.palette   = "white",   # color palette for the boxes
+  node.fun = nodeLabels,
+  digits        = 3,         # number of digits in labels
+  main          = "")
+dev.off()
+
+nonlinear3 <- cowplot::ggdraw() +  
+  cowplot::draw_image("plots/tmpNonlinear.png")
+
 (pFull <- cowplot::plot_grid(
-  linear, inter, nonlinear3, nonlinear, pwlinear,
-  pLM_rel1, pInter_rel1, pNL3_rel1, pNL_rel1, pPWL_rel1,
-  pLM_rel0.6, pInter_rel0.6, pNL3_rel0.6, pNL_rel0.6, pPWL_rel0.6,
-  labels = "AUTO", ncol = 5))
+  linear, inter, pwlinear, nonlinear3,
+  pLM_rel1, pInter_rel1, pPWL_rel1, pNL3_rel1, 
+  pLM_rel0.6, pInter_rel0.6, pPWL_rel0.6, pNL3_rel0.6,
+  labels = c("linear", "interaction", "piecewise", "stepwise", 
+             "rel = 1", "",  "", "",
+             "rel = 0.6", "", "", ""), ncol = 4))
 
 ggplot2::ggsave(filename = paste0(plotFolder, "/DGPoverview.png"),
                 plot = pFull,
