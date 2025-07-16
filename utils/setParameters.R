@@ -40,10 +40,10 @@ setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("V
 # choose variables for interaction that have no linear effects (R2 budget)
 setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
 
-# nonlinear effects
-setParam$dgp$nonlinEffects <- sapply((setParam$dgp$p+1):(setParam$dgp$p+setParam$dgp$pNL), 
-                                     function(x) paste0("dumVar", x, ".1"))
-setParam$dgp$nonlinEffects <- c(setParam$dgp$nonlinEffects, "dumVar5.1:dumVar6.1")
+# stepwise DGP
+# setParam$dgp$nonlinEffects <- sapply((setParam$dgp$p+1):(setParam$dgp$p+setParam$dgp$pNL), 
+#                                      function(x) paste0("dumVar", x, ".1"))
+# setParam$dgp$nonlinEffects <- c(setParam$dgp$nonlinEffects, "dumVar5.1:dumVar6.1")
 
 setParam$dgp$nonlinEffects3 <- sapply((setParam$dgp$p+1):(setParam$dgp$p+setParam$dgp$pNL3), 
                                      function(x) paste0("dumVar", x, ".1"))
@@ -85,7 +85,7 @@ setParam$fit$optimBetaTol <- 1e-5
 
 # read in coefficients as results from bruteForceB.R and bruteForceNonLinearB.R
 bruteForceB_inter <- read.table("utils/bruteForceBcoeff_inter.csv", header = T, sep = ",")
-bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
+# bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear.csv", header = T, sep = ",")
 bruteForceB_nl3 <- read.table("utils/bruteForceBcoeff_nonlinear3.csv", header = T, sep = ",")
 # bruteForceB_nl <- read.table("utils/bruteForceBcoeff_nonlinear_plus.csv", header = T, sep = ",")
 bruteForceB_pwl <- read.table("utils/bruteForceBcoeff_piecewise.csv", header = T, sep = ",")
@@ -100,14 +100,14 @@ setParam$dgp$trueB$inter$lin[["R2"]]    <- NULL
 row.names(setParam$dgp$trueB$inter$inter) <- setParam$dgp$trueB$inter$inter[["R2"]]
 setParam$dgp$trueB$inter$inter[["R2"]]    <- NULL
 
-# # lin vs. nonlinear
-setParam$dgp$trueB$nonlinear$lin <- reshape2::dcast(bruteForceB_nl, R2 ~ lin, value.var = "betaLin")
-setParam$dgp$trueB$nonlinear$nonlinear <- reshape2::dcast(bruteForceB_nl, R2 ~ inter, value.var = "betaInter")
-
-row.names(setParam$dgp$trueB$nonlinear$lin) <- setParam$dgp$trueB$nonlinear$lin[["R2"]]
-setParam$dgp$trueB$nonlinear$lin[["R2"]]    <- NULL
-row.names(setParam$dgp$trueB$nonlinear$nonlinear) <- setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]
-setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]    <- NULL
+# # # lin vs. nonlinear
+# setParam$dgp$trueB$nonlinear$lin <- reshape2::dcast(bruteForceB_nl, R2 ~ lin, value.var = "betaLin")
+# setParam$dgp$trueB$nonlinear$nonlinear <- reshape2::dcast(bruteForceB_nl, R2 ~ inter, value.var = "betaInter")
+# 
+# row.names(setParam$dgp$trueB$nonlinear$lin) <- setParam$dgp$trueB$nonlinear$lin[["R2"]]
+# setParam$dgp$trueB$nonlinear$lin[["R2"]]    <- NULL
+# row.names(setParam$dgp$trueB$nonlinear$nonlinear) <- setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]
+# setParam$dgp$trueB$nonlinear$nonlinear[["R2"]]    <- NULL
 
 # # naming conventions for 0.0 vs. 1.0
 # colnames(setParam$dgp$trueB$nonlinear$lin) <- formatC(sort(setParam$dgp$percentLinear), format = "f", digits = 1)
@@ -131,7 +131,7 @@ setParam$dgp$trueB$pwlinear$lin[["R2"]]    <- NULL
 row.names(setParam$dgp$trueB$pwlinear$nonlinear) <- setParam$dgp$trueB$pwlinear$nonlinear[["R2"]]
 setParam$dgp$trueB$pwlinear$nonlinear[["R2"]]    <- NULL
 
-rm(bruteForceB_inter, bruteForceB_nl, bruteForceB_nl3, bruteForceB_pwl) # rm temporary matrices 
+rm(bruteForceB_inter, bruteForceB_nl3, bruteForceB_pwl) # rm temporary matrices 
 
 comboGrid <- expand.grid(setParam$dgp$Rsquared, 
                          paste(formatC(setParam$dgp$percentLinear, format = "f", digits = 1), 
