@@ -1,6 +1,6 @@
 # full Data (list with nested conditions)
 # full data list
-#   now we have multiple DGPs, too {inter, nonlinear, pwlinear} they live in different folders
+#   now we have multiple DGPs, too {inter, nonlinear3, pwlinear} they live in different folders
 #   model.{ENETw, ENETwo, GBM, RF} x N.{100, 300, 1000} x pTrash.{10, 50, 100} x rel{0.6, 0.8, 1}
 
 # open all files and save data in one single rda-file but separate rda-files for each model type
@@ -14,7 +14,7 @@ source("utils/setParameters.R") # import parameter values
 resFolder <- paste0("results")
 
 # all results from the following combinations
-dgpVec = c("inter", "nonlinear", "pwlinear", "nonlinear3")
+dgpVec = c("inter", "pwlinear", "nonlinear3")
 modelVec = c("ENETw", "ENETwo", "GBM", "RF")
 condGrid <- expand.grid(data = dgpVec,
                         model = modelVec,
