@@ -18,7 +18,8 @@ colValuesR2 <- c('#db4a07', '#850c0c', '#3c1518')
 colValuesInter <- c('#050440', '#181ff2', '#0eb2e8')
 colValuesLin <- c('#0eb2e8', '#181ff2', '#050440')
 
-colValuesRel <- c("#81C784", "#388E3C", "#1B5E20")
+colValuesRel <- c("#999999", "#444444", "#222222")
+colValuesN <-  c("#81C784", "#388E3C", "#1B5E20")
 
 plotFolder <- "plots/hyperParameter"
 if (!file.exists(plotFolder)){
@@ -28,36 +29,28 @@ if (!file.exists(plotFolder)){
 ################################################################################
 # plot utility functions
 ################################################################################
-plotHyperLines <- function(data, DV, rel){
-  ggplot(data,
-         aes(x = N, y = M, 
-             group = interaction(lin_inter, pTrash), colour = lin_inter,
-             linetype = lin_inter, shape = pTrash)) +
-    geom_point(size = 3) +
-    geom_line(linewidth = 0.75) +
-    scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(name = "Noise", values = c(16, 17)) +
-    scale_color_manual(name = "Lin:Inter", values = colValuesLin) +
-    facet_grid2(~ R2,
-                strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
-    ylab(DV) +
-    xlab("N")
-}
- 
-plotHyperBars <- function(data, x, measureLabel) {
-  # ggplot(data, aes(x = factor(x), y = n, fill = pTrash)) +
+ plotHyperBars <- function(data, x, measureLabel) {
   ggplot(data, aes(x = factor(x), y = n, fill = rel)) +
     geom_col(position = position_dodge(width = 0.7)) +
-    facet_grid2(N + lin_inter ~ R2,
+    scale_y_continuous(limits = c(-100, 1000), breaks = seq(0, 1000, 500)) +
+    facet_grid2(facetY ~ N,
                 strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) +
+                  background_x = list(element_rect(fill = alpha(colValuesN[1], 0.7)),
+                                      element_rect(fill = alpha(colValuesN[2], 0.7)),
+                                      element_rect(fill = alpha(colValuesN[3], 0.7))),
+                  background_y = list(element_rect(fill = alpha(colValuesR2[1], 0.5)),
+                                      element_rect(fill = alpha(colValuesR2[1], 0.5)),
+                                      element_rect(fill = alpha(colValuesR2[2], 0.5)),
+                                      element_rect(fill = alpha(colValuesR2[2], 0.5)),
+                                      element_rect(fill = alpha(colValuesR2[3], 0.5)),
+                                      element_rect(fill = alpha(colValuesR2[3], 0.5))),
+                  text_y = elem_list_text(angle = 0))) +
     #guides(fill = "none") + 
-    scale_fill_manual(values = colValuesRel) +
+    scale_fill_manual(name = "Reliability", values = colValuesRel) +
+    geom_line(aes(color = R2), linewidth = 8, alpha = 0.5) +
+    scale_color_manual(name = "R²", values = c("0.2" = colValuesR2[1], 
+                                              "0.5" = colValuesR2[2], 
+                                              "0.8" = colValuesR2[3])) +
     xlab(measureLabel) +
     ylab("Count per level")
 }
@@ -68,13 +61,14 @@ themeFunction <- function(plotObject){
     panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
     panel.background = element_rect(color = "white", fill = "white"),
     plot.title = element_text(size = 30, face = "bold"),
-    axis.text.y = element_text(size = 20),
-    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 15),
+    # axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+    axis.text.x = element_text(size = 15),
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     strip.text.x = element_text(size = 15),
     strip.text.y = element_text(size = 15),
-    legend.position = c(.2, .85), 
+    legend.position = "bottom", 
     legend.title = element_text(size = 25),
     legend.text = element_text(size = 20),
     legend.box = "horizontal")
@@ -85,12 +79,12 @@ themeFunction <- function(plotObject){
 # load data
 ################################################################################
 # load results files
-dgpVec <- c("inter", "nonlinear", "pwlinear")
+dgpVec <- c("inter", "nonlinear3", "pwlinear")
 resFolderVec <- paste0("results/", dgpVec, "/dependentMeasures")
 
 
 listDir <- dir(resFolderVec)
-listDir <- stringr::str_subset(listDir, "hyperParametersSample_[:alpha:]+_GBM.rda")
+listDir <- stringr::str_subset(listDir, "hyperParametersSample_[[:alnum:]]+_GBM.rda")
 
 ################################################################################
 # anovas and plot hyper parameters
@@ -188,19 +182,28 @@ for (iDGP in seq_along(listDir)){
   ################################################################################
   # plot hyper parameter (barplots)
   ################################################################################
+  hyperGBM <- hyperGBM[which(hyperGBM$lin_inter != "0.5_0.5"),]
+  
   ##### shrinkage #####
   shrinkageCount <- hyperGBM %>% 
     group_by(N, pTrash, rel, R2, lin_inter) %>% 
     count(shrinkage) %>% 
     ungroup()
-  shrinkageCount$N <- factor(shrinkageCount$N, levels = c(100, 300, 1000))
-  shrinkageCount$shrinkage <- factor(shrinkageCount$shrinkage, levels = unique(shrinkageCount$shrinkage))
+  shrinkageCount$N <- factor(shrinkageCount$N, levels = c(100, 300, 1000),
+                             labels = c("N = 100", "N = 300", "N = 1000"))
+  shrinkageCount$shrinkage <- factor(shrinkageCount$shrinkage, levels = unique(shrinkageCount$shrinkage), 
+                                     labels = sub("^0\\.", ".", as.character(unique(shrinkageCount$shrinkage))))
+  shrinkageCount$facetY <- interaction(shrinkageCount$lin_inter, shrinkageCount$R2, sep = "x")
+  shrinkageCount$facetY <- factor(shrinkageCount$facetY, labels = 
+                                    c("R² = 0.2\nlinear 20%", "R² = 0.2\nlinear 80%", 
+                                      "R² = 0.5\nlinear 20%", "R² = 0.5\nlinear 80%",
+                                      "R² = 0.8\nlinear 20%", "R² = 0.8\nlinear 80%"))
   
   shrinkageCount_pTrash10 <- shrinkageCount[shrinkageCount$pTrash == 10,]
-  (pSkrinkBar_pTrash10 <- plotHyperBars(shrinkageCount_pTrash10, shrinkageCount_pTrash10$shrinkage, "shrinkage"))
-  pSkrinkBar_pTrash10 <- themeFunction(pSkrinkBar_pTrash10)
+  pSkrinkBar_pTrash10 <- plotHyperBars(shrinkageCount_pTrash10, shrinkageCount_pTrash10$shrinkage, "Shrinkage")
+  (pSkrinkBar_pTrash10 <- themeFunction(pSkrinkBar_pTrash10))
   shrinkageCount_pTrash50 <- shrinkageCount[shrinkageCount$pTrash == 50,]
-  (pSkrinkBar_pTrash50 <- plotHyperBars(shrinkageCount_pTrash50, shrinkageCount_pTrash50$shrinkage, "shrinkage"))
+  (pSkrinkBar_pTrash50 <- plotHyperBars(shrinkageCount_pTrash50, shrinkageCount_pTrash50$shrinkage, "Shrinkage"))
   pSkrinkBar_pTrash50 <- themeFunction(pSkrinkBar_pTrash50)
   
   ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_shrinkCount_pTrash10_", dgpVec[iDGP], ".png"),
@@ -219,8 +222,15 @@ for (iDGP in seq_along(listDir)){
     group_by(N, pTrash, rel, R2, lin_inter) %>% 
     count(maxDepth) %>% 
     ungroup()
-  treeDepthCount$N <- factor(treeDepthCount$N, levels = c(100, 300, 1000))
+  treeDepthCount$N <- factor(treeDepthCount$N, levels = c(100, 300, 1000),
+                             labels = c("N = 100", "N = 300", "N = 1000"))
   treeDepthCount$maxDepth <- factor(treeDepthCount$maxDepth, levels = unique(treeDepthCount$maxDepth))
+  treeDepthCount$facetY <- interaction(treeDepthCount$lin_inter, treeDepthCount$R2, sep = "x")
+  treeDepthCount$facetY <- factor(treeDepthCount$facetY, labels = 
+                                    c("R² = 0.2\nlinear 20%", "R² = 0.2\nlinear 80%", 
+                                      "R² = 0.5\nlinear 20%", "R² = 0.5\nlinear 80%",
+                                      "R² = 0.8\nlinear 20%", "R² = 0.8\nlinear 80%"))
+  
   
   treeDepthCount_pTrash10 <- treeDepthCount[treeDepthCount$pTrash == 10,]
   (pDepthBar_pTrash10 <- plotHyperBars(treeDepthCount_pTrash10, treeDepthCount_pTrash10$maxDepth, "max tree depth"))
@@ -245,15 +255,25 @@ for (iDGP in seq_along(listDir)){
     group_by(N, pTrash, rel, R2, lin_inter) %>% 
     count(Nrounds) %>% 
     ungroup()
-  nTreesCount$N <- factor(nTreesCount$N, levels = c(100, 300, 1000))
-  nTreesCount$Nrounds <- factor(nTreesCount$Nrounds, levels = unique(nTreesCount$Nrounds))
+  nTreesCount$N <- factor(nTreesCount$N, levels = c(100, 300, 1000),
+                          labels = c("N = 100", "N = 300", "N = 1000"))
+  nTreesCount$Nrounds <- factor(nTreesCount$Nrounds, levels = sort(unique(nTreesCount$Nrounds)))
+  nTreesCount$facetY <- interaction(nTreesCount$lin_inter, nTreesCount$R2, sep = "x")
+  nTreesCount$facetY <- factor(nTreesCount$facetY, labels = 
+                                    c("R² = 0.2\nlinear 20%", "R² = 0.2\nlinear 80%", 
+                                      "R² = 0.5\nlinear 20%", "R² = 0.5\nlinear 80%",
+                                      "R² = 0.8\nlinear 20%", "R² = 0.8\nlinear 80%"))
+  
   
   nTreesCount_pTrash10 <- nTreesCount[nTreesCount$pTrash == 10,]
-  (pNtreesBar_pTrash10 <- plotHyperBars(nTreesCount_pTrash10, nTreesCount_pTrash10$Nrounds, "N trees"))
-  pNtreesBar_pTrash10 <- themeFunction(pNtreesBar_pTrash10)
+  pNtreesBar_pTrash10 <- plotHyperBars(nTreesCount_pTrash10, nTreesCount_pTrash10$Nrounds, "N trees")
+  (pNtreesBar_pTrash10 <- themeFunction(pNtreesBar_pTrash10) +
+      theme(axis.text.x = element_text(size = 15, angle = 45, hjust = 1)))
+  
   nTreesCount_pTrash50 <- nTreesCount[nTreesCount$pTrash == 50,]
-  (pNtreesBar_pTrash50 <- plotHyperBars(nTreesCount_pTrash50, nTreesCount_pTrash50$Nrounds, "N trees"))
-  pNtreesBar_pTrash50 <- themeFunction(pNtreesBar_pTrash50)
+  pNtreesBar_pTrash50 <- plotHyperBars(nTreesCount_pTrash50, nTreesCount_pTrash50$Nrounds, "N trees")
+  (pNtreesBar_pTrash50 <- themeFunction(pNtreesBar_pTrash50) + 
+      theme(axis.text.x = element_text(size = 15, angle = 45, hjust = 1)))
   
   ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_nTreesCount_pTrash10_", dgpVec[iDGP], ".png"),
                   plot = pNtreesBar_pTrash10,
@@ -265,70 +285,7 @@ for (iDGP in seq_along(listDir)){
                   width = 17.78,
                   height = 9.5,
                   units = "in")
-  
-  ################################################################################
-  # plot hyper parameter (lineplots)
-  ################################################################################
-  # plotHyper <- aggregate(cbind(shrinkage, maxDepth, minChildWeight, Nrounds) ~ 
-  #                          N + pTrash + rel + R2 + lin_inter, 
-  #                        data = hyperGBM,  
-  #                        function(x) {cbind(mean(x), 
-  #                                           sd(x),
-  #                                           quantile(x, 0.025),
-  #                                           quantile(x, 0.975))})
-  # 
-  # # turn matrices inside data frame into columns
-  # plotHyper <- do.call(data.frame, plotHyper)
-  # colnames(plotHyper) <- stringr::str_replace_all(colnames(plotHyper), "\\.1", "_M")
-  # colnames(plotHyper) <- stringr::str_replace_all(colnames(plotHyper), "\\.2", "_SE")
-  # colnames(plotHyper) <- stringr::str_replace_all(colnames(plotHyper), "\\.3", "_q025")
-  # colnames(plotHyper) <- stringr::str_replace_all(colnames(plotHyper), "\\.4", "_q975")
-  # 
-  # plotHyper$N <- factor(plotHyper$N, levels = c(100, 300, 1000))
-  # 
-  # plotHyper <- tidyr::pivot_longer(plotHyper, 
-  #                                  cols = !c(N, pTrash, rel, R2, lin_inter),
-  #                                  names_to = c("DV", "measure"), 
-  #                                  names_sep = "_",
-  #                                  values_to = "values")
-  # 
-  # plotHyper <- tidyr::pivot_wider(plotHyper,
-  #                                 names_from = measure, 
-  #                                 values_from = values)
-  # 
-  # plotHyper <- tidyr::separate(plotHyper, "lin_inter", 
-  #                              into = c("lin", "inter"), sep = "_", remove = F) 
-  # 
-  # # N and R2 (+ their interaction) influence the max tree depth and the shrinkage
-  # 
-  # pTreeDepth_rel08 <- plotHyperLines(plotHyper[plotHyper$DV == "maxDepth" &
-  #                                              plotHyper$rel == 0.8,], 
-  #                                  DV = "max tree depth", rel = 0.8)
-  # 
-  # pTreeDepth_rel08 <- themeFunction(pTreeDepth_rel08)
-  # 
-  # # save plot as files
-  # ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_treeDepth_R2facette_rel08_", dgpVec[iDGP],".png"),
-  #                 plot = pTreeDepth_rel08,
-  #                 width = 13.08,
-  #                 height = 6.68,
-  #                 units = "in")
-  # 
-  # 
-  # pShrinkage_rel08 <- plotHyperLines(plotHyper[plotHyper$DV == "shrinkage" &
-  #                                              plotHyper$rel == 0.8,],
-  #                                  DV = "shrinkage", rel = 0.8)
-  # 
-  # pShrinkage_rel08 <- themeFunction(pShrinkage_rel08)
-  # 
-  # # save plot as files
-  # ggplot2::ggsave(filename = paste0(plotFolder, "/hyperGBM_shrinkage_R2facette_rel08_", dgpVec[iDGP],".png"),
-  #                 plot = pShrinkage_rel08,
-  #                 width = 13.08,
-  #                 height = 6.68,
-  #                 units = "in")
-  # 
-  
+
 }
 
 
