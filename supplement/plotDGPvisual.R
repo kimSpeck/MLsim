@@ -526,7 +526,12 @@ df_combined$X2 <- factor(df_combined$X2, levels = c("X2 = 10", "X2 = 6", "X2 = 2
 # the data is simulated with R² = 0.8 and for the depicted effect (linear or other)
 #   the condition with 80% of R² on the respectice effect is illustrated
 
-png("plots/tmpNonlinear.png", width = 400, height = 300)
+# rpart.plot objects are base R graphics and therefore not compatible with cowplot
+#   export graphic as png, read it back in as ggplot object
+# export graphic to png
+#png("plots/tmpNonlinear.png", width = 400, height = 300)
+png("plots/tmpNonlinear.png", width = 4.4, height = 3.22, units = "in", res = 300)
+
 par(mar = c(1, 1, 1, 1))
 rpart.plot(
   tree_fit, 
@@ -538,9 +543,11 @@ rpart.plot(
   main          = "")
 dev.off()
 
+# import graphic as ggplot
 nonlinear3 <- cowplot::ggdraw() +  
   cowplot::draw_image("plots/tmpNonlinear.png")
 
+# full graphic
 (pFull <- cowplot::plot_grid(
   linear, inter, pwlinear, nonlinear3,
   pLM_rel1, pInter_rel1, pPWL_rel1, pNL3_rel1, 

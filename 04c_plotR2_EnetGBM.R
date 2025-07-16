@@ -18,13 +18,11 @@ if (!file.exists(plotFolder)){
 }
 
 # path to result files (i.e., dependent measures)
-# resFolder <- "results/finalResults/dependentMeasures"
-# resFolder <- "results/inter/oldDataRF/dependentMeasures"
-resFolder <- "results/nonlinear/dependentMeasures"
+resFolder <- "results/pwlinear/dependentMeasures"
 
 # read in data
-load("results/inter/oldDataRF/dependentMeasures/rSquaredData_stats.rda")
-load("results/inter/oldDataRF/dependentMeasures/rSquaredData_eachSample.rda")
+load("results/pwlinear/dependentMeasures/rSquaredData_stats.rda")
+load("results/dependentMeasures/rSquaredData_eachSample.rda")
 
 performanceData <- performanceSubRF
 ##### add Monte Carlo Error

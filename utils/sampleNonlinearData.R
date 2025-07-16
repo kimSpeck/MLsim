@@ -49,7 +49,7 @@ sampleNonlinearData <- function() {
   # N <- 1000000
   # pTrash <- 10
   # dgpFolder <- paste0(dataFolder, "/bigTestSamples")
-  # reliability <- 1
+  # reliability <- 0.6
   # data <- "nonlinear3"
   
   dgpFolder <- paste0(dataFolder, "/", data)
