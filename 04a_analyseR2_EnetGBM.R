@@ -26,6 +26,7 @@ if (!file.exists(depMeasureFolder)){
 # load results files
 dgpVec <- c("inter", "pwlinear", "nonlinear3")
 resFolderVec <- paste0("results/", dgpVec, "/dependentMeasures")
+
 ################################################################################
 # ANOVA - R² in test sample
 ################################################################################
@@ -105,10 +106,6 @@ anovaTestR2 <- aov_ez(id = "ID",
                       between = c("N" , "pTrash" , "R2" , "rel" , "lin_inter", "dgp"),
                       within = "model")
 
-# # save anova result object
-# save(anovaTestR2, file = paste0(depMeasureFolder, "/mixedANOVA_aovResult_relErrorR2.rda"))
-# load(paste0(depMeasureFolder, "/mixedANOVA_aovResult_relErrorR2.rda"))
-
 eta2TestR2 <- eta_squared(
   anovaTestR2, # fitted model
   partial = FALSE, # not partial!
@@ -118,7 +115,7 @@ eta2TestR2 <- eta_squared(
 
 # # save eta² result object
 # save(eta2TestR2, file = paste0(depMeasureFolder, "/mixedANOVA_eta2Result_relErrorR2.rda"))
-load(paste0(depMeasureFolder, "/mixedANOVA_eta2Result_relErrorR2.rda"))
+# load(paste0(depMeasureFolder, "/mixedANOVA_eta2Result_relErrorR2.rda"))
 
 # sort generalized eta-squared results
 # which higher order interactions do we need to illustrate to report simulation results?
@@ -148,11 +145,11 @@ plotEta2mixed$Parameter <- factor(plotEta2mixed$Parameter,
     ylab("generalisiertes eta^2") +
     theme(axis.text.x = element_text(angle = 45, vjust = 0.2, hjust=0.1)))
 
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_relErrorR2_thresh", eta2Thresh, ".png"),
-                plot = pEta2mixedFull,
-                width = 17.52,
-                height = 10.76,
-                units = "in")
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_relErrorR2_thresh", eta2Thresh, ".png"),
+#                 plot = pEta2mixedFull,
+#                 width = 17.52,
+#                 height = 10.76,
+#                 units = "in")
 
 eta2modelTable <- plotEta2mixed[plotEta2mixed$Eta2_generalized >= eta2Thresh,]
 
@@ -169,64 +166,64 @@ print(xtable::xtable(eta2modelTable, type = "latex"),
 
 ##### main effects as expected #####
 (emRel <- emmeans(anovaTestR2, ~ rel))
-# rel   emmean        SE     df lower.CL upper.CL
-# 0.6 -0.61855 0.0001368 485514 -0.61882 -0.61828
-# 0.8 -0.47829 0.0001368 485514 -0.47855 -0.47802
-# 1   -0.32881 0.0001368 485514 -0.32908 -0.32855
+# rel   emmean         SE     df lower.CL upper.CL
+# 0.6 -0.62060 0.00013744 485514 -0.62087 -0.62033
+# 0.8 -0.48041 0.00013744 485514 -0.48068 -0.48014
+# 1   -0.33096 0.00013744 485514 -0.33123 -0.33069
 
 (emN <- emmeans(anovaTestR2, ~ N))
-# N      emmean        SE     df lower.CL upper.CL
-# 100  -0.62557 0.0001368 485514 -0.62584 -0.62530
-# 300  -0.44708 0.0001368 485514 -0.44735 -0.44681
-# 1000 -0.35300 0.0001368 485514 -0.35327 -0.35274
+# N      emmean         SE     df lower.CL upper.CL
+# 100  -0.62958 0.00013744 485514 -0.62985 -0.62931
+# 300  -0.44885 0.00013744 485514 -0.44912 -0.44858
+# 1000 -0.35354 0.00013744 485514 -0.35381 -0.35327
 
 (emR2 <- emmeans(anovaTestR2, ~ R2))
 # R2    emmean        SE     df lower.CL upper.CL
-# 0.2 -0.61180 0.0001368 485514 -0.61207 -0.61153
-# 0.5 -0.44535 0.0001368 485514 -0.44562 -0.44508
-# 0.8 -0.36850 0.0001368 485514 -0.36877 -0.36824
+# 0.2 -0.61509 0.00013744 485514 -0.61536 -0.61482
+# 0.5 -0.44743 0.00013744 485514 -0.44770 -0.44716
+# 0.8 -0.36945 0.00013744 485514 -0.36972 -0.36918
 
 (emLin_inter <- emmeans(anovaTestR2, ~ lin_inter))
-# lin_inter   emmean        SE     df lower.CL upper.CL
-# 0.2_0.8   -0.58257 0.0001368 485514 -0.58284 -0.58230
-# 0.5_0.5   -0.47358 0.0001368 485514 -0.47385 -0.47331
-# 0.8_0.2   -0.36951 0.0001368 485514 -0.36977 -0.36924
+# lin_inter   emmean         SE     df lower.CL upper.CL
+# 0.2_0.8   -0.58481 0.00013744 485514 -0.58508 -0.58454
+# 0.5_0.5   -0.47576 0.00013744 485514 -0.47603 -0.47549
+# 0.8_0.2   -0.37140 0.00013744 485514 -0.37167 -0.37113
 
 ##### interactions #####
 (emDGPxModel <- emmeans(anovaTestR2, "model", by = "dgp"))
 # dgp = inter:
 #   model   emmean        SE     df lower.CL upper.CL
-# ENETwo -0.6225 0.0001686 485514  -0.6228  -0.6221
+# ENETw  -0.3712 0.0002210 485514  -0.3716  -0.3708
+# ENETwo -0.6225 0.0001707 485514  -0.6228  -0.6221
 # GBM    -0.5446 0.0001903 485514  -0.5449  -0.5442
 # RF     -0.4862 0.0001503 485514  -0.4865  -0.4859
-# ENETw  -0.3712 0.0002201 485514  -0.3716  -0.3708
 # 
 # dgp = nonlinear3:
 #   model   emmean        SE     df lower.CL upper.CL
+# ENETw  -0.5150 0.0002210 485514  -0.5154  -0.5146
+# ENETwo -0.4236 0.0001707 485514  -0.4240  -0.4233
 # GBM    -0.5089 0.0001903 485514  -0.5093  -0.5085
-# ENETw  -0.5081 0.0002201 485514  -0.5085  -0.5077
 # RF     -0.4629 0.0001503 485514  -0.4632  -0.4626
-# ENETwo -0.4181 0.0001686 485514  -0.4184  -0.4177
-#
+# 
 # dgp = pwlinear:
 #   model   emmean        SE     df lower.CL upper.CL
+# ENETw  -0.4840 0.0002210 485514  -0.4844  -0.4836
+# ENETwo -0.3865 0.0001707 485514  -0.3868  -0.3862
 # GBM    -0.4875 0.0001903 485514  -0.4879  -0.4872
-# ENETw  -0.4769 0.0002201 485514  -0.4773  -0.4765
 # RF     -0.4350 0.0001503 485514  -0.4353  -0.4347
-# ENETwo -0.3808 0.0001686 485514  -0.3811  -0.3805
 
 (emLinInterxModelxDGP <- emmeans(anovaTestR2, "lin_inter", by = c("model", "dgp")))
 # model = ENETw, dgp = inter:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
-# 0.2_0.8   -0.4089 0.0003813 485514  -0.4096  -0.4081
-# 0.5_0.5   -0.3806 0.0003813 485514  -0.3813  -0.3798
-# 0.8_0.2   -0.3242 0.0003813 485514  -0.3249  -0.3234
+# 0.2_0.8   -0.4089 0.0003828 485514  -0.4096  -0.4081
+# 0.5_0.5   -0.3806 0.0003828 485514  -0.3813  -0.3798
+# 0.8_0.2   -0.3242 0.0003828 485514  -0.3249  -0.3234
 # 
 # model = ENETwo, dgp = inter:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
-# 0.2_0.8   -0.8794 0.0002920 485514  -0.8800  -0.8788
-# 0.5_0.5   -0.6229 0.0002920 485514  -0.6235  -0.6223
-# 0.8_0.2   -0.3651 0.0002920 485514  -0.3657  -0.3645
+# 0.2_0.8   -0.8794 0.0002956 485514  -0.8800  -0.8788
+# 0.5_0.5   -0.6229 0.0002956 485514  -0.6235  -0.6223
+# 0.8_0.2   -0.3651 0.0002956 485514  -0.3657  -0.3645
 # 
 # model = GBM, dgp = inter:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
@@ -242,15 +239,15 @@ print(xtable::xtable(eta2modelTable, type = "latex"),
 # 
 # model = ENETw, dgp = nonlinear3:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
-# 0.2_0.8   -0.6312 0.0003813 485514  -0.6319  -0.6305
-# 0.5_0.5   -0.5115 0.0003813 485514  -0.5123  -0.5108
-# 0.8_0.2   -0.3816 0.0003813 485514  -0.3823  -0.3808
+# 0.2_0.8   -0.6385 0.0003828 485514  -0.6393  -0.6378
+# 0.5_0.5   -0.5188 0.0003828 485514  -0.5196  -0.5181
+# 0.8_0.2   -0.3876 0.0003828 485514  -0.3884  -0.3869
 # 
 # model = ENETwo, dgp = nonlinear3:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
-# 0.2_0.8   -0.5379 0.0002920 485514  -0.5385  -0.5373
-# 0.5_0.5   -0.4099 0.0002920 485514  -0.4104  -0.4093
-# 0.8_0.2   -0.3064 0.0002920 485514  -0.3070  -0.3059
+# 0.2_0.8   -0.5438 0.0002956 485514  -0.5444  -0.5432
+# 0.5_0.5   -0.4155 0.0002956 485514  -0.4160  -0.4149
+# 0.8_0.2   -0.3116 0.0002956 485514  -0.3122  -0.3110
 # 
 # model = GBM, dgp = nonlinear3:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
@@ -266,15 +263,15 @@ print(xtable::xtable(eta2modelTable, type = "latex"),
 # 
 # model = ENETw, dgp = pwlinear:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
-# 0.2_0.8   -0.5803 0.0003813 485514  -0.5810  -0.5795
-# 0.5_0.5   -0.4798 0.0003813 485514  -0.4806  -0.4791
-# 0.8_0.2   -0.3705 0.0003813 485514  -0.3713  -0.3698
+# 0.2_0.8   -0.5878 0.0003828 485514  -0.5885  -0.5870
+# 0.5_0.5   -0.4875 0.0003828 485514  -0.4882  -0.4867
+# 0.8_0.2   -0.3768 0.0003828 485514  -0.3775  -0.3760
 # 
 # model = ENETwo, dgp = pwlinear:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
-# 0.2_0.8   -0.4781 0.0002920 485514  -0.4787  -0.4775
-# 0.5_0.5   -0.3726 0.0002920 485514  -0.3732  -0.3720
-# 0.8_0.2   -0.2917 0.0002920 485514  -0.2922  -0.2911
+# 0.2_0.8   -0.4842 0.0002956 485514  -0.4848  -0.4837
+# 0.5_0.5   -0.3784 0.0002956 485514  -0.3789  -0.3778
+# 0.8_0.2   -0.2969 0.0002956 485514  -0.2975  -0.2963
 # 
 # model = GBM, dgp = pwlinear:
 #   lin_inter  emmean        SE     df lower.CL upper.CL
@@ -291,34 +288,34 @@ print(xtable::xtable(eta2modelTable, type = "latex"),
 (emNxR2 <- emmeans(anovaTestR2, "N", by = "R2"))
 # R2 = 0.2:
 #   N     emmean        SE     df lower.CL upper.CL
-# 100  -0.7956 0.0002369 485514  -0.7960  -0.7951
-# 300  -0.6016 0.0002369 485514  -0.6021  -0.6011
-# 1000 -0.4382 0.0002369 485514  -0.4387  -0.4378
+# 100  -0.8008 0.0002381 485514  -0.8012  -0.8003
+# 300  -0.6049 0.0002381 485514  -0.6054  -0.6045
+# 1000 -0.4396 0.0002381 485514  -0.4400  -0.4391
 # 
 # R2 = 0.5:
 #   N     emmean        SE     df lower.CL upper.CL
-# 100  -0.6011 0.0002369 485514  -0.6015  -0.6006
-# 300  -0.3965 0.0002369 485514  -0.3970  -0.3961
-# 1000 -0.3384 0.0002369 485514  -0.3389  -0.3380
+# 100  -0.6055 0.0002381 485514  -0.6060  -0.6050
+# 300  -0.3981 0.0002381 485514  -0.3986  -0.3977
+# 1000 -0.3387 0.0002381 485514  -0.3391  -0.3382
 # 
 # R2 = 0.8:
 #   N     emmean        SE     df lower.CL upper.CL
-# 100  -0.4801 0.0002369 485514  -0.4805  -0.4796
-# 300  -0.3431 0.0002369 485514  -0.3436  -0.3426
-# 1000 -0.2824 0.0002369 485514  -0.2828  -0.2819
+# 100  -0.4825 0.0002381 485514  -0.4829  -0.4820
+# 300  -0.3435 0.0002381 485514  -0.3440  -0.3430
+# 1000 -0.2824 0.0002381 485514  -0.2829  -0.2819
 
 (emNxModel <- emmeans(anovaTestR2, "N", by = "model"))
 # model = ENETw:
 #   N      emmean         SE     df lower.CL upper.CL
-# 100  -0.64543 0.00022012 485514 -0.64586 -0.64500
-# 300  -0.41001 0.00022012 485514 -0.41044 -0.40958
-# 1000 -0.30076 0.00022012 485514 -0.30120 -0.30033
+# 100  -0.65398 0.00022102 485514 -0.65442 -0.65355
+# 300  -0.41422 0.00022102 485514 -0.41465 -0.41379
+# 1000 -0.30201 0.00022102 485514 -0.30245 -0.30158
 # 
 # model = ENETwo:
 #   N      emmean         SE     df lower.CL upper.CL
-# 100  -0.57667 0.00016858 485514 -0.57700 -0.57633
-# 300  -0.44312 0.00016858 485514 -0.44345 -0.44279
-# 1000 -0.40153 0.00016858 485514 -0.40186 -0.40120
+# 100  -0.58416 0.00017069 485514 -0.58449 -0.58382
+# 300  -0.44599 0.00017069 485514 -0.44632 -0.44565
+# 1000 -0.40244 0.00017069 485514 -0.40277 -0.40210
 # 
 # model = GBM:
 #   N      emmean         SE     df lower.CL upper.CL
@@ -335,15 +332,15 @@ print(xtable::xtable(eta2modelTable, type = "latex"),
 (emNxPtrash <- emmeans(anovaTestR2, "N", by = "pTrash"))
 # pTrash = 10:
 #   N     emmean        SE     df lower.CL upper.CL
-# 100  -0.5686 0.0001935 485514  -0.5690  -0.5682
-# 300  -0.4442 0.0001935 485514  -0.4446  -0.4438
-# 1000 -0.3558 0.0001935 485514  -0.3562  -0.3554
+# 100  -0.5754 0.0001944 485514  -0.5758  -0.5750
+# 300  -0.4469 0.0001944 485514  -0.4473  -0.4465
+# 1000 -0.3567 0.0001944 485514  -0.3571  -0.3563
 # 
 # pTrash = 50:
 #   N     emmean        SE     df lower.CL upper.CL
-# 100  -0.6826 0.0001935 485514  -0.6829  -0.6822
-# 300  -0.4500 0.0001935 485514  -0.4503  -0.4496
-# 1000 -0.3502 0.0001935 485514  -0.3506  -0.3498
+# 100  -0.6838 0.0001944 485514  -0.6841  -0.6834
+# 300  -0.4508 0.0001944 485514  -0.4512  -0.4504
+# 1000 -0.3504 0.0001944 485514  -0.3508  -0.3500
 
 # save expected marginal means into r object
 df_emDGPxModel <- as.data.frame(emDGPxModel)
@@ -359,8 +356,9 @@ save(df_emDGPxModel, df_emLinInterxModelxDGP,
 ##### plot data #####
 load(paste0(depMeasureFolder, "/mixedANOVA_postHocEMMEANS.rda"))
 
-colRamp <- colorRampPalette(c('#55fa79','#FF9900', '#FF6666'))(n = 200)
+colRamp <- colorRampPalette(c("#6f9c3d", "#b8c36b", "#ffb366", "#ff8829", "#fe6b40"))(n = 200)
 limit.bias <- 1
+
 
 ##### utility functions #####
 themeFunction <- function(plot) {
@@ -389,13 +387,14 @@ plotHeatmap <- function(data, xVar, yVar, xLabel = "", yLabel= "") {
     geom_text(aes(x = xVar, y = yVar, label = round(emmean, 2)), 
               color="black", size=rel(5)) +
     scale_fill_gradientn("relative R² error",
-                         colours = c(colRamp[length(colRamp):1], colRamp),
+                         # colours = c(colRamp[length(colRamp):1], colRamp),
+                         colours = c(colRamp[length(colRamp):1]),
                          values = scales::rescale(
                            # limited do +/- limit.bias
                            x = seq(from = -limit.bias,
-                                   to = limit.bias, length.out = 400),
-                           from = c(-limit.bias, limit.bias)),
-                         limits = c(-limit.bias, limit.bias)) +
+                                   to = 0, length.out = 200),
+                           from = c(-limit.bias, 0)),
+                         limits = c(-limit.bias, 0)) +
     xlab(xLabel) + ylab(yLabel) + guides(fill = "none")
 }
 
@@ -413,17 +412,19 @@ df_emDGPxModel$dgp <- factor(df_emDGPxModel$dgp,
     geom_text(aes(x = dgp, y = model, label = round(emmean, 2)), 
               color="black", size=rel(5)) +
     scale_fill_gradientn("",
-                         colours = c(colRamp[length(colRamp):1], colRamp),
+                         colours = colRamp[length(colRamp):1],
                          values = scales::rescale(
                            # limited do +/- limit.bias
                            x = seq(from = -limit.bias,
-                                   to = limit.bias, length.out = 400),
-                           from = c(-limit.bias, limit.bias)),
-                         limits = c(-limit.bias, limit.bias))) 
+                                   to = 0, length.out = 200),
+                           from = c(-limit.bias, 0)),
+                         limits = c(-limit.bias, 0))) 
+
 (plot4guide <- themeFunction(plot4guide))
 # cowplot::get_legend(plot4guide)
 
-(pDGPxModel <- plotHeatmap(df_emDGPxModel, df_emDGPxModel$dgp, df_emDGPxModel$model))
+(pDGPxModel <- plotHeatmap(df_emDGPxModel, df_emDGPxModel$dgp, df_emDGPxModel$model,
+                           xLabel = "DGP", yLabel = "Model"))
 (pDGPxModel <- themeFunction(pDGPxModel))
 
 
@@ -445,19 +446,21 @@ df_emLinInterxModelxDGP$lin_inter <- factor(df_emLinInterxModelxDGP$lin_inter,
 df_emNxR2$N <- factor(df_emNxR2$N, 
                       levels = c(100, 300, 1000))
 (pNxR2 <- plotHeatmap(df_emNxR2, df_emNxR2$N, df_emNxR2$R2,  
-                      xLabel = "", yLabel = "simulated R²")) 
+                      xLabel = "", yLabel = "Simulated R²")) 
 (pNxR2 <- themeFunction(pNxR2))
 
 
 df_emNxPtrash$N <- factor(df_emNxPtrash$N, 
                          levels = c(100, 300, 1000))
 (pNxPtrash <- plotHeatmap(df_emNxPtrash, df_emNxPtrash$N, df_emNxPtrash$pTrash, 
-                         xLabel = "sample size", yLabel = "# noise variables")) 
+                         xLabel = "Sample Size", yLabel = "# Noise Variables")) 
 (pNxPtrash <- themeFunction(pNxPtrash))
 
 
-pColR <- cowplot::plot_grid(pNxR2, pNxPtrash, 
+pColR <- cowplot::plot_grid(pNxR2, pNxPtrash,
                    labels = c("R² x N", "noise x N"), ncol = 1)
+pColR_woLabel <- cowplot::plot_grid(pNxR2, pNxPtrash, 
+                            labels = c("", ""), ncol = 1)
 pEMMfull <- cowplot::plot_grid(pDGPxModel, pLinInterxDGPxModel, pColR, cowplot::get_legend(plot4guide), 
   labels = c("model x DGP", "[EC x model] x DGP", "", ""), ncol = 4, rel_widths = c(1.3, 1.8, 1, 0.8))
 
@@ -469,11 +472,24 @@ ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMMfull.
 
 legend <- cowplot::get_legend(plot4guide)
 pEMM <- cowplot::plot_grid(pDGPxModel, pColR, legend, 
-                           labels = c("model x DGP", "", "rel. R²\n error"), ncol = 3, rel_widths = c(1, 1, 0.5))
+                           labels = c("model x DGP", "", "rel. R²\n error"), 
+                           # label_x = 0.1,
+                           # label_y = 0.95,
+                           ncol = 3, rel_widths = c(1, 1, 0.5))
+
+pEMM_woLabel <- cowplot::plot_grid(pDGPxModel, pColR_woLabel, legend, 
+                           labels = c("", "", "rel. R²\n error"), 
+                           ncol = 3, rel_widths = c(1, 1, 0.5))
 
 
 ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMM.png"),
                 plot = pEMM,
+                width = 13.33,
+                height = 6.38,
+                units = "in")
+
+ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMM_woLabel.png"),
+                plot = pEMM_woLabel,
                 width = 13.33,
                 height = 6.38,
                 units = "in")
@@ -539,24 +555,20 @@ for (iDGP in dgpVec) {
 
 ##### eta2 table #####
 # eta2res <- ls(pattern = "eta2") # check objects that match the pattern
+rm(eta2Thresh, eta2modelTable, eta2TestR2, eta2TestR2.ordered, eta2res)
 eta2List <- lapply(grep("eta2", ls(), value = TRUE), get)
 eta2Table <- do.call(rbind, eta2List)
 
-# eta2Thresh <- 0.1
 eta2Table <- tidyr::pivot_wider(eta2Table[,c("Parameter", "Eta2_generalized", "model", "dgp")], 
                                 names_from = c(model, dgp),  
                                 values_from = Eta2_generalized,
                                 names_sep = "_")
 
 # # do not remove variables below a certain threshold
-# eta2Table <- subset(eta2Table, eta2Table$ENETw >= eta2Thresh | 
-#                       eta2Table$ENETwo >= eta2Thresh |
-#                       #eta2Table$GBM >= eta2Thresh |
-#                       eta2Table$RF >= eta2Thresh)
-
-
-eta2Table$sumEta2 <- apply(eta2Table[,!(colnames(eta2Table) %in% "Parameter")], 1, sum)
-eta2Table$M <- apply(eta2Table[,!(colnames(eta2Table) %in% c("Parameter", "sumEta2"))], 1, mean)
+eta2Thresh <- 0.1
+eta2Table$thresh <- apply(eta2Table[,!(colnames(eta2Table) %in% "Parameter")], 1, function(r) any(r >= eta2Thresh))
+eta2Table$sumEta2 <- apply(eta2Table[,!(colnames(eta2Table) %in% c("Parameter", "thresh"))], 1, sum)
+eta2Table$M <- apply(eta2Table[,!(colnames(eta2Table) %in% c("Parameter", "thresh", "sumEta2"))], 1, mean)
 # eta2Table$sumEta2 <- apply(eta2Table[,c("ENETw", "ENETwo", "RF")], 1, sum)
 # eta2Table$M <- apply(eta2Table[,c("ENETw", "ENETwo", "RF")], 1, mean)
 eta2Table <- dplyr::arrange(eta2Table, desc(M))
@@ -566,8 +578,17 @@ eta2Table <- dplyr::arrange(eta2Table, desc(M))
 # print(xtable::xtable(eta2Table, type = "latex"),
 #       file = paste0(plotFolder, "/ANOVAresults/betweenANOVA_R2.tex"))
 
+colnames(eta2Table)
+texTable <- eta2Table[eta2Table$thresh == TRUE,!(colnames(eta2Table) %in% c("thresh", "sumEta2", "M"))]
+orderCols <- c("Parameter", "RF_inter", "GBM_inter", "ENETw_inter", "ENETwo_inter",
+               "RF_pwlinear", "GBM_pwlinear", "ENETw_pwlinear", "ENETwo_pwlinear",
+               "RF_nonlinear3", "GBM_nonlinear3", "ENETw_nonlinear3", "ENETwo_nonlinear3")
+texTable <- texTable[, orderCols]
+      
 # print(xtable::xtable(eta2Table, type = "latex"),
-#       file = paste0(plotFolder, "/ANOVAresults/betweenANOVA_relErrorR2.tex"))
+#       file = paste0(plotFolder, "/ANOVAresults/betweenANOVA_relErrorR2_full.tex"))
+# print(xtable::xtable(texTable, type = "latex"),
+#       file = paste0(plotFolder, "/ANOVAresults/betweenANOVA_relErrorR2_", eta2Thresh, ".tex"))
 
 rm(eta2List, eta2Table)
 ##### plot eta2 #####
@@ -593,10 +614,11 @@ eta2$model <- factor(eta2$model,
                      levels = c("RF", "GBM", "ENETw", "ENETwo")) # obvious order of models
 
 eta2$dgp <- factor(eta2$dgp, 
-                     levels = c("inter", "pwlinear", "nonlinear3", "nonlinear")) # obvious order of models
+                     levels = c("inter", "pwlinear", "nonlinear3")) # obvious order of models
 
 # as barplot with cut-off: gen. eta² = .1 
 eta2Thresh <- 0.1
+eta2$thresh <- apply(eta2[,!(colnames(eta2Table) %in% "Parameter")], 1, function(r) any(r >= eta2Thresh))
 (pEta2Model <- ggplot(eta2[eta2$Eta2_generalized >= eta2Thresh,], 
 # (pEta2Model <- ggplot(eta2, 
                       aes(x = Parameter, y = Eta2_generalized,
