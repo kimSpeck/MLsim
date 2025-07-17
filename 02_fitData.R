@@ -27,7 +27,6 @@ resFolder <- "results"
 createFolder(resFolder)
 
 createFolder(paste0(resFolder, "/inter"))
-createFolder(paste0(resFolder, "/nonlinear"))
 createFolder(paste0(resFolder, "/nonlinear3"))
 createFolder(paste0(resFolder, "/pwlinear"))
 
@@ -41,21 +40,6 @@ nCoresSampling <- 30
 # get condGrid from parameter set 
 condGrid <- setParam$fit$condGrid
 
-# # here!
-# # remove lines in condGrid for which there already are results
-# #   !!! this only works if the big rda files including all samples of a specific condition exist !!!
-# # check which files are already in the results folder
-# resFileList <- list.files(resFolder)
-# resFileList <- sub('results', "", resFileList); resFileList <- sub('.rds', "", resFileList)
-# 
-# allDataFiles <- paste0("simDataN", condGrid[, "N"], 
-#                        "_pTrash", condGrid[, "pTrash"], 
-#                        "_rel", condGrid[,"reliability"], ".rda")
-# allDataFiles <- sub("simData", "", allDataFiles); allDataFiles <- sub(".rda", "", allDataFiles)
-# 
-# fitIdx <- which(!(allDataFiles %in% resFileList)) # index of conditions that need to be fitted 
-# condGrid <- condGrid[fitIdx, ] # remove conditions that are already done
-
 # # choose one single condition to test code/timing
 # condGrid <- condGrid[condGrid$data == "inter" &
 #                        condGrid$model == "GBM" &
@@ -63,13 +47,15 @@ condGrid <- setParam$fit$condGrid
 #                        condGrid$pTrash == 10 &
 #                        condGrid$reliability == 0.6,]
 
-# choose only random forests to fit here!
-condGrid <- condGrid[condGrid$data == "pwlinear" &
-                       condGrid$model == "ENETw",]
-condGrid <- dplyr::arrange(condGrid, N)
+# # choose only certain subsets to fit here!
+# condGrid <- condGrid[condGrid$data == "pwlinear" &
+#                        condGrid$model == "ENETw",]
+# # arrange order of conditions to fit
+# condGrid <- dplyr::arrange(condGrid, N)
 
+# flag to save single conditions (TRUE) or only full set of fitted results (FALSE)
 setParam$fit$saveConds <- FALSE
-setParam$dgp$condLabels
+# setParam$dgp$condLabels # check 
 
 testFlag <- F
 
@@ -165,61 +151,6 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
         Xtest <- Xtest[,colnames(Xtest)[!idx_rmInter.test]]
       }
       
-      # remove 2 randomly chosen noise variables
-      if (condGrid[iSim, "data"] == "nonlinear" & condGrid[iSim, "model"] %in% c("ENETw", "ENETwo")) {
-        # remove two noise variables at random from the predictor matrix to keep number of
-        #   predictors constant despite additional nonlinear variables!
-        
-        # randomly sample two variables between (p + pNL + 1): (p + pNL + pTrash)
-        rmVars <- paste0("Var", sample((setParam$dgp$p+setParam$dgp$pNL+1):
-                                         (setParam$dgp$p+setParam$dgp$pNL+condGrid[iSim, "pTrash"]), 
-               setParam$dgp$pNL))
-        
-        # choose all variable names and interactions including these variables
-        var_rm.train <- colnames(Xtrain)[grepl(rmVars[1], colnames(Xtrain)) | grepl(rmVars[2], colnames(Xtrain))]
-        
-        # find indices of these variable names in the data
-        idx_rm.train <- colnames(Xtrain) %in% var_rm.train
-        idx_rm.test <- colnames(Xtest) %in% var_rm.train
-        
-        # remove variables and all their interactions with other variables from the data
-        Xtrain <- Xtrain[,!idx_rm.train]
-        Xtest <- Xtest[,!idx_rm.test]
-        
-        # if (testFlag) {
-        #   Xtrain[, "Var5"] <- createDummy(Xtrain[, "Var5"], q = 0.5, effectCoding = T)
-        #   Xtrain[, "Var6"] <- createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = T)
-        #   # add the interaction between the dummies
-        #   Xtrain <- cbind(Xtrain, 
-        #                  `Var5:Var6` = Xtrain[, "Var5"] * Xtrain[, "Var6"])
-        #   
-        #   Xtest[, "Var5"] <- createDummy(Xtest[, "Var5"], q = 0.5, effectCoding = T)
-        #   Xtest[, "Var6"] <- createDummy(Xtest[, "Var6"], q = 0.5, effectCoding = T)
-        #   Xtest <- cbind(Xtest, 
-        #                   `Var5:Var6` = Xtest[, "Var5"] * Xtest[, "Var6"])
-        # } 
-      
-      # remove 3 randomly chosen noise variables  
-      } else if (condGrid[iSim, "data"] == "pwlinear" & condGrid[iSim, "model"] %in% c("ENETw", "ENETwo")) {
-        # randomly sample two variables between (p + pPWL + 1): (p + pPWL + pTrash)
-        rmVars <- paste0("Var", sample((setParam$dgp$p+setParam$dgp$pPWL+1):
-                                         (setParam$dgp$p+setParam$dgp$pPWL+condGrid[iSim, "pTrash"]), 
-                                       setParam$dgp$pPWL))
-        
-        # choose all variable names and interactions including these variables
-        var_rm.train <- colnames(Xtrain)[grepl(rmVars[1], colnames(Xtrain)) | 
-                                           grepl(rmVars[2], colnames(Xtrain)) |
-                                           grepl(rmVars[3], colnames(Xtrain))]
-        
-        # find indices of these variable names in the data
-        idx_rm.train <- colnames(Xtrain) %in% var_rm.train
-        idx_rm.test <- colnames(Xtest) %in% var_rm.train
-        
-        # remove variables and all their interactions with other variables from the data
-        Xtrain <- Xtrain[,!idx_rm.train]
-        Xtest <- Xtest[,!idx_rm.test]
-      }
-      
       # depending on condGrid[iSim, "model"] run GBM, RF or ENET code
       if (condGrid[iSim, "model"] == "GBM") {
         fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation)
@@ -291,6 +222,7 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       saveENET(estRes, iCond, setParam, resList)
     }
     
+    # if flag TRUE: save every single condition
     if (setParam$fit$saveConds) {
       resCondFileName <- paste0(resFolder, "/", condGrid[iSim, "data"], "/",
                             "resultsModel", condGrid[iSim, "model"], 

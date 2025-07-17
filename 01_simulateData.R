@@ -10,8 +10,8 @@ source("utils/simTools.R") # general functions for data simulation
 
 # functions to generate data
 source("utils/sampleInteractionData.R") # linear + interaction effects
-source("utils/sampleNonlinearData.R") # linear + nonlinear effects
-source("utils/samplePiecewiseLinearData.R") # linear + nonlinear effects
+source("utils/sampleNonlinearData.R") # linear + stepwise effects
+source("utils/samplePiecewiseLinearData.R") # linear + piecewise linear effects
 
 timeStampFolder <- format(Sys.time(), "%d%m%y_%H%M%S")
 
@@ -20,8 +20,6 @@ dataFolder <- "data"
 createFolder(dataFolder)
 
 dgpFolder <- "/inter"
-createFolder(paste0(dataFolder, dgpFolder))
-dgpFolder <- "/nonlinear"
 createFolder(paste0(dataFolder, dgpFolder))
 dgpFolder <- "/nonlinear3"
 createFolder(paste0(dataFolder, dgpFolder))
@@ -54,15 +52,6 @@ gridInter$sampleSeed <- seedNum[1:dim(gridInter)[1]]
 # add dgp type column to the grid
 gridNL <- cbind(data = "inter", gridInter)   
 
-# add nonlinear grid (2 dummy variables + their interaction)
-set.seed(4890920)
-seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
-
-gridNL <- rbind(gridNL, 
-                cbind(data = "nonlinear", 
-                      gridInter[,!colnames(gridInter) %in% "sampleSeed"], 
-                      sampleSeed = seedNum))
-
 # add piecewise linear grid
 set.seed(7485936)
 seedNum <- sample(1:999999, dim(gridInter)[1], replace = FALSE) 
@@ -89,7 +78,7 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
   
   if (data == "inter"){
     environment(sampleInteractionData) <- environment()  
-  } else if (data %in% c("nonlinear", "nonlinear3")) {
+  } else if (data %in% "nonlinear3") {
     environment(sampleNonlinearData) <- environment()  
   } else if (data == "pwlinear") {
     environment(samplePiecewiseLinearData) <- environment()  
@@ -109,7 +98,7 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
   
   if (data == "inter"){
     sampleInteractionData() # run function to actually create dataset
-  } else if (data %in% c("nonlinear", "nonlinear3")) {
+  } else if (data %in% "nonlinear3") {
     sampleNonlinearData()
   } else if (data == "pwlinear") {
     samplePiecewiseLinearData()
