@@ -113,10 +113,6 @@ eta2TestR2 <- eta_squared(
   ci = 0.95,
   verbose = TRUE)
 
-# # save eta² result object
-# save(eta2TestR2, file = paste0(depMeasureFolder, "/mixedANOVA_eta2Result_relErrorR2.rda"))
-# load(paste0(depMeasureFolder, "/mixedANOVA_eta2Result_relErrorR2.rda"))
-
 # sort generalized eta-squared results
 # which higher order interactions do we need to illustrate to report simulation results?
 (eta2TestR2.ordered <- eta2TestR2[order(eta2TestR2$Eta2_generalized, decreasing = T),])
