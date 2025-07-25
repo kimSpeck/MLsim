@@ -460,29 +460,29 @@ pColR_woLabel <- cowplot::plot_grid(pNxR2, pNxPtrash,
 pEMMfull <- cowplot::plot_grid(pDGPxModel, pLinInterxDGPxModel, pColR, cowplot::get_legend(plot4guide), 
   labels = c("model x DGP", "[EC x model] x DGP", "", ""), ncol = 4, rel_widths = c(1.3, 1.8, 1, 0.8))
 
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMMfull.png"),
-                plot = pEMMfull,
-                width = 13.63,
-                height = 8.14,
-                units = "in")
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMMfull.png"),
+#                 plot = pEMMfull,
+#                 width = 13.63,
+#                 height = 8.14,
+#                 units = "in")
 
 legend <- cowplot::get_legend(plot4guide)
-pEMM <- cowplot::plot_grid(pDGPxModel, pColR, legend, 
-                           labels = c("model x DGP", "", "rel. R²\n error"), 
-                           # label_x = 0.1,
-                           # label_y = 0.95,
-                           ncol = 3, rel_widths = c(1, 1, 0.5))
+# pEMM <- cowplot::plot_grid(pDGPxModel, pColR, legend, 
+#                            labels = c("model x DGP", "", "rel. R²\n error"), 
+#                            # label_x = 0.1,
+#                            # label_y = 0.95,
+#                            ncol = 3, rel_widths = c(1, 1, 0.5))
 
 pEMM_woLabel <- cowplot::plot_grid(pDGPxModel, pColR_woLabel, legend, 
-                           labels = c("", "", "rel. R²\n error"), 
-                           ncol = 3, rel_widths = c(1, 1, 0.5))
+                                   labels = c("", "", "rel. R²\n error"), 
+                                   ncol = 3, rel_widths = c(1, 1, 0.5))
 
 
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMM.png"),
-                plot = pEMM,
-                width = 13.33,
-                height = 6.38,
-                units = "in")
+# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMM.png"),
+#                 plot = pEMM,
+#                 width = 13.33,
+#                 height = 6.38,
+#                 units = "in")
 
 ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/mixedANOVA_EMM_woLabel.png"),
                 plot = pEMM_woLabel,
@@ -565,14 +565,7 @@ eta2Thresh <- 0.1
 eta2Table$thresh <- apply(eta2Table[,!(colnames(eta2Table) %in% "Parameter")], 1, function(r) any(r >= eta2Thresh))
 eta2Table$sumEta2 <- apply(eta2Table[,!(colnames(eta2Table) %in% c("Parameter", "thresh"))], 1, sum)
 eta2Table$M <- apply(eta2Table[,!(colnames(eta2Table) %in% c("Parameter", "thresh", "sumEta2"))], 1, mean)
-# eta2Table$sumEta2 <- apply(eta2Table[,c("ENETw", "ENETwo", "RF")], 1, sum)
-# eta2Table$M <- apply(eta2Table[,c("ENETw", "ENETwo", "RF")], 1, mean)
 eta2Table <- dplyr::arrange(eta2Table, desc(M))
-# eta2Table <- eta2Table[,c("Parameter", "M", "RF", "GBM", "ENETw", "ENETwo")]
-# eta2Table <- eta2Table[,c("Parameter", "M", "RF", "ENETw", "ENETwo")]
-
-# print(xtable::xtable(eta2Table, type = "latex"),
-#       file = paste0(plotFolder, "/ANOVAresults/betweenANOVA_R2.tex"))
 
 colnames(eta2Table)
 texTable <- eta2Table[eta2Table$thresh == TRUE,!(colnames(eta2Table) %in% c("thresh", "sumEta2", "M"))]
@@ -581,125 +574,7 @@ orderCols <- c("Parameter", "RF_inter", "GBM_inter", "ENETw_inter", "ENETwo_inte
                "RF_nonlinear3", "GBM_nonlinear3", "ENETw_nonlinear3", "ENETwo_nonlinear3")
 texTable <- texTable[, orderCols]
       
-# print(xtable::xtable(eta2Table, type = "latex"),
-#       file = paste0(plotFolder, "/ANOVAresults/betweenANOVA_relErrorR2_full.tex"))
 # print(xtable::xtable(texTable, type = "latex"),
 #       file = paste0(plotFolder, "/ANOVAresults/betweenANOVA_relErrorR2_", eta2Thresh, ".tex"))
 
 rm(eta2List, eta2Table)
-##### plot eta2 #####
-# check how many parameters are still in depending on threshold
-# dim(eta2ENETw[eta2ENETw$Eta2_generalized >= eta2Thresh,])
-# dim(eta2ENETwo[eta2ENETwo$Eta2_generalized >= eta2Thresh,])
-# dim(eta2GBM[eta2GBM$Eta2_generalized >= eta2Thresh,])
-
-# eta2 <- rbind(eta2ENETw[eta2ENETw$Eta2_generalized >= eta2Thresh,], 
-#               eta2ENETwo[eta2ENETwo$Eta2_generalized >= eta2Thresh,],
-#               eta2GBM[eta2GBM$Eta2_generalized >= eta2Thresh,])
-
-eta2List <- lapply(grep("eta2", ls(), value = TRUE), get)
-eta2 <- do.call(rbind, eta2List)
-
-# sort variables according to total eta2 across all models
-eta2Sums <- aggregate(Eta2_generalized ~ Parameter, data = eta2, sum)
-sortIdx <- order(eta2Sums$Eta2_generalized, decreasing = T)
-eta2$Parameter <- factor(eta2$Parameter, 
-                         levels = eta2Sums$Parameter[sortIdx])
-
-eta2$model <- factor(eta2$model, 
-                     levels = c("RF", "GBM", "ENETw", "ENETwo")) # obvious order of models
-
-eta2$dgp <- factor(eta2$dgp, 
-                     levels = c("inter", "pwlinear", "nonlinear3")) # obvious order of models
-
-# as barplot with cut-off: gen. eta² = .1 
-eta2Thresh <- 0.1
-eta2$thresh <- apply(eta2[,!(colnames(eta2Table) %in% "Parameter")], 1, function(r) any(r >= eta2Thresh))
-(pEta2Model <- ggplot(eta2[eta2$Eta2_generalized >= eta2Thresh,], 
-# (pEta2Model <- ggplot(eta2, 
-                      aes(x = Parameter, y = Eta2_generalized,
-                          group = model, fill = model)) +
-    geom_bar(stat = "identity", position = position_dodge(preserve = "single")) +
-    geom_text(aes(label=round(Eta2_generalized, 2), group = model), 
-              angle = 90, hjust = 1.5, vjust=0.5, 
-              #angle = 0, vjust=1.5, 
-              position = position_dodge(width = .9), 
-              color="black", size=3.5)+
-    ylab("generalisiertes eta^2") +
-    facet_wrap(~ dgp, ncol = 1) +
-    scale_fill_manual(values = c("#FFA500", "#990000", "#006600", "#009999")) +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
-(pEta2dgp <- ggplot(eta2[eta2$Eta2_generalized >= eta2Thresh,], 
-                      # (pEta2Model <- ggplot(eta2, 
-                      aes(x = Parameter, y = Eta2_generalized,
-                          group = dgp, fill = dgp)) +
-    geom_bar(stat = "identity", position = position_dodge(preserve = "single")) +
-    geom_text(aes(label=round(Eta2_generalized, 2), group = dgp), 
-              angle = 90, hjust = 1.5, vjust=0.5, 
-              #angle = 0, vjust=1.5, 
-              position = position_dodge(width = .9), 
-              color="black", size=3.5)+
-    ylab("generalisiertes eta^2") +
-    facet_wrap(~ model, ncol = 1) +
-    scale_fill_manual(values = c("#FFA500", "#990000", "#006600", "#009999")) +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_R2_Model.png"),
-# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_relErrorR2_Model.png"),
-                plot = pEta2Model,
-                width = 13.63,
-                height = 23.89,
-                units = "in")
-ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_R2_DGP.png"),
-# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_relErrorR2_DGP.png"),
-                plot = pEta2dgp,
-                width = 13.63,
-                height = 23.89,
-                units = "in")
-
-(pEta2_stacked <- ggplot(eta2[eta2$Eta2_generalized >= eta2Thresh,], 
-                         aes(x = model, y = Eta2_generalized,
-                             group = Parameter, fill = Parameter)) +
-    geom_col(position = position_stack(reverse = TRUE)) +
-    ylab("generalisiertes eta^2") +
-    geom_text(aes(label=round(Eta2_generalized, 2), group = Parameter), 
-              angle = 0, vjust=1.75, 
-              position = position_stack(reverse = TRUE), 
-              color="black", size=3.5)+
-    scale_fill_manual(values = c('#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3',
-                                 '#fdb462','#b3de69','#fccde5','#d9d9d9','#bc80bd', 
-                                 "#ccebc5", "#ffed6f", "#f4cae4")) +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "grey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "grey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/ANOVAresults/betweenANOVA_R2stacked.png"),
-#                 plot = pEta2_stacked,
-#                 width = 13.63,
-#                 height = 12.07,
-#                 units = "in")
-
-
