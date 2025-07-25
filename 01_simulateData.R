@@ -78,7 +78,7 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
   
   if (data == "inter"){
     environment(sampleInteractionData) <- environment()  
-  } else if (data %in% "nonlinear3") {
+  } else if (data == "nonlinear3") {
     environment(sampleNonlinearData) <- environment()  
   } else if (data == "pwlinear") {
     environment(samplePiecewiseLinearData) <- environment()  
@@ -98,7 +98,7 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
   
   if (data == "inter"){
     sampleInteractionData() # run function to actually create dataset
-  } else if (data %in% "nonlinear3") {
+  } else if (data == "nonlinear3") {
     sampleNonlinearData()
   } else if (data == "pwlinear") {
     samplePiecewiseLinearData()
@@ -108,13 +108,9 @@ createData <- function(data, N, pTrash, reliability, sampleSeed){
   stopCluster(cl)
 }
 
-# # test simulating data for only one condition
-# out <- do.call(mapply, c(FUN = createData, gridFull[1,])) # check inter
-# out <- do.call(mapply, c(FUN = createData, gridFull[19,])) # check nonlinear
-
 # # simulate only nonlinear data
 # out <- do.call(mapply, c(FUN = createData, gridFull[gridFull$data == "nonlinear3", ]))
 
-# # simulate full data
-# out <- do.call(mapply, c(FUN = createData, gridFull))
+# simulate full data
+out <- do.call(mapply, c(FUN = createData, gridFull))
 

@@ -47,11 +47,6 @@ condGrid <- setParam$fit$condGrid
 #                        condGrid$pTrash == 10 &
 #                        condGrid$reliability == 0.6,]
 
-# # choose only certain subsets to fit here!
-# condGrid <- condGrid[condGrid$data == "pwlinear" &
-#                        condGrid$model == "ENETw",]
-# # arrange order of conditions to fit
-# condGrid <- dplyr::arrange(condGrid, N)
 
 # flag to save single conditions (TRUE) or only full set of fitted results (FALSE)
 setParam$fit$saveConds <- FALSE
@@ -90,8 +85,6 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   # fit data (ENET, GBM, RF depending on fitting function; see below)
   tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels), function(iCond) { # R2 x lin_inter combinations
-  # # for starting with particular condition
-  # tmp_estRes <- lapply(seq_along(setParam$dgp$condLabels)[7:length(setParam$dgp$condLabels)], function(iCond) { # R2 x lin_inter combinations
       
     tStart <- Sys.time() # time monitoring
     # iterate over different training samples in parallel
@@ -241,12 +234,8 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
   # manage data 
   names(tmp_estRes) <- setParam$dgp$condLabels
-  iCondRes <- do.call(Map, c(f = rbind, tmp_estRes)) # das?
-  
-  # # clean up working memory
-  # rm(data)
-  # gc()
-  
+  iCondRes <- do.call(Map, c(f = rbind, tmp_estRes)) 
+
   # save in nested loop across all N x pTrash conditions 
   
   # save separate each N x pTrash condition in rds files  
