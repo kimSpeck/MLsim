@@ -235,12 +235,12 @@ fig2 <- themeFunctionPaper(fig2, guides = T)
                           aes(x = N, y = 0.85, group = interaction(R2, model),
                               color = model, label = model), position = position_dodge(3)))
 
-ggplot2::ggsave(filename = paste0(plotFolder, "/R2_20:80_pTrash50.png"),
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_20:80_pTrash50_paper.png"),
                 plot = fig1,
                 width = 13.63,
                 height = 12.07,
                 units = "in")
-ggplot2::ggsave(filename = paste0(plotFolder, "/R2_80:20_pTrash50.png"),
+ggplot2::ggsave(filename = paste0(plotFolder, "/R2_80:20_pTrash50_paper.png"),
                 plot = fig2,
                 width = 13.63,
                 height = 12.07,
@@ -279,112 +279,44 @@ overfitFig2 <- plotPaperR2(subOverfitFig2, plotMeasure = subOverfitFig2$overfit,
                                         aes(x = N, y = 1.05, group = interaction(R2, model),
                                             color = model, label = model), position = position_dodge(3)))
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_20:80_pTrash50.png"),
+# ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_20:80_pTrash50_paper.png"),
 #                 plot = overfitFig1,
 #                 width = 13.63,
 #                 height = 12.07,
 #                 units = "in")
-# ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_80:20_pTrash50.png"),
+# ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_80:20_pTrash50_paper.png"),
 #                 plot = overfitFig2,
 #                 width = 13.63,
 #                 height = 12.07,
 #                 units = "in")
 
 ################################################################################
-# plot results for each model (compare DGPs)
+# plot results for additional online material (full data)
 ################################################################################
+relColValues <- c("white","#999999", "#444444") # rel = 0.8, rel = 1
 
-modelVec <- unique(performanceStats$model)
-pTrashVec <- unique(performanceStats$pTrash)
-
-dgpColors <- c("#254441", "#FF6F59", "darkred", "#43AA8B")
-linetypeVec <- c("dotted", "dashed", "solid")
-
-plotDGPcomparison <- function(data, model, pTrash, plotMeasure, yLabel = ""){
-  ggplot(data,
-         aes(x = N, y = plotMeasure, 
-             group = interaction(R2, dgp), linetype = R2, color = dgp)) +
-    geom_point() +
-    geom_line() +
-    scale_linetype_manual(values = linetypeVec) +
-    scale_color_manual(values = dgpColors) +
-    geom_hline(aes(yintercept = 0)) +
-    facet_grid2(rel ~ lin_inter + pTrash,
-                strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesLin[3], 0.4)),
-                                      element_rect(fill = alpha(colValuesLin[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesLin[1], 0.4))))) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "black",
-               alpha = 0.4, linetype = linetypeVec[1]) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "black",
-               alpha = 0.4, linetype = linetypeVec[2]) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "black",
-               alpha = 0.4, linetype = linetypeVec[3]) +
-    ylab(yLabel) +
-    xlab("N (increasing)") +
-    ggtitle(paste0("Model: ", model, ", # Noise Variables: ", pTrash))
-}
-
-for (iModel in seq_along(modelVec)) {
-  for (iNoise in seq_along(pTrashVec)) {
-    
-    performanceSub <- performanceStats[which(performanceStats$measure == "Rsquared" & 
-                                               performanceStats$model == modelVec[iModel] & 
-                                               performanceStats$pTrash == pTrashVec[iNoise]),]
-    
-    pTMP <- plotDGPcomparison(performanceSub, modelVec[iModel], pTrashVec[iNoise],
-                              plotMeasure = performanceSub$M_test, yLabel = "Test R²")
-    pTMP <- themeFunction(pTMP)
-    
-    # save plots as files
-    ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTest_", 
-                                      modelVec[iModel], "_pTrash", 
-                                      pTrashVec[iNoise], ".png"),
-                    plot = pTMP,
-                    width = 13.08,
-                    height = 12.18,
-                    units = "in")
-    
-    pOverfitTMP <- plotDGPcomparison(performanceSub, modelVec[iModel], pTrashVec[iNoise],
-                              plotMeasure = performanceSub$overfit, yLabel = "Overfit")
-    pOverfitTMP <- themeFunction(pOverfitTMP)
-    
-    # save plots as files
-    ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_", 
-                                      modelVec[iModel], "_pTrash", 
-                                      pTrashVec[iNoise], ".png"),
-                    plot = pOverfitTMP,
-                    width = 13.08,
-                    height = 12.18,
-                    units = "in")
-        
-  }
-} 
-
-################################################################################
-# plot results for each model (compare models)
-################################################################################
-
-dgpVec <- unique(performanceStats$dgp)
-pTrashVec <- unique(performanceStats$pTrash)
-
-modelColors <- c("#0a2463", "#2a9d8f", "#8338ec", "#a44200")
-linetypeVec <- c("dotted", "dashed", "solid")
-
-plotDGPcomparison <- function(data, dgp, pTrash, plotMeasure, yLabel = ""){
+plotOnlineR2 <- function(data, plotMeasure, title = "", yLabel = "",
+                         yMin = NULL, yMax = NULL){
   ggplot(data,
          aes(x = N, y = plotMeasure, 
              group = interaction(R2, model), linetype = R2, color = model)) +
-    geom_point() +
-    geom_line() +
-    scale_linetype_manual(values = linetypeVec) +
-    scale_color_manual(values = modelColors) +
+    geom_line(linewidth = 1, alpha = 0.4) +
+    geom_point(aes(shape = model), size = 3) +
+    scale_linetype_manual(name = expression(R[sim]^2), values = linetypeVec,
+                          guide = guide_legend(override.aes = list(size = 2, alpha = 0.8))) +
+    scale_color_manual(values = modelLineColors) +
+    scale_shape_manual(values = modelPointShapes) +
+    scale_y_continuous(limits = c(yMin, yMax), breaks=seq(
+      ifelse(yMin %% 0.2 == 0, yMin, yMin + 0.1), yMax, 0.2)) +
     geom_hline(aes(yintercept = 0)) +
-    facet_grid2(rel ~ lin_inter + pTrash,
+    facet_grid2(rel ~ dgp,
                 strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesLin[3], 0.4)),
-                                      element_rect(fill = alpha(colValuesLin[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesLin[1], 0.4))))) +
+                  background_x = list(element_rect(fill = alpha(dgpPanelColors[1], 0.4)),
+                                      element_rect(fill = alpha(dgpPanelColors[2], 0.4)),
+                                      element_rect(fill = alpha(dgpPanelColors[3], 0.4))),
+                  background_y = list(element_rect(fill = alpha(relColValues[3], 0.4)),
+                                      element_rect(fill = alpha(relColValues[2], 0.4)),
+                                      element_rect(fill = alpha(relColValues[1], 0.4))))) +
     geom_hline(yintercept = setParam$dgp$Rsquared[1], col = "black",
                alpha = 0.4, linetype = linetypeVec[1]) +
     geom_hline(yintercept = setParam$dgp$Rsquared[2], col = "black",
@@ -392,367 +324,58 @@ plotDGPcomparison <- function(data, dgp, pTrash, plotMeasure, yLabel = ""){
     geom_hline(yintercept = setParam$dgp$Rsquared[3], col = "black",
                alpha = 0.4, linetype = linetypeVec[3]) +
     ylab(yLabel) +
-    xlab("N (increasing)") +
-    ggtitle(paste0("DGP: ", dgp, ", # Noise Variables: ", pTrash))
+    xlab("Sample Size (N)") +
+    ggtitle(title) +
+    guides(colour = "none", shape = "none")
 }
 
-for (iDGP in seq_along(dgpVec)) {
-  for (iNoise in seq_along(pTrashVec)) {
+
+linInterVec <- unique(performanceStats$lin_inter)
+pTrashVec <- unique(performanceStats$pTrash)
+
+for (iLinInter in seq_along(linInterVec)) {
+  for (iTrash in seq_along(pTrashVec)) {
     
-    performanceSub <- performanceStats[which(performanceStats$measure == "Rsquared" & 
-                                               performanceStats$dgp == dgpVec[iDGP] & 
-                                               performanceStats$pTrash == pTrashVec[iNoise]),]
+    # plot R²
+    subFig1_full <- performanceStats[which(performanceStats$measure == "Rsquared" & 
+                                             performanceStats$lin_inter == linInterVec[iLinInter] & 
+                                             performanceStats$pTrash == pTrashVec[iTrash]),]
     
-    pTMP <- plotDGPcomparison(performanceSub, dgpVec[iDGP], pTrashVec[iNoise],
-                              plotMeasure = performanceSub$M_test, yLabel = "Test R²")
-    pTMP <- themeFunction(pTMP)
+    subFig1_full$rel <- factor(subFig1_full$rel, levels = c(1, 0.8, 0.6))
     
-    # save plots as files
-    ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTest_", 
-                                      dgpVec[iDGP], "_pTrash", 
-                                      pTrashVec[iNoise], ".png"),
-                    plot = pTMP,
-                    width = 13.08,
-                    height = 12.18,
+    fig1 <- plotOnlineR2(subFig1_full, plotMeasure = subFig1_full$M_test, title = "", yLabel = expression(R[test]^2),
+                         yMin = 0, yMax = 0.9)
+    (fig1 <- themeFunctionPaper(fig1))
+    (fig1 <- fig1 + geom_text(data = subFig1_full[which(subFig1_full$R2 == 0.8 &
+                                                          subFig1_full$N == 300),],
+                              aes(x = N, y = 0.85, group = interaction(R2, model),
+                                  color = model, label = model), position = position_dodge(3)))
+    
+    ggplot2::ggsave(filename = paste0(plotFolder, "/R2_", 
+                                      linInterVec[iLinInter], "_pTrash", 
+                                      pTrashVec[iTrash],"_full.png"),
+                    plot = fig1,
+                    width = 13.63,
+                    height = 12.07,
                     units = "in")
     
-    pOverfitTMP <- plotDGPcomparison(performanceSub, dgpVec[iDGP], pTrashVec[iNoise],
-                              plotMeasure = performanceSub$overfit, yLabel = "Overfit")
-    pOverfitTMP <- themeFunction(pOverfitTMP)
+    # plot Overfit
+    overfitFig1 <- plotOnlineR2(subFig1_full, plotMeasure = subFig1_full$overfit, title = "", 
+                               yLabel = expression(R[train]^2 - R[test]^2),
+                               yMin = -0.1, yMax = 1.1)
+    (overfitFig1 <- themeFunctionPaper(overfitFig1))
+    (overfitFig1 <- overfitFig1 + geom_text(data = subOverfitFig1[which(subOverfitFig1$R2 == 0.8 &
+                                                                          subOverfitFig1$N == 300),],
+                                            aes(x = N, y = 1.05, group = interaction(R2, model),
+                                                color = model, label = model), position = position_dodge(3)))
     
-    # save plots as files
-    ggplot2::ggsave(filename = paste0(plotFolder, "/Overfit_", 
-                                      dgpVec[iDGP], "_pTrash", 
-                                      pTrashVec[iNoise], ".png"),
-                    plot = pOverfitTMP,
-                    width = 13.08,
-                    height = 12.18,
+    ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_",
+                                      linInterVec[iLinInter], "_pTrash", 
+                                      pTrashVec[iTrash],"_full.png"),
+                    plot = overfitFig1,
+                    width = 13.63,
+                    height = 12.07,
                     units = "in")
     
   }
-} 
-
-
-################################################################################
-# (overview) plot train and test performance (RF)
-################################################################################
-
-
-
-performanceSubRF <- performanceStats[which(performanceStats$measure != "MAE" &
-                                           performanceStats$measure != "RMSE"),]
-performanceSubRF[,c("M_train", "SE_train", "SE_test", "SD_train", "SD_test")] <- list(NULL)
-performanceSubRF <- tidyr::pivot_longer(performanceSubRF, c(M_test, overfit),
-                                      names_to = "measures", values_to = "values")
-
-# performanceSubRF <- rbind(performanceSubRF_sc, performanceSubRF)
-# plot performance measures for train and test data
-(pPerformTrainVStestRF <- ggplot(performanceSubRF,
-# (pPerformTrainVStestRF <- ggplot(performanceSubRF[performanceSubRF$measures == "M_test", ],
-                                  aes(x = interaction(pTrash, N, sep = " x "), y = values, 
-                                      group = R2, colour = R2)) +
-    geom_point() +
-    geom_line() +
-    scale_linetype_manual(values = c("dashed", "dotted", "solid")) +
-    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-    scale_color_manual(values = colValuesR2) +
-    geom_hline(aes(yintercept = 0)) +
-    facet_grid(measures + rel ~ lin_inter, labeller = label_both) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
-               alpha = 0.4) +
-    ylab("") +
-    xlab("pTrash (decreasing) x N (increasing)") +
-    ggtitle("R^2: Training vs. Test performance (RF)"))
- 
-# # save plots as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTestRF_", data, "_sanityCheck.png"),
-#                 plot = pPerformTrainVStestRF,
-#                 width = 13.08,
-#                 height = 12.18,
-#                 units = "in")
-
-# # save plots as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTestRF_", data, "_sanityCheck.png"),
-#                 plot = pPerformTrainVStestRF,
-#                 width = 13.08,
-#                 height = 12.18,
-#                 units = "in")
-
-
-################################################################################
-# (overview) plot train and test performance (GBM)
-################################################################################
-
-
-performanceSubGBM <- performanceStats[which(performanceStats$measure != "MAE" &
-                                           performanceStats$measure != "RMSE"),]
-performanceSubGBM[,c("M_train", "SE_train", "SE_test", "SD_train", "SD_test")] <- list(NULL)
-performanceSubGBM <- tidyr::pivot_longer(performanceSubGBM, c(M_test, overfit),
-                                      names_to = "measures", values_to = "values")
-
-# plot performance measures for train and test data
-(pPerformTrainVStestGBM <- ggplot(performanceSubGBM,
-                               aes(x = interaction(pTrash, N, sep = " x "), y = values, 
-                                   group = R2, colour = R2)) +
-    geom_point() +
-    geom_line() +
-    scale_linetype_manual(values = c("dashed", "dotted", "solid")) +
-    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-    scale_color_manual(values = colValuesR2) +
-    geom_hline(aes(yintercept = 0)) +
-    facet_grid(measures + rel ~ lin_inter, labeller = label_both) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
-               alpha = 0.4) +
-    ylab("") +
-    xlab("pTrash (decreasing) x N (increasing)") +
-    ggtitle("R^2: Training vs. Test performance (GBM)"))
-
-# # save plots as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTestGBM.png"),
-#                 plot = pPerformTrainVStestGBM,
-#                 width = 13.08,
-#                 height = 12.18,
-#                 units = "in")
-
-################################################################################
-# ENET results 
-################################################################################
-
-
-
-chr2fac <- c("model", "rel", "measure", "R2", "lin_inter", "fitInter")
-performanceStatsENET[chr2fac] <- lapply(performanceStatsENET[chr2fac], factor)
-chr2num <- c("M_train", "M_test", "SE_train", "SE_test", "SD_train", "SD_test")
-performanceStatsENET[chr2num] <- lapply(performanceStatsENET[chr2num], as.numeric)
-
-performanceSubENET <- performanceStatsENET[which(performanceStatsENET$measure != "MAE" &
-                                               performanceStatsENET$measure != "RMSE"),]
-performanceSubENET[,c("M_train", "SE_train", "SE_test", "SD_train", "SD_test")] <- list(NULL)
-performanceSubENET <- tidyr::pivot_longer(performanceSubENET, c(M_test, overfit),
-                                      names_to = "measures", values_to = "values")
-
-# (pPerformTrainVStestENETwo_sc <- ggplot(performanceSubENET[performanceSubENET$measures == "M_test",],
-#                                   aes(x = interaction(pTrash, N, sep = " x "), y = values, 
-#                                       group = R2, colour = R2)) +
-#     geom_point() +
-#     geom_line() +
-#     scale_linetype_manual(values = c("dashed", "dotted", "solid")) +
-#     # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-#     scale_color_manual(values = colValuesR2) +
-#     geom_hline(aes(yintercept = 0)) +
-#     facet_grid(measures + rel ~ lin_inter, labeller = label_both) +
-#     geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
-#                alpha = 0.4) +
-#     geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
-#                alpha = 0.4) +
-#     geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
-#                alpha = 0.4) +
-#     ylab("") +
-#     xlab("pTrash (decreasing) x N (increasing)") +
-#     ggtitle("R^2: Training vs. Test performance (GBM)") +
-#     theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
-#           panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
-#           panel.background = element_rect(color = "white", fill = "white"),
-#           axis.text.y = element_text(size = 20),
-#           # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-#           axis.text.x = element_text(size = 15),
-#           axis.title.x = element_text(size = 20),
-#           axis.title.y = element_text(size = 20),
-#           strip.text.x = element_text(size = 15),
-#           strip.text.y = element_text(size = 15)))
-
-head(performanceSubENET)
-head(performanceSubGBM)
-head(performanceSubRF)
-# code if interaction were fitted or not
-unique(performanceStatsENET$model)
-performanceStatsENET$fitInter <- ifelse(performanceStatsENET$model == "ENETw", 1, 0)
-performanceSubGBM$fitInter <- rep(2, dim(performanceSubGBM)[1])
-performanceSubRF$fitInter <- rep(3, dim(performanceSubRF)[1])
-
-colnames(performanceSubRF)
-colnames(performanceSubGBM)
-colnames(performanceSubENET)
-
-performanceData <- rbind(performanceSubRF, performanceSubGBM, performanceSubENET)
-# performanceData$fitInter <- plyr::mapvalues(performanceData$fitInter, 
-#                                             from=c(0,1,2), 
-#                                             to=c("ENET - lin","ENET - inter","GBM"))
-
-unique(performanceData$fitInter)
-performanceData$fit <- ifelse(performanceData$fitInter >= 2, "treeBased", "reg")
-unique(performanceData$fit)
-unique(performanceData$model)
-
-# save(performanceData, file = paste0("results/", data, "/dependentMeasures/rSquaredData_stats.rda"))
-
-###############################################################################
-# (overview) plot train and test performance (GBM + ENET)
-################################################################################
-# plot performance measures for train and test data
-
-(pPerformTrainVStest <- ggplot(performanceData,
-                               aes(x = interaction(pTrash, N, sep = " x "), y = values, 
-                                   group = interaction(R2, model, fit), colour = R2,
-                                   linetype = model, shape = fit)) +
-   geom_point() +
-   geom_line() +
-   scale_linetype_manual(values = c("solid", "dashed", "dotted", "dotdash")) +
-   scale_shape_manual(values = c(16, 8)) +
-   # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-   scale_color_manual(values = colValuesR2) +
-   geom_hline(aes(yintercept = 0)) +
-   facet_grid(measures + rel ~ lin_inter, labeller = label_both) +
-   geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
-              alpha = 0.4) +
-   geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
-              alpha = 0.4) +
-   geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
-              alpha = 0.4) +
-   ylab("") +
-   xlab("pTrash (decreasing) x N (increasing)") +
-   ggtitle("R^2: Training vs. Test performance") +
-   theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
-         panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
-         panel.background = element_rect(color = "white", fill = "white"),
-         axis.text.y = element_text(size = 20),
-         # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-         axis.text.x = element_text(size = 15),
-         axis.title.x = element_text(size = 20),
-         axis.title.y = element_text(size = 20),
-         strip.text.x = element_text(size = 15),
-         strip.text.y = element_text(size = 15)))
-
-# # save plots as files
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest_ENTvsGBMvsRF.png"),
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTrainTest_ENTvsGBMvsRF_nonlinear.png"),
-#                 plot = pPerformTrainVStest,
-#                 width = 13.08,
-#                 height = 12.18,
-#                 units = "in")
-
-(pPerformTest <- ggplot(performanceData[performanceData$measures == "M_test",],
-                               # aes(x = interaction(pTrash, N, sep = " x "), y = values, 
-                                   aes(x = N, y = values, 
-                                   group = interaction(R2, model, fit), colour = R2,
-                                   linetype = model, shape = fit)) +
-    geom_point() +
-    geom_line() +
-    scale_linetype_manual(values = c("solid", "dashed", "dotted", "dotdash")) +
-    scale_shape_manual(values = c(16, 8)) +
-    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-    scale_color_manual(values = colValuesR2) +
-    geom_hline(aes(yintercept = 0)) +
-    # facet_grid(rel ~ lin_inter, labeller = label_both) +
-    facet_grid(rel ~ pTrash + lin_inter, labeller = label_both) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
-               alpha = 0.4) +
-    ylab("") +
-    xlab("pTrash (decreasing) x N (increasing)") +
-    ggtitle("R^2 test performance") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-          axis.text.x = element_text(size = 15),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
-# # save plots as files
-
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTest_ENTvsGBMvsRF.png"),
-ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTest_ENTvsGBMvsRF_pwlinear.png"),
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTest_ENTvsGBMvsRF_nonlinear.png"),
-# ggplot2::ggsave(filename = paste0(plotFolder, "/performanceTest_ENTvsGBMvsRF_inter.png"),
-                plot = pPerformTest,
-                width = 13.08,
-                height = 12.18,
-                units = "in")
-
-###############################################################################
-# (overview) plot train and test performance
-################################################################################
-interData <- loadRData("results/inter/dependentMeasures/rSquaredData_stats.rda")
-nlData <- loadRData("results/nonlinear/dependentMeasures/rSquaredData_stats.rda")
-
-fullData <- rbind(interData, nlData)
-(pPerformTest <- ggplot(fullData[fullData$measures == "M_test" & 
-                                   fullData$fit == "treeBased",],
-                        aes(x = N, y = values, 
-                            group = interaction(R2, dgp, model), colour = R2,
-                            linetype = dgp, shape = model)) +
-    geom_point() +
-    geom_line() +
-    scale_linetype_manual(values = c("solid", "dashed", "dotted", "dotdash")) +
-    scale_shape_manual(values = c(16, 8)) +
-    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-    scale_color_manual(values = colValuesR2) +
-    geom_hline(aes(yintercept = 0)) +
-    facet_grid(rel + pTrash ~ lin_inter, labeller = label_both) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
-               alpha = 0.4) +
-    ylab("") +
-    xlab("pTrash (decreasing) x N (increasing)") +
-    ggtitle("R^2 test performance") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-          axis.text.x = element_text(size = 15),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
-
-(pPerformTest <- ggplot(fullData[fullData$measures == "M_test" & 
-                                   fullData$fit == "reg",],
-                        aes(x = N, y = values, 
-                            group = interaction(R2, dgp, model), colour = R2,
-                            linetype = dgp, shape = model)) +
-    geom_point() +
-    geom_line() +
-    scale_linetype_manual(values = c("solid", "dashed", "dotted", "dotdash")) +
-    scale_shape_manual(values = c(16, 8)) +
-    # geom_errorbar(aes(ymin = M - SE, ymax = M + SE), width=.2) +
-    scale_color_manual(values = colValuesR2) +
-    geom_hline(aes(yintercept = 0)) +
-    facet_grid(rel + pTrash ~ lin_inter, labeller = label_both) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[1], col = colValuesR2[1],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[2], col = colValuesR2[2],
-               alpha = 0.4) +
-    geom_hline(yintercept = setParam$dgp$Rsquared[3], col = colValuesR2[3],
-               alpha = 0.4) +
-    ylab("") +
-    xlab("pTrash (decreasing) x N (increasing)") +
-    ggtitle("R^2 test performance") +
-    theme(panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', color = "lightgrey"), 
-          panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', color = "lightgrey"),
-          panel.background = element_rect(color = "white", fill = "white"),
-          axis.text.y = element_text(size = 20),
-          # axis.text.x = element_text(size = 15, angle = 45, vjust = 1, hjust=1),
-          axis.text.x = element_text(size = 15),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          strip.text.x = element_text(size = 15),
-          strip.text.y = element_text(size = 15)))
+}
