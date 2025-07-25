@@ -101,83 +101,6 @@ df_linear <- data.frame(x = x, y = y)
         axis.ticks.y = element_blank()))
 
 ################################################################################
-##### illustrate non-linear effect (2 dummies, with interaction) #####
-################################################################################
-# # ... without measurement error
-# load("data/bigTestSamples/simDataN1e+06_pTrash10_rel1_nonlinear.rda")
-# 
-# # save subset for nonlinear effect 
-# df_nl <- data.frame(x5 = dataList[["X_int"]][1:1000, "Var5"], 
-#                     x6 = dataList[["X_int"]][1:1000, "Var6"], 
-#                     y = dataList[["yMat"]][1:1000, "R20.8lin_inter0.2_0.8"])
-# 
-# df_nl$d5 <- createDummy(df_nl$x5, q = 0.5, effectCoding = T)
-# df_nl$d6 <- createDummy(df_nl$x6, q = 0.5, effectCoding = T)
-# df_nl$group <- paste0(df_nl$d5, "x", df_nl$d6)
-# 
-# 
-# 
-# pNL_rel1 <- plotNL(df_nl)
-# pNL_rel1 <- themeFunction(pNL_rel1)
-# 
-# # ... with measurement error
-# load("data/bigTestSamples/simDataN1e+06_pTrash10_rel0.6_nonlinear.rda")
-# df_nl_rel0.6 <- data.frame(x5 = dataList[["X_int"]][1:1000, "Var5"], 
-#                            x6 = dataList[["X_int"]][1:1000, "Var6"], 
-#                            y = dataList[["yMat"]][1:1000, "R20.8lin_inter0.2_0.8"])
-# 
-# df_nl_rel0.6$d5 <- createDummy(df_nl_rel0.6$x5, q = 0.5, effectCoding = T)
-# df_nl_rel0.6$d6 <- createDummy(df_nl_rel0.6$x6, q = 0.5, effectCoding = T)
-# df_nl_rel0.6$group <- paste0(df_nl_rel0.6$d5, "x", df_nl_rel0.6$d6)
-# 
-# pNL_rel0.6 <- plotNL(df_nl_rel0.6)
-# pNL_rel0.6 <- themeFunction(pNL_rel0.6)
-# 
-# ##### line plot to only schematically illustrate DGP #####
-# beta0 <- 2
-# beta1 <- 3
-# beta2 <- 3
-# beta3 <- 3
-# 
-# # Create all combinations of the two dummy variables
-# df_dum <- expand.grid(D1 = c(-1, 1), D2 = c(-1, 1))
-# 
-# # Calculate Y for each (D1, D2) pair
-# df_dum$Y <- beta0 + beta1 * df_dum$D1 + beta2 * df_dum$D2 + beta3 * df_dum$D1 * df_dum$D2
-# 
-# # Convert D1 and D2 to factors (for cleaner plotting)
-# df_dum$D1 <- factor(df_dum$D1)
-# df_dum$D2 <- factor(df_dum$D2)
-# 
-# # Plot
-# (nonlinear <- ggplot(df_dum, aes(x = D1, y = Y, group = interaction(D1, D2), 
-#                                   shape = interaction(D1, D2))) +
-#     geom_line(aes(group = D2, linetype = D2)) +
-#     geom_point(size = 2.5) +
-#     ylim(-7, 17) +
-#     scale_shape_manual(values = c(1, 2, 16, 17),
-#                        name = "[D1, D2]",
-#                        labels = c("-1.-1" = "[-1, -1]",
-#                                   "-1.1" = "[-1, 1]",
-#                                   "1.-1" = "[1, -1]",
-#                                   "1.1" = "[1, 1]")) +
-#     scale_linetype_manual(values = c("solid", "solid")) +
-#     guides(linetype = "none") +
-#     labs(x = "Dummy 1", y = "Y", linetype = "Dummy 2", shape = "Dummy 2") +
-#     theme(panel.grid.major = element_line(linewidth = 0.15, linetype = 'solid', color = "lightgrey"), 
-#           panel.grid.minor = element_line(linewidth = 0.1, linetype = 'solid', color = "lightgrey"),
-#           panel.background = element_rect(color = "white", fill = "white"),
-#           axis.text.y = element_blank(),
-#           axis.text.x = element_blank(),
-#           axis.title.x = element_text(size = 20),
-#           axis.title.y = element_text(size = 20),
-#           axis.ticks.y = element_blank(),
-#           legend.position = c(.15, .85), 
-#           legend.title = element_text(size = 25),
-#           legend.text = element_text(size = 20),
-#           legend.box = "horizontal"))
-
-################################################################################
 ##### illustrate non-linear effect (3 dummies, no interaction) #####
 ################################################################################
 # ... without measurement error
@@ -192,18 +115,7 @@ df_nl3$d5 <- createDummy(df_nl3$x5, q = 0.5, effectCoding = T)
 df_nl3$d6 <- createDummy(df_nl3$x6, q = 0.5, effectCoding = T)
 df_nl3$group <- paste0(df_nl3$d5, "x", df_nl3$d6)
 
-# c("#F44336", "#9C27B0", "#1565C0")
-# c("#fa9e1e", "#9C27B0", "#25f7f0")
-
 plotNL <- function(data) {
-  # ggplot(data) +
-  #   geom_point(aes(x = x5, y = y, group = group, colour = x6, shape = group), 
-  #              alpha = 0.6, size = 2.5) +
-  #   scale_shape_manual(values = c(1, 17, 16, 2)) +
-  #   scale_colour_gradient2(low = "#fa9e1e", mid = "#9C27B0", high = "#25f7f0", 
-  #                          midpoint = 0, space    = "Lab") +
-  #   geom_smooth(aes(x = d5, y = y, group = d6), method = "lm", colour = "black") + 
-  #   guides(shape = "none")
   ggplot(data) +
     geom_point(aes(x = x5, y = y, group = group, colour = x6, shape = group), 
                alpha = 0.6, size = 2.5) +
@@ -298,7 +210,7 @@ makeNodeLabels <- function(leafLabels) {
   }
 }
 
-leafLabels <- c("E(-1,-1)", "E(-1,1)", "E(1,-1)", "E(1,1)")
+leafLabels <- c("E(y|X5<0,X6<0)", "E(y|X5>0,X6<0)", "E(y|X5<0,X6>0)", "E(y|X5>0,X6>0)")
 nodeLabels <- makeNodeLabels(leafLabels)
 
 nonlinear3 <- rpart.plot(
@@ -309,36 +221,6 @@ nonlinear3 <- rpart.plot(
     node.fun = nodeLabels,
     digits        = 3,         # number of digits in labels
     main          = "")
-
-# # Plot
-# (nonlinear3 <- ggplot(df_dum3, aes(x = D1, y = Y, group = interaction(D1, D2), 
-#                                   shape = interaction(D1, D2))) +
-#     geom_line(aes(group = D2, linetype = D2)) +
-#     geom_point(size = 2.5) +
-#     ylim(-6, 10) +
-#     # scale_shape_manual(values = c(1, 2, 16, 17)) +
-#     scale_shape_manual(values = c(1, 16, 17, 2),
-#                        name = expression("(" * D[X][5] * "," *D[X][6]* ")"),
-#                        labels = c("-1.-1" = "(-1,-1)",
-#                                   "-1.1" = "(1,1)",
-#                                   "1.-1" = "(1,-1)",
-#                                   "1.1" = "(1,1)")) +
-#     scale_linetype_manual(values = c("solid", "solid")) +
-#     guides(linetype = "none") +
-#     labs(x = "X5", y = "Y", linetype = "Dummy 2", shape = "Dummy 2") +
-#     theme(panel.grid.major = element_blank(), 
-#           panel.grid.minor = element_blank(),
-#           panel.background = element_rect(color = "white", fill = "white"),
-#           axis.text.y = element_blank(),
-#           axis.text.x = element_blank(),
-#           axis.title.x = element_text(size = 20),
-#           axis.title.y = element_text(size = 20),
-#           axis.ticks.y = element_blank(),
-#           legend.position = c(.5, .1), 
-#           legend.title = element_text(size = 20),
-#           legend.text = element_text(size = 15),
-#           legend.direction = "horizontal",
-#           legend.box = "horizontal"))
 
 ################################################################################
 ##### illustrate piecewise linear effect #####
@@ -552,9 +434,10 @@ nonlinear3 <- cowplot::ggdraw() +
   linear, inter, pwlinear, nonlinear3,
   pLM_rel1, pInter_rel1, pPWL_rel1, pNL3_rel1, 
   pLM_rel0.6, pInter_rel0.6, pPWL_rel0.6, pNL3_rel0.6,
-  labels = c("linear", "interaction", "piecewise", "stepwise", 
+  labels = c("Linear", "Interaction", "Piecewise", "Stepwise", 
              "rel = 1", "",  "", "",
-             "rel = 0.6", "", "", ""), ncol = 4))
+             "rel = 0.6", "", "", ""), ncol = 4, 
+  label_x = 0.5, hjust = 0.5, label_size = 20))
 
 ggplot2::ggsave(filename = paste0(plotFolder, "/DGPoverview.png"),
                 plot = pFull,
