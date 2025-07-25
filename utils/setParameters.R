@@ -23,7 +23,7 @@ setParam$dgp$p <- 4               # number of latent variables
 setParam$dgp$interDepth <- c(2) # depth of interactions (so far: only two-way interaction)
 setParam$dgp$poly <- c(0) # degree of polynomials (so far: no polynomials)
 
-setParam$dgp$pNL <- 2             # number of original variables for nonlinear effects        
+# setParam$dgp$pNL <- 2             # number of original variables for nonlinear effects   
 setParam$dgp$pNL3 <- 3            # number of original variables for nonlinear effects        
 setParam$dgp$pPWL <- 3            # number of original variables for piecewise-linear effects
 setParam$dgp$pTrash <- c(10, 50)  # number of noise variables
@@ -41,6 +41,7 @@ setParam$dgp$linEffects <- sapply(seq_len(setParam$dgp$p), function(x) paste0("V
 setParam$dgp$interEffects <- c("Var1:Var2", "Var1:Var4", "Var2:Var3", "Var3:Var4")
 
 # stepwise DGP
+
 # setParam$dgp$nonlinEffects <- sapply((setParam$dgp$p+1):(setParam$dgp$p+setParam$dgp$pNL), 
 #                                      function(x) paste0("dumVar", x, ".1"))
 # setParam$dgp$nonlinEffects <- c(setParam$dgp$nonlinEffects, "dumVar5.1:dumVar6.1")
@@ -184,41 +185,41 @@ rm(P, corN, corNp, corVec, rP, rX) # remove temporary variables
 ##### linear vs. nonlinear effects #####
 set.seed(420)
 
-# randomly choose correlation matrix for biggest set of predictors (max(pTrash))
-# (use subsets for pTrash < max(pTrash))
-P_nl <- max(setParam$dgp$p + setParam$dgp$pNL + setParam$dgp$pTrash)
-corN_nl <- P_nl*(P_nl-1)/2
-corNp <- setParam$dgp$p*(setParam$dgp$p-1)/2
-corNpNL <- setParam$dgp$pNL*(setParam$dgp$pNL-1)/2
-
-repeat{
-  # correlations around 0 for all variables (but finally for trash variables) 
-  #   alternatively exactly 0 correlations
-  corVec <- truncnorm::rtruncnorm(corN_nl, mean = setParam$dgp$meanR, sd = setParam$dgp$sdR, 
-                                  a = -0.5, b = 0.5) 
-  rX <- lavaan::lav_matrix_upper2full(corVec, diagonal = F) # fill up upper triangle
-  # rX <- lavaan::lav_matrix_upper2full(rep(0, corN), diagonal = F) # fill up upper triangle
-  
-  # correlations between linear predictor variables (all identical atm)
-  #   replace around 0 correlations at the corresponding positions in the matrix
-  rP <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rLinEffects, corNp), diagonal = F)
-  rX[1:dim(rP)[1], 1:dim(rP)[1]] <- rP
-  
-  # correlations between nonlinear predictor variables (all identical atm)
-  #   replace around 0 correlations at the corresponding positions in the matrix
-  rPnl <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rNonLinEffects, corNpNL), diagonal = F)
-  rX[(setParam$dgp$p+1):(setParam$dgp$p+dim(rPnl)[1]), 
-     (setParam$dgp$p+1):(setParam$dgp$p+dim(rPnl)[1])] <- rPnl
-  diag(rX) <- 1
-  
-  # check if correlation matrix is positive semi-definite
-  # thereby avoid warning and correction procedure in rmvnorm
-  if(all(eigen(rX)$values >= 0)) {
-    break
-  }
-}
-setParam$dgp$predictorCorMat_nl <- rX # save PSM correlation matrix
-rm(P_nl, corN_nl, corNp, corNpNL, corVec, rP, rPnl, rX) # remove temporary variables
+# # randomly choose correlation matrix for biggest set of predictors (max(pTrash))
+# # (use subsets for pTrash < max(pTrash))
+# P_nl <- max(setParam$dgp$p + setParam$dgp$pNL + setParam$dgp$pTrash)
+# corN_nl <- P_nl*(P_nl-1)/2
+# corNp <- setParam$dgp$p*(setParam$dgp$p-1)/2
+# corNpNL <- setParam$dgp$pNL*(setParam$dgp$pNL-1)/2
+# 
+# repeat{
+#   # correlations around 0 for all variables (but finally for trash variables) 
+#   #   alternatively exactly 0 correlations
+#   corVec <- truncnorm::rtruncnorm(corN_nl, mean = setParam$dgp$meanR, sd = setParam$dgp$sdR, 
+#                                   a = -0.5, b = 0.5) 
+#   rX <- lavaan::lav_matrix_upper2full(corVec, diagonal = F) # fill up upper triangle
+#   # rX <- lavaan::lav_matrix_upper2full(rep(0, corN), diagonal = F) # fill up upper triangle
+#   
+#   # correlations between linear predictor variables (all identical atm)
+#   #   replace around 0 correlations at the corresponding positions in the matrix
+#   rP <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rLinEffects, corNp), diagonal = F)
+#   rX[1:dim(rP)[1], 1:dim(rP)[1]] <- rP
+#   
+#   # correlations between nonlinear predictor variables (all identical atm)
+#   #   replace around 0 correlations at the corresponding positions in the matrix
+#   rPnl <- lavaan::lav_matrix_upper2full(rep(setParam$dgp$rNonLinEffects, corNpNL), diagonal = F)
+#   rX[(setParam$dgp$p+1):(setParam$dgp$p+dim(rPnl)[1]), 
+#      (setParam$dgp$p+1):(setParam$dgp$p+dim(rPnl)[1])] <- rPnl
+#   diag(rX) <- 1
+#   
+#   # check if correlation matrix is positive semi-definite
+#   # thereby avoid warning and correction procedure in rmvnorm
+#   if(all(eigen(rX)$values >= 0)) {
+#     break
+#   }
+# }
+# setParam$dgp$predictorCorMat_nl <- rX # save PSM correlation matrix
+# rm(P_nl, corN_nl, corNp, corNpNL, corVec, rP, rPnl, rX) # remove temporary variables
 
 ##### linear vs. piecewise linear effects #####
 set.seed(42420)
@@ -271,7 +272,8 @@ setParam$dgp$reliability <- c(0.6, 0.8, 1)
 # always create the full set of conditions including sample seeds and remove conditions 
 #   -> ensure reproducibility
 # iterate through these combinations of data conditions
-setParam$fit$condGrid <- expand.grid(data = c("inter", "nonlinear", "pwlinear", "nonlinear3"),
+# setParam$fit$condGrid <- expand.grid(data = c("inter", "nonlinear", "pwlinear", "nonlinear3"),
+setParam$fit$condGrid <- expand.grid(data = c("inter", "pwlinear", "nonlinear3"),
                                      model = c("ENETwo", "ENETw", "GBM", "RF"),
                                      N = setParam$dgp$N, 
                                      pTrash = setParam$dgp$pTrash,
@@ -321,13 +323,6 @@ setParam$fit$tuneGrid_GBM <- expand.grid(
   n.minobsinnode = c(5, 10, 20),    # end node size (= min_child_weight in xgboost)
   n.trees = c(5, seq(10, 40, 10), seq(50, 500, 30)),      # max number of trees (= nTrees in xgboost)
   shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
-
-# # old tuning grid
-# setParam$fit$tuneGrid_GBM <- expand.grid(
-#   interaction.depth = c(1,2,3), # tree depth (= max_depth in xgboost)
-#   n.minobsinnode = c(5, 10),    # end node size (= min_child_weight in xgboost)
-#   n.trees = c(50,100,150),      # max number of trees (= nTrees in xgboost)
-#   shrinkage = seq(.051, .201, .05))
 
 # number of samples observations to calculate partial dependencies and h-statistic based on pds
 setParam$fit$nInterStrength <- 50
