@@ -4,9 +4,7 @@
 
 # restrictions
 #     - Var1 = Var2 = Var3 = Var4 = ?
-#     - two options: 
-#       - dumVar5.1 = dumVar6.1 = dumVar5.1:dumVar6.1 = ?
-#       - dumVar5.1 = dumVar6.1 = dumVar7.1 = ?
+#     - dumVar5.1 = dumVar6.1 = dumVar7.1 = ?
 
 # Rsquared either splits 20:80, 50:50 or 80:20 for nonlinear and linear effects respectively
 # squared multiple correlation (r_y,yhat)^2 = multiple coefficient of determination
@@ -29,18 +27,10 @@ createFolder(logFolder)
 pTrash <- setParam$bruteForceB$pTrash
 N <- setParam$bruteForceB$N
 reliability <- setParam$bruteForceB$reliability
-# nDummies <- c(2, 3)
-nDummies <- c(3)
 
-if (nDummies == 2) {
-  P <- setParam$dgp$p + setParam$dgp$pNL + pTrash # total number of variables
-  X <- createPredictors(N = N, P = P,
-                        corMat = setParam$dgp$predictorCorMat_nl[seq_len(P), seq_len(P)])
-} else if (nDummies == 3) {
-  P <- setParam$dgp$p + setParam$dgp$pNL3 + pTrash # total number of variables
-  X <- createPredictors(N = N, P = P, 
-                        corMat = setParam$dgp$predictorCorMat_pwl[seq_len(P), seq_len(P)])
-}
+P <- setParam$dgp$p + setParam$dgp$pNL3 + pTrash # total number of variables
+X <- createPredictors(N = N, P = P, 
+                      corMat = setParam$dgp$predictorCorMat_pwl[seq_len(P), seq_len(P)])
 
 # add names to variables
 colnames(X) <- paste0("Var", seq_len(P))
@@ -56,28 +46,14 @@ if (setParam$dgp$poly > 0) {
   X_int <- rmDuplicatePoly(X_int)  
 }
 
-if (nDummies == 2) {
-  X_int <- cbind(X_int, 
-                 dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
-                 dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T))
-  # add the interaction between the dummies
-  X_int <- cbind(X_int,
-                 `dumVar5.1:dumVar6.1` = X_int[, "dumVar5.1"] * X_int[, "dumVar6.1"])
-  
-  # remove every other variable from data
-  X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects)]
-  
-} else if (nDummies == 3) {
-  X_int <- cbind(X_int, 
-                 dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
-                 dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T),
-                 dumVar7.1 = createDummy(X_int[, "Var7"], q = 0.5, effectCoding = T))
-  
-  # remove every other variable from data
-  X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects3)]
-} 
 
-
+X_int <- cbind(X_int, 
+               dumVar5.1 = createDummy(X_int[, "Var5"], q = 0.5, effectCoding = T),
+               dumVar6.1 = createDummy(X_int[, "Var6"], q = 0.5, effectCoding = T),
+               dumVar7.1 = createDummy(X_int[, "Var7"], q = 0.5, effectCoding = T))
+  
+# remove every other variable from data
+X_int <- X_int[,colnames(X_int) %in% c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects3)]
 
 (empCor <- cor(X_int))
 # round(empCor, 3)
@@ -92,25 +68,14 @@ rho <- setParam$dgp$predictorCorMat[1,2] # correlation between linear predictors
 corLin <- lavaan::lav_matrix_upper2full(rep(rho, setParam$dgp$p * (setParam$dgp$p-1) / 2), diagonal = F)
 diag(corLin) <- 1
 
-if (nDummies == 2) {
-  nNL <- setParam$dgp$pNL + 1
-  corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
-} else if (nDummies == 3) {
-  nNL <- setParam$dgp$pNL3
-  corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
-}
+nNL <- setParam$dgp$pNL3
+corInter <- lavaan::lav_matrix_upper2full(rep(0, nNL * (nNL-1)/2), diagonal = F)
 diag(corInter) <- 1
 
 # full correlation matrix (+ labels)
 theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
-# # here: does typo mean that I simulated interaction effects based on 5 variables 
-# #     with the presumed effect instead of only 4?! thus, interaction did not get 
-# #     enough R²?!
-# rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
-#                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
-#                                           "Var2:Var3", "Var2:Var3", "Var3:Var4")
 rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
-                                          if (nDummies == 2) setParam$dgp$nonlinEffects else setParam$dgp$nonlinEffects3)
+                                          setParam$dgp$nonlinEffects3)
 
 ################################################################################
 # functions
