@@ -77,12 +77,6 @@ diag(corInter) <- 1
 
 # full correlation matrix (+ labels)
 theoCor <- as.matrix(Matrix::bdiag(corLin, corInter))
-# # here: does typo mean that I simulated interaction effects based on 5 variables 
-# #     with the presumed effect instead of only 4?! thus, interaction did not get 
-# #     enough R²?!
-# rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
-#                                           "Var1:Var2", "Var1:Var3", "Var1:Var4",
-#                                           "Var2:Var3", "Var2:Var3", "Var3:Var4")
 rownames(theoCor) = colnames(theoCor) = c(setParam$dgp$linEffects,
                                           setParam$dgp$pwlinEffects)
 

@@ -39,21 +39,6 @@ for (iData in seq_along(listDir)) {
     Xtrain_oracle <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
                                                       setParam$dgp$pwlinEffects)]
     
-  } else if (stringr::str_detect(listDir[iData], "nonlinear\\.")) {
-    Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
-                                               "Var5", "Var6")]  
-    Xtrain_lm <- Xtrain
-    
-    Xtrain <- cbind(Xtrain, 
-                    dumVar5.1 = createDummy(Xtrain[, "Var5"], q = 0.5, effectCoding = T),
-                    dumVar6.1 = createDummy(Xtrain[, "Var6"], q = 0.5, effectCoding = T))
-    
-    # add the interaction between the dummies
-    Xtrain <- cbind(Xtrain, 
-                    `dumVar5.1:dumVar6.1` = Xtrain[, "dumVar5.1"] * Xtrain[, "dumVar6.1"])
-    Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
-                                               setParam$dgp$nonlinEffects)]  
-    
   } else if (stringr::str_detect(listDir[iData], "nonlinear3\\.")) {
     Xtrain <- Xtrain[, colnames(Xtrain) %in% c(setParam$dgp$linEffects, 
                                                "Var5", "Var6", "Var7")]  
@@ -92,12 +77,6 @@ for (iData in seq_along(listDir)) {
       # this is what an oracle model would know
       df_oracle <- data.frame(cbind(Xtrain_oracle, ytrain))
       colnames(df_oracle) <- c(setParam$dgp$linEffects, setParam$dgp$pwlinEffects, "y")
-      
-    } else if (stringr::str_detect(listDir[iData], "nonlinear\\.")) {
-      colnames(df) <- c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects, "y")
-      df_lm <- data.frame(cbind(Xtrain_lm, ytrain))
-      df_lm$`Var5:Var6` <- df_lm$Var5 * df_lm$Var6
-      colnames(df_lm) <- c(setParam$dgp$linEffects, "Var5", "Var6", "Var5:Var6", "y")
       
     } else if (stringr::str_detect(listDir[iData], "nonlinear3\\.")) {
       colnames(df) <- c(setParam$dgp$linEffects, setParam$dgp$nonlinEffects3, "y")
@@ -139,13 +118,6 @@ for (iData in seq_along(listDir)) {
       fit <- lm(y ~ Var5 + Var6 + Var7, data = df_lm)
       R2lm_other <- summary(fit)$r.squared  
       
-    } else if (stringr::str_detect(listDir[iData], "nonlinear\\.")) {
-      df_other <- df[,c(setParam$dgp$nonlinEffects, "y")]
-      
-      # nonlinear effects variables as available in linear regression model
-      fit <- lm(y ~ Var5 + Var6 + `Var5:Var6`, data = df_lm)
-      R2lm_other <- summary(fit)$r.squared  
-      
     } else if (stringr::str_detect(listDir[iData], "nonlinear3\\.")) {
       df_other <- df[,c(setParam$dgp$nonlinEffects3, "y")]
       
@@ -178,4 +150,4 @@ for (iData in seq_along(listDir)) {
   
 }
 
-save(checkR2, file = paste0(dataFolder, "/checkR2manipulation.rda"))
+save(checkR2, file = paste0("results/dependentMeasures/checkR2manipulation.rda"))
