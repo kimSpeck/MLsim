@@ -42,9 +42,8 @@ project/\
   ├── 01_simulateData.R # Script to simulate raw data\
   ├── 02_fitData.R # Script to fit models and save results\
   ├── 03_joinData.R # Script to merge data across conditions\
-  ├── 04a_analyseR2_EnetGBM.R # Analyzes R² results\
-  ├── 04b_prepareR2_EnetGBM.R # \
-  ├── 04c_plotR2_EnetGBM.R # \
+  ├── 04_analyseR2_ANOVA.R # Analyzes R² results\
+  ├── 05_plotR2_plotOverfit.R # \
   ├── MLsim.Rproj # R project\
   └── README.md # Documentation (this file)\
 
@@ -93,12 +92,17 @@ project/\
      - Creates subfiles for dependent measures to avoid RAM overflow when analysing results.
      - Outputs merged data files stored in the `results/finalResults/dependentMeasures` folder.
 
-4. **04[a-c]_[.]_ENETGBM.R** and following files:
+4. **04_analyseR2_ANOVA.R**:
    - **Purpose**: Analyzes \(R^2\) results to determine the effect of experimental manipulations.
    - **Process**:
-     - Performs ANOVA to assess model performance and plots results of the generalized $\eta^2$. (`04a_analyseR2_ENETGBM.R`)
-     - Prepares data for visualizations (creates `rSquaredData_stats.rda`) and generates an initial overview plot for $R^2$ (+ overfit). (`04b_prepareR2_EnetGBM.R`)
-     - Creates result plots. (`04c_plotR2_EnetGBM.R`)
+     - Performs ANOVA to assess model performance and plots results of the generalized $\eta^2$. 
+     - Prepares data for visualizations (creates `rSquaredData_stats.rda`) and generates ANOVA results plots. 
+     
+5. **05_plotR2_plotOverfit.R**:
+    - **Purpose**: Plot \(R^2\) result graphics
+    - **Process**:
+      - Plots results graphics for $R^2_{test}$ and Overfit (paper-style).
+      - Plots results graphics for the full simulation design (provided in online material).
 
 ---
 
