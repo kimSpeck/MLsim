@@ -1,10 +1,13 @@
+library(rpart)
+library(partykit)
+library(ggplot2)   # ← first
+library(ggparty) 
+
 # plot DGP illustration
-library(ggplot2)
 library(rockchalk)
 library(patchwork)
 
 # for the tree plot
-library(rpart)
 library(rpart.plot)
 library(grid)
 library(ggplotify)
@@ -174,53 +177,59 @@ tree_fit <- rpart(
   )
 )
 
+# convert rpart object to party object for plotting
+tree_party <- as.party(tree_fit)
 
-makeNodeLabels <- function(leafLabels) {
-  function(x, labs, digits, varlen) {
-    # Determine which nodes are leaves
-    leaves <- (x$frame$var == "<leaf>")
-    
-    # Copy the default labels
-    newLabels <- labs
-    
-    # How many leaves do we have?
-    numLeaves <- sum(leaves)
-    
-    # Safety check: if the number of leaves doesn't match leaf_labels length
-    if (length(leafLabels) != numLeaves) {
-      stop(
-        sprintf(
-          "Number of leaf labels (%d) does not match the number of leaves (%d).",
-          length(leafLabels),
-          numLeaves
-        )
-      )
+terminal_ids <- nodeids(tree_party, terminal = TRUE)  # get terminal node IDs
+
+# create node labels
+leafLabels   <- c(
+  "E(y|X5<0,X6<0)",
+  "E(y|X5>0,X6<0)",
+  "E(y|X5<0,X6>0)",
+  "E(y|X5>0,X6>0)"
+)
+
+# create a named vector for leaf labels
+leaf_map <- setNames(leafLabels, terminal_ids)
+
+# plot the tree with custom labels
+
+nonlinear3 <- ggparty(
+  tree_party,
+  add_vars = list(
+    leaf_lab = function(data, node) {
+      leaf_map[as.character(data$id)]
     }
-    
-    # Get the row indices (in x$frame) where leaves == TRUE
-    leafIndices <- which(leaves)
-    
-    # Assign labels in your desired order
-    # By default, rpart lists nodes from top to bottom in x$frame
-    for (i in seq_along(leafIndices)) {
-      newLabels[leafIndices[i]] <- leafLabels[i]
-    }
-    
-    return(newLabels)
-  }
-}
+  ),
+  terminal_space = 0.1) + 
+  ggparty::geom_edge() +
+  ggparty::geom_edge_label(size = 6) +            # größere Split-Labels
+  ggparty::geom_node_label(
+    aes(label = splitvar),
+    ids = "inner",
+    size = 6                                       # größere Variablennamen
+  ) +
+  ggparty::geom_node_label(
+    aes(label = leaf_lab),
+    ids = "terminal",
+    parse = TRUE,
+    fill       = "white",
+    colour     = "black",
+    label.size = 0,
+    size       = 5.5                                 # größere Blatt-Labels
+  ) +
+  coord_fixed(ratio = 0.55, clip = "off") +
+  # theme_void() +
+  theme(
+    panel.background = element_rect(fill = "white", colour = "white", size = 0.5),
+    plot.background  = element_rect(fill = "white", colour = "white"),
+    plot.title   = element_blank(),
+    plot.margin  = unit(c(0.5, 2, 0.5, 2), "cm")    # top, right, bottom, left
+  )
 
-leafLabels <- c("E(y|X5<0,X6<0)", "E(y|X5>0,X6<0)", "E(y|X5<0,X6>0)", "E(y|X5>0,X6>0)")
-nodeLabels <- makeNodeLabels(leafLabels)
-
-nonlinear3 <- rpart.plot(
-    tree_fit, 
-    type         = 3,         # show splits & node labels
-    fallen.leaves = TRUE,     # place leaves at the same level
-    box.palette   = "white",   # color palette for the boxes
-    node.fun = nodeLabels,
-    digits        = 3,         # number of digits in labels
-    main          = "")
+# check plot
+nonlinear3
 
 ################################################################################
 ##### illustrate piecewise linear effect #####
@@ -396,6 +405,11 @@ df_combined$X2 <- factor(df_combined$X2, levels = c("X2 = 10", "X2 = 6", "X2 = 2
         legend.title = element_text(size = 25),
         legend.text = element_text(size = 20),
         legend.box = "horizontal"))
+
+
+
+
+
 ################################################################################
 # patchwork plot (with cowplot)
 ################################################################################
@@ -408,28 +422,7 @@ df_combined$X2 <- factor(df_combined$X2, levels = c("X2 = 10", "X2 = 6", "X2 = 2
 # the data is simulated with R² = 0.8 and for the depicted effect (linear or other)
 #   the condition with 80% of R² on the respectice effect is illustrated
 
-# rpart.plot objects are base R graphics and therefore not compatible with cowplot
-#   export graphic as png, read it back in as ggplot object
-# export graphic to png
-#png("plots/tmpNonlinear.png", width = 400, height = 300)
-png("plots/tmpNonlinear.png", width = 4.4, height = 3.22, units = "in", res = 300)
 
-par(mar = c(1, 1, 1, 1))
-rpart.plot(
-  tree_fit, 
-  type         = 3,         # show splits & node labels
-  fallen.leaves = TRUE,     # place leaves at the same level
-  box.palette   = "white",   # color palette for the boxes
-  node.fun = nodeLabels,
-  digits        = 3,         # number of digits in labels
-  main          = "")
-dev.off()
-
-# import graphic as ggplot
-nonlinear3 <- cowplot::ggdraw() +  
-  cowplot::draw_image("plots/tmpNonlinear.png")
-
-# full graphic
 (pFull <- cowplot::plot_grid(
   linear, inter, pwlinear, nonlinear3,
   pLM_rel1, pInter_rel1, pPWL_rel1, pNL3_rel1, 
@@ -441,7 +434,10 @@ nonlinear3 <- cowplot::ggdraw() +
 
 ggplot2::ggsave(filename = paste0(plotFolder, "/DGPoverview.png"),
                 plot = pFull,
-                width = 24.24,
+                width = 28.24,
                 height = 13.28,
-                units = "in")
+                units = "in",
+                bg    = "white")
+
+################################################################################
 
