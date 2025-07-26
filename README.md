@@ -23,29 +23,29 @@ Machine learning (ML) models have become increasingly popular in psychological r
 ## Folder Structure
 
 project/\
-  ├── utils/ # Utility functions for simulation and analysis\
-  │ └── [utility scripts, e.g., anaylsisTools.R, fitENET.R, setParameters.R]\
-  ├── supplement/ # code and plots for supplementary analyses, etc.\
-  ├── results/ # Folder for fitted models and dependent measure files\
-  │ ├── finalResults/ # Contains model results in .rds files\
-  │   ├── dependentMeasures/ # Subfiles for dependent measures\
-  ├── plots/ # Folder for result plots\
-  │ ├── detectMains/ # Contains plots for the detection of linear effects\
-  │ ├── detectInteractions/ # Contains plots for the detection of interaction effects\
-  │ ├── ANOVAresults/ # Contains plots for the ANOVA results\
-  ├── log/ # log files from data simulation and fitting\
-  ├── info/ # Information about results file structures\
-  │ └── resultVariablesOverview.Rmd # Metadata documentation\
-  ├── data/ # Folder containing simulated data\
-  │   └── [simulated data files; this data is not provided due to memory limitations]\
-  ├── checkSimulation/ # Folder containing files for initial sanity checks of the simulation\
   ├── 01_simulateData.R # Script to simulate raw data\
   ├── 02_fitData.R # Script to fit models and save results\
   ├── 03_joinData.R # Script to merge data across conditions\
   ├── 04_analyseR2_ANOVA.R # Analyzes R² results\
   ├── 05_plotR2_plotOverfit.R # \
   ├── MLsim.Rproj # R project\
-  └── README.md # Documentation (this file)\
+  ├── README.md # Documentation (this file)\
+  ├── utils/ # Utility functions for simulation and analysis\
+  │ └── [utility scripts, e.g., anaylsisTools.R, fitENET.R, setParameters.R]\
+  ├── onlineMaterial/ # code and plots for supplementary analyses, etc.\
+  ├── results/ # Folder for fitted models and dependent measure files\
+  │ ├── pwlinear/ # Contains model results for respective DGP\
+  │ ├── nonlinear3/ # Contains model results for respective DGP\
+  │ ├── inter/dependentMeasures/ # Contains model results for respective DGP\
+  ├── plots/ # Folder for result plots\
+  │ ├── ANOVAresults/ # Contains plots for the ANOVA results\
+  │ ├── hyperParamter/ # Contains histograms for hyperparameter choices\
+  │ ├── ... paper png-files # Contains plots that made it into the paper\
+  ├── info/ # Information about results file structures\
+  │ └── resultVariablesOverview.Rmd # Metadata documentation\
+  ├── data/ # Folder containing simulated data\
+  │   └── [simulated data files; this data is not provided due to memory limitations]\
+  └── log/ # log files from data simulation and fitting\
 
 ---
 
@@ -99,9 +99,9 @@ project/\
      - Prepares data for visualizations (creates `rSquaredData_stats.rda`) and generates ANOVA results plots. 
      
 5. **05_plotR2_plotOverfit.R**:
-    - **Purpose**: Plot \(R^2\) result graphics
+    - **Purpose**: Plot \(R^2\) and overfit result graphics
     - **Process**:
-      - Plots results graphics for $R^2_{test}$ and Overfit (paper-style).
+      - Plots results graphics for \(R^2_{test}\) and Overfit (paper-style).
       - Plots results graphics for the full simulation design (provided in online material).
 
 ---
