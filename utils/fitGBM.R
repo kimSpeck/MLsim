@@ -1,4 +1,4 @@
-fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) {
+fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, iSample, explanation = FALSE) {
   # # test it
   # Xtrain <- data[["1"]][["X_int"]]
   # Xtest <- data[["test1"]][["X_int"]]
@@ -91,5 +91,6 @@ fitGBM <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) 
     tunedShrinkage = model$finalModel$shrinkage,
     tunedMax_depth = model$finalModel$interaction.depth,
     tunedMin_child_weight =  model$finalModel$n.minobsinnode,
-    tunedNrounds = model$finalModel$n.trees))
+    tunedNrounds = model$finalModel$n.trees,
+    iSample = iSample))
 }

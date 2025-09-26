@@ -146,11 +146,11 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
       
       # depending on condGrid[iSim, "model"] run GBM, RF or ENET code
       if (condGrid[iSim, "model"] == "GBM") {
-        fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation)
+        fitGBM(Xtrain, ytrain, Xtest, ytest, setParam, iSample = iSample, setParam$fit$explanation)
       } else if (condGrid[iSim, "model"] == "RF") {
-        fitRF(Xtrain, ytrain, Xtest, ytest, setParam)
+        fitRF(Xtrain, ytrain, Xtest, ytest, setParam, iSample = iSample)
       } else if (condGrid[iSim, "model"] != "GBM" & condGrid[iSim, "model"] != "RF") {
-        fitENET(Xtrain, ytrain, Xtest, ytest, setParam, setParam$fit$explanation)
+        fitENET(Xtrain, ytrain, Xtest, ytest, setParam, iSample = iSample, setParam$fit$explanation)
       }
     
     }) # end of parallel fitting for samples

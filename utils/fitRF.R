@@ -1,4 +1,4 @@
-fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
+fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam, iSample) {
   # # test it
   # iSim =  7 # inter, RF, 100, 10, 0.6, 451935
   # iSample = sample(size = 1, 1:1000)
@@ -77,5 +77,6 @@ fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
     # cross-validated tuning parameters
     tunedMtry = model$finalModel$mtry, 
     tunedSplitrule = model$finalModel$splitrule,
-    tunedMinNodeSize = model$finalModel$min.node.size))
+    tunedMinNodeSize = model$finalModel$min.node.size, 
+    iSample = iSample))
 }

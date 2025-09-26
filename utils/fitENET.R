@@ -1,4 +1,4 @@
-fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE) {
+fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, iSample, explanation = FALSE) {
   # # test it
   # Xtrain <- data[["1"]][["X_int"]]
   # Xtest <- data[["test1"]][["X_int"]]
@@ -139,5 +139,6 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE)
               # model agnostic measures
               pvi = cbind(pviRank, pviValue), # permutation variable importance
               tunedAlpha = tunedParams["tunedAlpha", "min"], 
-              tunedLambda = tunedParams["tunedLambda", "min"]))
+              tunedLambda = tunedParams["tunedLambda", "min"], 
+              iSample = iSample))
 }
