@@ -46,3 +46,4 @@ vignettes/*.pdf
 ignoreFiles/
 log/
 data/
+.DS_Store

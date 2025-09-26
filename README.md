@@ -23,36 +23,30 @@ Machine learning (ML) models have become increasingly popular in psychological r
 ## Folder Structure
 
 project/\
+  ├── 01_simulateData.R # Script to simulate raw data\
+  ├── 02_fitData.R # Script to fit models and save results\
+  ├── 03_joinData.R # Script to merge data across conditions\
+  ├── 04_analyseR2_ANOVA.R # Analyzes R² results\
+  ├── 05_plotR2_plotOverfit.R # \
+  ├── MLsim.Rproj # R project\
+  ├── README.md # Documentation (this file)\
   ├── utils/ # Utility functions for simulation and analysis\
   │ └── [utility scripts, e.g., anaylsisTools.R, fitENET.R, setParameters.R]\
-  ├── supplement/ # code and plots for supplementary analyses, etc.\
+  ├── onlineMaterial/ # code and plots for supplementary analyses, etc.\
   ├── results/ # Folder for fitted models and dependent measure files\
-  │ ├── finalResults/ # Contains model results in .rds files\
-  │   ├── dependentMeasures/ # Subfiles for dependent measures\
+  │ ├── pwlinear/ # Contains model results for respective DGP\
+  │ ├── nonlinear3/ # Contains model results for respective DGP\
+  │ ├── inter/dependentMeasures/ # Contains model results for respective DGP\
   ├── plots/ # Folder for result plots\
-  │ ├── detectMains/ # Contains plots for the detection of linear effects\
-  │ ├── detectInteractions/ # Contains plots for the detection of interaction effects\
   │ ├── ANOVAresults/ # Contains plots for the ANOVA results\
-  ├── log/ # log files from data simulation and fitting\
+  │ ├── hyperParamter/ # Contains histograms for hyperparameter choices\
+  │ ├── ... paper png-files # Contains plots that made it into the paper\
   ├── info/ # Information about results file structures\
   │ └── resultVariablesOverview.Rmd # Metadata documentation\
   ├── data/ # Folder containing simulated data\
   │   └── [simulated data files; this data is not provided due to memory limitations]\
-  ├── checkSimulation/ # Folder containing files for initial sanity checks of the simulation\
-  ├── 01_simulateData.R # Script to simulate raw data\
-  ├── 02_fitData.R # Script to fit models and save results\
-  ├── 03_joinData.R # Script to merge data across conditions\
-  ├── 04a_analyseR2_EnetGBM.R # Analyzes R² results\
-  ├── 04b_prepareR2_EnetGBM.R # \
-  ├── 04c_plotR2_EnetGBM.R # \
-  ├── 05a_analyseMainPVI_EnetGBM.R # analyzes linear effects based on the PVI values\
-  ├── 05b_plotMainPVI_EnetGBM.R\
-  ├── 06a_analyseInterPVI_ENETw.R\
-  ├── 06b_plotInterPVI_ENETw.R\
-  ├── 06c_analyseInterStrength_GBM.R\
-  ├── 06d_plotInterStrength_GBM.R\
-  ├── MLsim.Rproj # R project\
-  └── README.md # Documentation (this file)\
+  └── log/ # log files from data simulation and fitting\
+
 ---
 
 ## Getting Started
@@ -72,7 +66,7 @@ project/\
     1. Simulate data: 01_simulateData.R
     2. Fit models to the simulated data: 02_fitData.R
     3. Merge data: 03_joinData.R
-    4. Analyse data: {04, 05, 06} files
+    4. Analyse data: {04, 05, ...} files
 
 ---
 
@@ -98,26 +92,17 @@ project/\
      - Creates subfiles for dependent measures to avoid RAM overflow when analysing results.
      - Outputs merged data files stored in the `results/finalResults/dependentMeasures` folder.
 
-4. **04[a-c]_[.]_ENETGBM.R** and following files:
+4. **04_analyseR2_ANOVA.R**:
    - **Purpose**: Analyzes \(R^2\) results to determine the effect of experimental manipulations.
    - **Process**:
-     - Performs ANOVA to assess model performance and plots results of the generalized $\eta^2$. (`04a_analyseR2_ENETGBM.R`)
-     - Prepares data for visualizations (creates `rSquaredData_stats.rda`) and generates an initial overview plot for $R^2$ (+ overfit). (`04b_prepareR2_EnetGBM.R`)
-     - Creates result plots. (`04c_plotR2_EnetGBM.R`)
+     - Performs ANOVA to assess model performance and plots results of the generalized $\eta^2$. 
+     - Prepares data for visualizations (creates `rSquaredData_stats.rda`) and generates ANOVA results plots. 
      
-5. **05[a-c]_analyse[.]_[.].R**:
-   - **Purpose**: Detects and analyzes linear effects.
-   - **Process**:
-     - Prepares data for visualizations (creates `relFrequencyMeasures.rda`) and performs ANOVA for sensitivity and specificity. (`05a_analyseMainPVI_EnetGBM.R`)
-     - Creates result plots. (`05b_plotMainPVI_EnetGBM.R`)
-
-6. **06[a-d]_[.].R**:
-   - **Purpose**: Analyzes and plots interaction effects.
-   - **Process**:
-     - Prepares ENET data for visualizations (creates `interENETinterMeasures.rda`) and performs ANOVA for sensitivity and specificity. (`06a_analyseInterPVI_ENETw.R`)
-     - Creates result plots for the ENETinter. (`06b_plotInterPVI_ENETw.R`)
-     - Prepares GBM data for visualizations (creates `hStatsPlottingData.rda`) and performs ANOVA for the H-statistic. (`06c_analyseInterStrength_GBM.R`)
-     - Creates result plots for the H-statistic of the GBM. (`06d_plotInterStrength_GBM.R`)
+5. **05_plotR2_plotOverfit.R**:
+    - **Purpose**: Plot \(R^2\) and overfit result graphics
+    - **Process**:
+      - Plots results graphics for \(R^2_{test}\) and Overfit (paper-style).
+      - Plots results graphics for the full simulation design (provided in online material).
 
 ---
 
@@ -127,7 +112,7 @@ project/\
 - Files and functions to facilitate...
   - ... overviewing simulation conditions and parameter setup (`setParameters.R`).
   - ... simulation of the data and analysis of the results (`simTools.R`, `analysisTools.R`)
-  - ... model fitting (`fitENET.R`, `fitGBM.R`, `saveENET.R`, `saveGBM.R`)
+  - ... model fitting (`fitENET.R`, `fitGBM.R`, `fitRF.R`, `saveENET.R`, `saveGBM.R`, `saveRF.R`)
 
 ---
 
@@ -160,7 +145,7 @@ Follow the script order for reproducibility:
 2. Fit models with `02_fitData.R`.
 3. Merge and analyze data:
    - Run `03_joinData.R`.
-   - Use the {04, 05, 06} scripts to replicate the results.
+   - Use the {04, 05, ...} scripts to replicate the results.
 
 ---
 
