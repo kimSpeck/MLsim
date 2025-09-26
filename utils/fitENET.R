@@ -35,7 +35,7 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE)
   
   # tune alpha by iterating trough alphas
   set.seed(89101) # seed for foldid
-  foldid <- sample(1:setParam$fit$nfolds, size = length(ytrain), replace = TRUE)
+  foldid <- sample(rep(seq_len(setParam$fit$nfolds), length.out = length(ytrain)), replace = FALSE)
   
   fit_cv <- lapply(setParam$fit$alpha, function(iAlpha) {
     # within iteration through different alpha values tune lambda via cv.glmnet function
