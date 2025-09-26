@@ -323,7 +323,7 @@ setParam$fit$tuneGrid_GBM <- expand.grid(
   n.minobsinnode = c(5, 10, 20),    # end node size (= min_child_weight in xgboost)
   # n.trees = c(seq(20, 500, 30)),      # max number of trees (= nTrees in xgboost)
   n.trees = c(5, seq(10, 40, 10), seq(50, 500, 30)),      # max number of trees (= nTrees in xgboost)
-  shrinkage = c(0.001, .011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
+  shrinkage = c(0.001, .011, 0.031,seq(.051, .401, .05))) # shrinkage/learning rate (= eta in xgboost)
   # shrinkage = c(.011, 0.031,seq(.051, .201, .05))) # shrinkage/learning rate (= eta in xgboost)
 
 # number of samples observations to calculate partial dependencies and h-statistic based on pds
