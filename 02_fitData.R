@@ -40,12 +40,14 @@ nCoresSampling <- 30
 # get condGrid from parameter set 
 condGrid <- setParam$fit$condGrid
 
-# # choose one single condition to test code/timing
-# condGrid <- condGrid[condGrid$data == "inter" &
-#                        condGrid$model == "GBM" &
-#                        condGrid$N == 100 &
-#                        condGrid$pTrash == 10 &
-#                        condGrid$reliability == 0.6,]
+setParam$dgp$nTrain <- 10
+setParam$dgp$nSamples <- setParam$dgp$nTrain + setParam$dgp$nTest
+# choose one single condition to test code/timing
+condGrid <- condGrid[condGrid$data == "inter" &
+                       condGrid$model == "ENETwo" &
+                       condGrid$N == 100 &
+                       condGrid$pTrash == 10 &
+                       condGrid$reliability == 0.6,]
 
 
 # flag to save single conditions (TRUE) or only full set of fitted results (FALSE)
@@ -195,7 +197,9 @@ results <- lapply(seq_len(nrow(condGrid)), function(iSim) {
   
     
     # test & train performance for each sample
-    resList[["performPerSample"]] <- cbind(performTrainMat, performTestMat, idxCondLabel = iCond)
+    sampleVec <- do.call(rbind, lapply(estRes, function(X) X[["iSample"]])) # each sample
+    resList[["performPerSample"]] <- cbind(performTrainMat, performTestMat, 
+                                           idxCondLabel = iCond, sample = sampleVec)
     
     # PVI - permutation variable importance from every sample
     if (setParam$fit$explanation) {
