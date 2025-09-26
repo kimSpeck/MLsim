@@ -98,8 +98,8 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE)
   # here!!! avoid refitting
   fit <- glmnet(x = Xtrain,
                 y = ytrain, 
-                alpha = tunedParams["tunedAlpha", "1se"],
-                lambda = tunedParams["tunedLambda", "1se"],
+                alpha = tunedParams["tunedAlpha", "min"],
+                lambda = tunedParams["tunedLambda", "min"],
                 family = "gaussian", 
                 standardize = TRUE)
   
@@ -138,6 +138,6 @@ fitENET <- function(Xtrain, ytrain, Xtest, ytest, setParam, explanation = FALSE)
               performTest = performTest, # (holdout) test performance
               # model agnostic measures
               pvi = cbind(pviRank, pviValue), # permutation variable importance
-              tunedAlpha = tunedParams["tunedAlpha", "1se"], 
-              tunedLambda = tunedParams["tunedLambda", "1se"]))
+              tunedAlpha = tunedParams["tunedAlpha", "min"], 
+              tunedLambda = tunedParams["tunedLambda", "min"]))
 }
