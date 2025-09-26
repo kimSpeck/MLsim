@@ -29,31 +29,7 @@ if (!file.exists(plotFolder)){
 ################################################################################
 # plot utility functions
 ################################################################################
-<<<<<<< HEAD:supplement/analyserHyper_GBM.R
-plotHyperLines <- function(data, DV, rel){
-  ggplot(data,
-         aes(x = N, y = M, 
-             group = interaction(lin_inter, pTrash), colour = lin_inter,
-             linetype = lin_inter, shape = pTrash)) +
-    geom_point(size = 3) +
-    geom_line(linewidth = 0.75) +
-    scale_linetype_manual(name = "Lin:Inter", values = c("dotted", "dashed", "solid")) +
-    scale_shape_manual(name = "Noise", values = c(16, 17)) +
-    scale_color_manual(name = "Lin:Inter", values = colValuesLin) +
-    facet_grid2(~ R2,
-                strip = strip_themed(
-                  background_x = list(element_rect(fill = alpha(colValuesR2[1], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[2], 0.4)),
-                                      element_rect(fill = alpha(colValuesR2[3], 0.4))))) + 
-    ylab(DV) +
-    xlab("N")
-}
-
 plotHyperBars <- function(data, x, measureLabel) {
-  # ggplot(data, aes(x = factor(x), y = n, fill = pTrash)) +
-=======
- plotHyperBars <- function(data, x, measureLabel) {
->>>>>>> 265b6cdda559ba006314b426b5e093d19cbf3940:onlineMaterial/analyserHyper_GBM.R
   ggplot(data, aes(x = factor(x), y = n, fill = rel)) +
     geom_col(position = position_dodge(width = 0.7)) +
     scale_y_continuous(limits = c(-100, 1000), breaks = seq(0, 1000, 500)) +
