@@ -342,7 +342,8 @@ setParam$fit$nThread <- 1
 setParam$fit$setTuningGrid_RF <- function(nPred) {
   expand.grid(
     mtry = c(2, sqrt(nPred), nPred/3, nPred/2), # random predictors @ each node
-    splitrule = c("variance", "extratrees"), # splitting criterion
+    # splitrule = c("variance", "extratrees"), # splitting criterion
+    splitrule = c("variance"), # splitting criterion
     min.node.size = c(5, 10, 20)) # min observations in end node
 }
 setParam$fit$numTreesRF <- 500
