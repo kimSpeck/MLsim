@@ -44,7 +44,7 @@ fitRF <- function(Xtrain, ytrain, Xtest, ytest, setParam) {
                         #model training using ten-fold cross-validation
                         trControl = trainControl(method="cv",
                                                  number=setParam$fit$nfolds,
-                                                 selectionFunction = "oneSE"),
+                                                 selectionFunction = "best"),
                         tuneGrid = setParam$fit$tuneGrid_RF, #setting the tuning grid
                         verbose = FALSE)
 
