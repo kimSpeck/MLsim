@@ -307,7 +307,7 @@ setParam$fit$alpha <- seq(0, 1, length.out = 20) # alpha with at least 20 steps
 # "lambda.1se" = the largest lambda at which the MSE is within one SE of the smallest MSE (default).
 # here: "one-standard-error" rule for choosing lambda (Hastie et al. 2009)
 #   Friedman et al. 2010. Regularization Paths for Generalized Linear Models via Coordinate Descent.
-setParam$fit$lambdaCrit <- c("1se") # 1se
+setParam$fit$lambdaCrit <- c("min") # not 1se anymore, but min instead!; but only for fitENET function!
 # -> despite the more conservative criterion (lambda.1se instead of lambda.min) all
 #     predictors are found often but too much trash is extracted to find the exact model
 for (iCrit in setParam$fit$lambdaCrit) {
