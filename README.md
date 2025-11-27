@@ -34,7 +34,7 @@ project/\
   │ └── [utility scripts, e.g., anaylsisTools.R, fitENET.R, setParameters.R]\
   ├── onlineMaterial/ # code and plots for supplementary analyses, etc.\
   ├── results/ # Folder for fitted models and dependent measure files\
-  │ ├── dependentMeasures/
+  │ ├── dependentMeasures/ # result files
   │ ├── pwlinear/dependentMeasures/ # Contains model results for respective DGP\
   │ ├── nonlinear3/dependentMeasures/ # Contains model results for respective DGP\
   │ ├── inter/dependentMeasures/ # Contains model results for respective DGP\
