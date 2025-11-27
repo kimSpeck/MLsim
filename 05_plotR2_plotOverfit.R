@@ -138,12 +138,12 @@ chr2fac <- c("rel", "measure", "R2", "lin_inter")
 performanceStats[chr2fac] <- lapply(performanceStats[chr2fac], factor)
 
 performanceStats$lin_inter <- factor(performanceStats$lin_inter,
-                           levels = c("0.8_0.2", "0.5_0.5", "0.2_0.8"),
-                           labels = c("80:20", "50:50", "20:80"))
+                                     levels = c("0.8_0.2", "0.5_0.5", "0.2_0.8"),
+                                     labels = c("80:20", "50:50", "20:80"))
 
 performanceStats$model <- factor(performanceStats$model,
-                                     levels = c("ENETw", "ENETwo", "GBM", "RF"),
-                                     labels = c("◆ ENETint", "○ ENETlin", "+ GBM", "x RF"))
+                                 levels = c("ENETw", "ENETwo", "GBM", "RF"),
+                                 labels = c("◆ ENETint", "○ ENETlin", "+ GBM", "x RF"))
 
 performanceStats$dgp <- factor(performanceStats$dgp, 
                                levels = c("inter", "pwlinear", "nonlinear3"), 
@@ -213,9 +213,9 @@ subFig1 <- performanceStats[which(performanceStats$measure == "Rsquared" &
                                     performanceStats$pTrash == 50),]
 
 subFig2 <- performanceStats[which(performanceStats$measure == "Rsquared" & 
-                                   performanceStats$lin_inter == "80:20" & 
-                                   performanceStats$rel != 0.6 &
-                                   performanceStats$pTrash == 50),]
+                                    performanceStats$lin_inter == "80:20" & 
+                                    performanceStats$rel != 0.6 &
+                                    performanceStats$pTrash == 50),]
 subFig1$rel <- factor(subFig1$rel, levels = c(1, 0.8))
 subFig2$rel <- factor(subFig2$rel, levels = c(1, 0.8))
 
@@ -224,8 +224,8 @@ fig1 <- plotPaperR2(subFig1, plotMeasure = subFig1$M_test, title = "", yLabel = 
 (fig1 <- themeFunctionPaper(fig1))
 (fig1 <- fig1 + geom_text(data = subFig1[which(subFig1$R2 == 0.8 &
                                                  subFig1$N == 300),],
-                         aes(x = N, y = 0.85, group = interaction(R2, model),
-                             color = model, label = model), position = position_dodge(3)))
+                          aes(x = N, y = 0.85, group = interaction(R2, model),
+                              color = model, label = model), position = position_dodge(3)))
 
 fig2 <- plotPaperR2(subFig2, plotMeasure = subFig2$M_test, title = "", yLabel = expression(R[test]^2),
                     yMin = 0, yMax = 0.9)
@@ -250,9 +250,9 @@ ggplot2::ggsave(filename = paste0(plotFolder, "/R2_80:20_pTrash50_paper.png"),
 # plot overfitting
 ################################################################################
 subOverfitFig1 <- performanceStats[which(performanceStats$measure == "Rsquared" & 
-                                    performanceStats$lin_inter == "20:80" & 
-                                    performanceStats$rel != 0.6 &
-                                    performanceStats$pTrash == 50),]
+                                           performanceStats$lin_inter == "20:80" & 
+                                           performanceStats$rel != 0.6 &
+                                           performanceStats$pTrash == 50),]
 
 subOverfitFig1$rel <- factor(subOverfitFig1$rel, levels = c(1, 0.8))
 overfitFig1 <- plotPaperR2(subOverfitFig1, plotMeasure = subOverfitFig1$overfit, title = "", 
@@ -260,14 +260,14 @@ overfitFig1 <- plotPaperR2(subOverfitFig1, plotMeasure = subOverfitFig1$overfit,
                            yMin = -0.1, yMax = 1.1)
 (overfitFig1 <- themeFunctionPaper(overfitFig1))
 (overfitFig1 <- overfitFig1 + geom_text(data = subOverfitFig1[which(subOverfitFig1$R2 == 0.8 &
-                                                                   subOverfitFig1$N == 300),],
-                          aes(x = N, y = 1.05, group = interaction(R2, model),
-                              color = model, label = model), position = position_dodge(3)))
+                                                                      subOverfitFig1$N == 300),],
+                                        aes(x = N, y = 1.05, group = interaction(R2, model),
+                                            color = model, label = model), position = position_dodge(3)))
 
 subOverfitFig2 <- performanceStats[which(performanceStats$measure == "Rsquared" & 
-                                    performanceStats$lin_inter == "80:20" & 
-                                    performanceStats$rel != 0.6 &
-                                    performanceStats$pTrash == 50),]
+                                           performanceStats$lin_inter == "80:20" & 
+                                           performanceStats$rel != 0.6 &
+                                           performanceStats$pTrash == 50),]
 
 subOverfitFig2$rel <- factor(subOverfitFig2$rel, levels = c(1, 0.8))
 overfitFig2 <- plotPaperR2(subOverfitFig2, plotMeasure = subOverfitFig2$overfit, title = "", 
@@ -279,16 +279,16 @@ overfitFig2 <- plotPaperR2(subOverfitFig2, plotMeasure = subOverfitFig2$overfit,
                                         aes(x = N, y = 1.05, group = interaction(R2, model),
                                             color = model, label = model), position = position_dodge(3)))
 
-# ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_20:80_pTrash50_paper.png"),
-#                 plot = overfitFig1,
-#                 width = 13.63,
-#                 height = 12.07,
-#                 units = "in")
-# ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_80:20_pTrash50_paper.png"),
-#                 plot = overfitFig2,
-#                 width = 13.63,
-#                 height = 12.07,
-#                 units = "in")
+ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_20:80_pTrash50_paper.png"),
+                plot = overfitFig1,
+                width = 13.63,
+                height = 12.07,
+                units = "in")
+ggplot2::ggsave(filename = paste0(plotFolder, "/overfit_80:20_pTrash50_paper.png"),
+                plot = overfitFig2,
+                width = 13.63,
+                height = 12.07,
+                units = "in")
 
 ################################################################################
 # plot results for additional online material (full data)
@@ -361,8 +361,8 @@ for (iLinInter in seq_along(linInterVec)) {
     
     # plot Overfit
     overfitFig1 <- plotOnlineR2(subFig1_full, plotMeasure = subFig1_full$overfit, title = "", 
-                               yLabel = expression(R[train]^2 - R[test]^2),
-                               yMin = -0.1, yMax = 1.1)
+                                yLabel = expression(R[train]^2 - R[test]^2),
+                                yMin = -0.1, yMax = 1.1)
     (overfitFig1 <- themeFunctionPaper(overfitFig1))
     (overfitFig1 <- overfitFig1 + geom_text(data = subOverfitFig1[which(subOverfitFig1$R2 == 0.8 &
                                                                           subOverfitFig1$N == 300),],
