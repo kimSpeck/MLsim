@@ -16,7 +16,7 @@ This repository contains the code and resources for a simulation study designed 
 
 ## Overview
 
-Machine learning (ML) models have become increasingly popular in psychological research, often yielding remarkable results. However, they have also faced growing criticism in recent times. The discrepancy between proposed claims and reality is commonly attributed to the quality of psychological datasets, which tend to be small and subject to imprecise measurement. In this simulation study, we examined the data requirements necessary for complex ML algorithms to perform well. We compared the performance of Elastic Net Regressions and Gradient Boosting Machines (GBM) under various conditions: (a) sample size, (b) number of irrelevant predictors, (c) predictor reliability, (d) effect size, and (e) nature of the data generating model (i.e., linear vs. non-linear effects). We investigated whether the models achieved the maximum predictive performance (i.e., recovery of the simulated effects) and whether the respective models were able to accurately distinguish between relevant and irrelevant predictors. Our results showed that Elastic Net Regressions with pre-specified interaction terms outperformed GBM models in almost all conditions, but still only achieved the maximum possible performance under optimal conditions (\textit{N} = 1,000, perfectly reliable predictors, predominantly linear effects, and an exceptionally large effect size of \textit{R}² = .80), which are rarely met in psychological research. In general, we stress that data quality fundamentally limits the performance of ML models in a similar way to more traditional regression analyses.
+Although Machine Learning (ML) methods are gaining popularity in psychological research, the debate about their usefulness ranges from hype to disillusionment. The discrepancy between the hopes placed in ML methods and the empirical reality is often attributed to the quality of psychological datasets, which tend to be small and subject to imprecise measurement. In this simulation study, we examined the data requirements necessary for ML methods to perform well. We compared the performance of Elastic Net Regressions with and without prespecified interactions, Random Forests and Gradient Boosting Machines for different data-generating processes (including either interaction, stepwise, or piecewise linear effects) and under various conditions: (a) sample size, (b) number of irrelevant predictors, (c) predictor reliability, (d) effect size, and (e) nature of the data generating model (i.e., linear vs. non-linear effects). We investigated whether the models achieved the highest level of predictive performance attainable under the given simulated conditions. There were two main takeaways of our results: First, the maximum possible predictive performance was only achieved under optimal simulation conditions (N = 1,000, perfectly reliable predictors, predominantly linear effects, and an exceptionally large effect size of R² = .80), which are arguably rarely met in psychological research. Second, each ML model outperformed the others under certain conditions, but none was consistently superior or entirely robust to suboptimal data characteristics. We stress that data quality fundamentally limits predictive performance and discuss the interpretation of comparisons between flexible ML models and simpler (regularized linear) baselines in psychological research.
 
 ---
 
@@ -34,8 +34,9 @@ project/\
   │ └── [utility scripts, e.g., anaylsisTools.R, fitENET.R, setParameters.R]\
   ├── onlineMaterial/ # code and plots for supplementary analyses, etc.\
   ├── results/ # Folder for fitted models and dependent measure files\
-  │ ├── pwlinear/ # Contains model results for respective DGP\
-  │ ├── nonlinear3/ # Contains model results for respective DGP\
+  │ ├── dependentMeasures/
+  │ ├── pwlinear/dependentMeasures/ # Contains model results for respective DGP\
+  │ ├── nonlinear3/dependentMeasures/ # Contains model results for respective DGP\
   │ ├── inter/dependentMeasures/ # Contains model results for respective DGP\
   ├── plots/ # Folder for result plots\
   │ ├── ANOVAresults/ # Contains plots for the ANOVA results\
@@ -52,8 +53,8 @@ project/\
 ## Getting Started
 
 1. **Dependencies**:
-    - R (>= 4.3)
-    - Required R packages: `mvtnorm`, `truncnorm`, `parallel`, `glmnet`, `gbm`, `caret`, `iml`, etc.
+    - R (>= 4.5)
+    - Required R packages: `mvtnorm`, `truncnorm`, `parallel`, `glmnet`, `gbm`, `caret`, etc.
 
 2. **Installation**:
     Clone this repository:
@@ -90,13 +91,13 @@ project/\
    - **Purpose**: Merges data from all simulated conditions for analysis.
    - **Features**:
      - Creates subfiles for dependent measures to avoid RAM overflow when analysing results.
-     - Outputs merged data files stored in the `results/finalResults/dependentMeasures` folder.
+     - Outputs merged data files stored in the respective DGP related results folder (e.g., `results/inter/dependentMeasures`) and in the `results/dependentMeasures` folder.
 
 4. **04_analyseR2_ANOVA.R**:
    - **Purpose**: Analyzes \(R^2\) results to determine the effect of experimental manipulations.
    - **Process**:
      - Performs ANOVA to assess model performance and plots results of the generalized $\eta^2$. 
-     - Prepares data for visualizations (creates `rSquaredData_stats.rda`) and generates ANOVA results plots. 
+     - Prepares data for visualizations and generates ANOVA results plots. 
      
 5. **05_plotR2_plotOverfit.R**:
     - **Purpose**: Plot \(R^2\) and overfit result graphics
